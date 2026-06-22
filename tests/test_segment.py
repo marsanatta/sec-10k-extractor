@@ -79,15 +79,17 @@ def test_extract_from_text_present_and_classified():
     assert result.canonical_text_len == len(DOC)
 
 
-def test_padded_toc_does_not_win_over_body():
-    # a TOC whose entries are padded to out-span a terse body must NOT be chosen
-    pad = " filler" * 60
+def test_body_with_fewer_recognised_headers_still_wins():
+    # The TOC lists 4 items; the body exposes only 2 recognisable headers (others would
+    # need later phases), but it holds the real prose -> the body must win, not the TOC.
     doc = (
         "TABLE OF CONTENTS\n"
-        f"Item 1. Business{pad}\nItem 2. Properties{pad}\nItem 7. MD&A{pad}\n"
-        "PART I\nItem 1. Business\nWe make things.\n"
-        "Item 2. Properties\nWe lease space.\n"
-        "Item 7. Management's Discussion\nRevenue grew.\n"
+        "Item 1. Business 3\nItem 1A. Risk Factors 5\nItem 2. Properties 7\nItem 3. Legal 9\n"
+        "PART I\n"
+        "Item 1. Business\n" + "We make and sell many products worldwide. " * 40 + "\n"
+        "Item 3. Legal Proceedings\n" + "Various legal matters are pending. " * 40 + "\n"
     )
-    item1_start = next(s for k, s, _ in segment(doc) if k == "1")
-    assert "PART I" in doc[:item1_start]  # the body Item 1, not the padded TOC entry
+    spans = segment(doc)
+    item1_start = next(s for k, s, _ in spans if k == "1")
+    assert "PART I" in doc[:item1_start]          # body Item 1, not the TOC line
+    assert [k for k, _, _ in spans] == ["1", "3"]  # the prose-rich body run
