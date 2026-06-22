@@ -20,6 +20,8 @@ def expectation(item_key: str, profile: FilerProfile) -> str:
     fy = profile.fiscal_year
     if item_key == "1C":  # Cybersecurity: first appears in FY2023 reports
         return EXPECTED if (fy is not None and fy >= 2023) else NOT_YET
+    if item_key == "1A":  # Risk Factors became a required item for FY2005+
+        return EXPECTED if (fy is None or fy >= 2005) else NOT_YET
     if item_key == "9C":  # Foreign jurisdictions (HFCAA): recent, often N/A
         return OPTIONAL if (fy is None or fy >= 2021) else NOT_YET
     if item_key == "6":   # became "[Reserved]" for fiscal years ending after 2021-02-23

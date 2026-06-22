@@ -4,6 +4,7 @@ from sec10k.dual import title_matches
 from sec10k.ingest import RawFiling, fetch_10k
 from sec10k.items import CANONICAL_ITEMS
 from sec10k.normalize import to_canonical
+from sec10k.oracle import fetch_xbrl_facts
 from sec10k.schema import ExtractionResult, FilingMeta, Item, Provenance, Status
 from sec10k.segment import segment
 from sec10k.template import FilerProfile
@@ -44,7 +45,10 @@ def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None)
         fiscal_year=meta.fiscal_year if raw else fiscal_year,
         smaller_reporting=meta.smaller_reporting if raw else smaller_reporting,
     )
-    items, summary = assess(present, canonical, profile, title_matches(canonical, spans))
+    xbrl_facts = fetch_xbrl_facts(meta.cik, meta.fiscal_year) if raw is not None else {}
+    items, summary = assess(
+        present, canonical, profile, title_matches(canonical, spans), xbrl_facts
+    )
     summary["format_era"] = era
     return ExtractionResult(
         meta=meta, items=items, canonical_text_len=len(canonical), summary=summary

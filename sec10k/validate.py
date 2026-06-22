@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sec10k.items import CANONICAL_ITEMS, CANONICAL_ORDER
+from sec10k.oracle import has_financial_markers, values_present
 from sec10k.schema import Band, Confidence, Item, Provenance, Status
 from sec10k.template import EXPECTED, FilerProfile, expectation
 
@@ -97,6 +98,7 @@ def assess(
     canonical: str,
     profile: FilerProfile,
     title_match: dict[str, bool],
+    xbrl_facts: dict | None = None,
 ) -> tuple[list[Item], dict]:
     """Run the validation stack, attach per-item confidence + provenance, classify absent
     items, and return (all_items_in_canonical_order, filing_summary)."""
@@ -120,6 +122,20 @@ def assess(
             extractors=["anchor", "title"], checks_passed=passed, checks_failed=failed
         )
 
+    # Independent Item-8 oracle: the financials must be inside the extracted Item 8 span
+    # (financial-statement markers present AND XBRL-tagged facts found there). A failure
+    # means the Item 8 boundary is wrong, so downgrade it and flag the filing.
+    item8 = next((it for it in present_items if it.item == "8"), None)
+    item8_markers = has_financial_markers(item8.text) if item8 is not None else None
+    item8_xbrl = values_present(xbrl_facts or {}, item8.text) if item8 is not None else None
+    item8_ok = True
+    if item8 is not None:
+        item8_ok = bool(item8_markers) and (item8_xbrl is None or item8_xbrl[1] > 0)
+        target = item8.provenance.checks_passed if item8_ok else item8.provenance.checks_failed
+        target.append("xbrl_item8")
+        if not item8_ok and item8.confidence.band == Band.HIGH:
+            item8.confidence = Confidence(Band.MEDIUM, _SCORE[Band.MEDIUM], item8.confidence.signals)
+
     present_keys = {it.item for it in present_items}
     absent = _classify_absent(present_keys, profile)
     all_items = sorted(present_items + absent, key=lambda it: CANONICAL_ORDER[it.item])
@@ -138,6 +154,7 @@ def assess(
         or not coverage_plausible
         or n_fail > 0
         or n_low > 0
+        or not item8_ok
     )
     summary = {
         "items_present": len(present_items),
@@ -150,6 +167,9 @@ def assess(
         "coverage_fraction": round(rt_frac, 4),
         "coverage_plausible": coverage_plausible,
         "title_mismatches": title_mismatches,
+        "item8_markers": bool(item8_markers) if item8 is not None else None,
+        "item8_xbrl_checked": item8_xbrl[0] if item8_xbrl else 0,
+        "item8_xbrl_found": item8_xbrl[1] if item8_xbrl else 0,
         "low_confidence_items": n_low,
         "medium_confidence_items": n_med,
         "needs_review": needs_review,

@@ -13,7 +13,9 @@ _BLANKS_RE = re.compile(r"\n{3,}")
 def detect_era(raw: RawFiling) -> str:
     head = (raw.text or "")[:4000]
     html_low = (raw.html or "").lower()
-    if _PEM in head or (raw.html is None and "<sec-document>" in head.lower()):
+    por = raw.period_of_report or ""
+    year = int(por[:4]) if por[:4].isdigit() else None
+    if _PEM in head or "<sec-document>" in head.lower() or (year is not None and year < 2001):
         return "sgml"
     if "<ix:" in html_low or "ix:nonfraction" in html_low:
         return "ixbrl"
