@@ -38,3 +38,6 @@ data/cache/
 Thumbs.db
 .idea/
 .vscode/
+
+# eng-pipe run state
+.pipeline/
