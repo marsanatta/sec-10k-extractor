@@ -23,6 +23,18 @@ def test_values_present():
     assert values_present({}, text) is None
 
 
+def test_no_false_confirm_on_small_or_substring():
+    # tiny value -> sub-3-digit candidates dropped, wrong span not confirmed
+    assert values_present({"X": 5_000_000.0}, "Item 5. page 2, see note 5 of 2024") == (1, 0)
+    # mid-digit-run must not match: token-level, not raw substring
+    assert values_present({"X": 364_980_000_000.0}, "internal ref 9364980123 here") == (1, 0)
+
+
+def test_markers_handle_singular_and_earnings_variants():
+    assert has_financial_markers("Statement of Operations and Statement of Cash Flow")
+    assert has_financial_markers("Consolidated Statement of Earnings and Financial Position")
+
+
 def _item8(text: str) -> Item:
     return Item(
         item_id="II.8", part="II", item="8",
