@@ -56,7 +56,10 @@ def label_free_signals(result: ExtractionResult) -> dict:
 def is_silent_failure(result: ExtractionResult, expected_present: list[str]) -> bool:
     """A silent failure: the system reports it does NOT need review, yet it missed an item
     the gold says should be present. That is a real error that raised no flag -- the single
-    most important thing the eval set exists to detect. Should be ~0; any hit is a hole."""
+    most important thing the eval set exists to detect. Should be ~0; any hit is a hole.
+
+    Presence-level ONLY: this catches MISSING gold keys, not wrong boundaries on items that
+    ARE present (char-exact boundary-drift detection needs char-labelled gold = STRETCH)."""
     if result.summary.get("needs_review"):
         return False
     return presence_scores(result, expected_present)["recall"] < 1.0

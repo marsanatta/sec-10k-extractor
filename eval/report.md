@@ -5,7 +5,8 @@ Self-built eval set; presence-level gold (conservative hand-labels). Rates are W
 
 ## Headline
 
-- **Silent-failure rate (lower is better): 0/7 (obs 0.00, 95% CI [0.00, 0.35])**
+- **Presence-level silent-failure rate (lower is better): 0/7 (obs 0.00, 95% CI [0.00, 0.35])**
+  (missed expected items with no flag; char-exact boundary-drift is STRETCH, not measured here)
 - Structural-ok: 7/7 (obs 1.00, 95% CI [0.65, 1.00])
 - Coverage-plausible: 4/7 (obs 0.57, 95% CI [0.25, 0.84])
 - Item-8 XBRL oracle ok: 4/7 (obs 0.57, 95% CI [0.25, 0.84])
