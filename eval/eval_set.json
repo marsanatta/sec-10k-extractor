@@ -1,0 +1,26 @@
+{
+  "_note": "Self-built evaluation set. Hard cases are from docs/04-format-variance-taxonomy.md (byte-verified). expected_present is a CONSERVATIVE, hand-labelled set of item keys we are confident appear in each filing; recall over this set is the gold signal. It is presence-level (not char-exact boundary F1 vs NTU itemseg, which is STRETCH). Clean filers are fetched by ticker+fiscal_year.",
+  "filings": [
+    {"id": "apple-fy2024", "accession": "0000320193-24-000123", "company": "Apple Inc.", "fiscal_year": 2024,
+     "pathologies": ["ixbrl", "item6_reserved", "item1c", "part3_incorporated", "styled_span_headers"],
+     "expected_present": ["1", "1A", "1C", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"]},
+    {"id": "ge-fy2023", "accession": "0000040545-24-000027", "company": "General Electric Co.", "fiscal_year": 2023,
+     "pathologies": ["large_filing", "cross_reference_index", "out_of_order"],
+     "expected_present": ["1", "1A", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"]},
+    {"id": "m2i-fy2023", "accession": "0001493152-24-014827", "company": "M2i Global Inc.", "fiscal_year": 2023,
+     "pathologies": ["smaller_reporting_company", "item7a_omitted", "two_year_financials"],
+     "expected_present": ["1", "1A", "2", "3", "5", "7", "8", "9", "9A"]},
+    {"id": "msft-fy1995", "accession": "0000891020-95-000433", "company": "Microsoft Corp.", "fiscal_year": 1995,
+     "pathologies": ["pre_2001_sgml", "no_toc_anchors", "all_caps_headers", "regex_trap"],
+     "expected_present": ["1", "2", "3", "4", "5", "6", "7", "8", "9"]},
+    {"id": "chemed-amend-fy2024", "accession": "0001562762-25-000070", "company": "Chemed Corp. (10-K/A)", "fiscal_year": 2024,
+     "pathologies": ["amendment", "partial_scope"],
+     "expected_present": []},
+    {"id": "msft-fy2023", "ticker": "MSFT", "company": "Microsoft Corp.", "fiscal_year": 2023,
+     "pathologies": ["clean", "large_accelerated"],
+     "expected_present": ["1", "1A", "1B", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"]},
+    {"id": "ko-fy2023", "ticker": "KO", "company": "Coca-Cola Co.", "fiscal_year": 2023,
+     "pathologies": ["clean", "large_accelerated"],
+     "expected_present": ["1", "1A", "1B", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"]}
+  ]
+}

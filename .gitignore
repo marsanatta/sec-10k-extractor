@@ -41,3 +41,7 @@ Thumbs.db
 
 # eng-pipe run state
 .pipeline/
+
+# eval regenerable artifacts (report.md is kept as committed evidence)
+eval/run.log
+eval/report.json
