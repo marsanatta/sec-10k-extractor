@@ -67,6 +67,11 @@ def fetch_10k(
     except Exception:
         html = None
 
+    # filing.document is an Attachment object (str() of it is a Rich table, not a name),
+    # so take the primary document's filename from the filing URL instead.
+    source_url = str(getattr(filing, "filing_url", "") or getattr(filing, "url", "") or "")
+    primary_document = source_url.rsplit("/", 1)[-1] if "/" in source_url else None
+
     return RawFiling(
         cik=str(getattr(filing, "cik", "") or ""),
         accession=str(getattr(filing, "accession_number", accession or "")),
@@ -74,8 +79,8 @@ def fetch_10k(
         form=str(getattr(filing, "form", "10-K") or "10-K"),
         filing_date=str(getattr(filing, "filing_date", "") or ""),
         period_of_report=(str(getattr(filing, "period_of_report", "") or "") or None),
-        primary_document=(str(getattr(filing, "document", "") or "") or None),
-        source_url=(str(getattr(filing, "filing_url", "") or getattr(filing, "url", "") or "") or None),
+        primary_document=primary_document,
+        source_url=source_url or None,
         html=html,
         text=text,
     )

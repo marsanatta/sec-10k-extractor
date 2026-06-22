@@ -65,6 +65,6 @@ class ExtractionResult:
     summary: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        d = asdict(self)
-        # Enums serialise to their .value via asdict on (str, Enum) members.
-        return d
+        # asdict keeps Enum members as-is; Status/Band derive from str, so json.dumps
+        # emits their value directly.
+        return asdict(self)

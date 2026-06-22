@@ -56,6 +56,16 @@ def test_item_10_not_swallowed_by_item_1():
     assert keys == ["10", "11"]
 
 
+def test_dash_separator_headers_recognised():
+    em, en = chr(0x2014), chr(0x2013)
+    text = (
+        "PART I\n"
+        f"Item 1 {em} Business\nWe build and ship products across many regions.\n"
+        f"Item 2 {en} Properties\nWe lease space in several cities under agreements.\n"
+    )
+    assert [k for k, _, _ in segment(text)] == ["1", "2"]
+
+
 def test_extract_from_text_marks_present_and_missing():
     result = extract_from_text(DOC)
     present = {it.item for it in result.items}
