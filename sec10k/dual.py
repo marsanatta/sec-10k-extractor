@@ -1,38 +1,25 @@
 from __future__ import annotations
 
-from sec10k.items import CANONICAL_ITEMS
+from sec10k.items import CANONICAL_BY_KEY
 
 
-def title_boundaries(canonical: str, body_start: int) -> dict[str, int]:
-    """Independent (title-anchored) segmentation: locate each canonical item by its TITLE
-    text, scanning forward from the body start, rather than by its "Item N" number. This
-    is a different signal from the number-anchored regex, so agreement between the two is
-    a genuine cross-check (not self-consistency)."""
-    low = canonical.lower()
-    cur = max(body_start, 0)
-    out: dict[str, int] = {}
-    for ci in CANONICAL_ITEMS:
-        title = ci.title.lower()
-        if title.startswith("["):  # [Reserved] has no title text to anchor on
-            continue
-        needle = title[:25]
-        idx = low.find(needle, cur)
-        if idx != -1:
-            out[ci.key] = idx
-            cur = idx
-    return out
-
-
-def agreement(
-    number_spans: dict[str, tuple[int, int]],
-    title_starts: dict[str, int],
-    tolerance: int = 400,
+def title_matches(
+    canonical: str, spans: dict[str, tuple[int, int]], window: int = 300
 ) -> dict[str, bool]:
-    """Per item: do the number-anchored and title-anchored boundaries roughly coincide?
-    The title normally sits just after the "Item N." header, so a small forward delta is
-    expected; a missing title or a large delta is a disagreement worth flagging."""
+    """Independent (title-anchored) cross-check. For each segmented item, does the item's
+    own canonical TITLE appear at the start of its span? The segmenter anchors on the
+    "Item N" NUMBER; this checks the TITLE text instead, so a mislabelled span (number
+    says Item 7 but the prose is Item 8's) fails the check. A genuinely different signal
+    from the number anchor, so it is not self-consistency.
+
+    Returns True/False per present item. `[Reserved]` items have no title text and are
+    reported True (not penalised)."""
+    low = canonical.lower()
     out: dict[str, bool] = {}
-    for key, (start, end) in number_spans.items():
-        t = title_starts.get(key)
-        out[key] = t is not None and (start - tolerance) <= t <= end
+    for key, (start, _end) in spans.items():
+        title = CANONICAL_BY_KEY[key].title.lower()
+        if title.startswith("["):
+            out[key] = True
+            continue
+        out[key] = title[:20] in low[start : start + window]
     return out

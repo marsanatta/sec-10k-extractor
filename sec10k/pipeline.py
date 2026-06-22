@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sec10k.dual import agreement, title_boundaries
+from sec10k.dual import title_matches
 from sec10k.ingest import RawFiling, fetch_10k
 from sec10k.items import CANONICAL_ITEMS
 from sec10k.normalize import to_canonical
@@ -40,13 +40,11 @@ def _present_items(canonical: str):
 def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None):
     meta = _build_meta(raw, era)
     present, spans = _present_items(canonical)
-    body_start = min((s for s, _ in spans.values()), default=0)
-    agree_map = agreement(spans, title_boundaries(canonical, body_start))
     profile = FilerProfile(
         fiscal_year=meta.fiscal_year if raw else fiscal_year,
         smaller_reporting=meta.smaller_reporting if raw else smaller_reporting,
     )
-    items, summary = assess(present, canonical, profile, agree_map)
+    items, summary = assess(present, canonical, profile, title_matches(canonical, spans))
     summary["format_era"] = era
     return ExtractionResult(
         meta=meta, items=items, canonical_text_len=len(canonical), summary=summary

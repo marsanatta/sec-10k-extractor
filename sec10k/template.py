@@ -26,8 +26,8 @@ def expectation(item_key: str, profile: FilerProfile) -> str:
         return RESERVED if (fy is None or fy >= 2021) else EXPECTED
     if item_key in {"10", "11", "12", "13", "14"}:
         return MAYBE_INCORPORATED
-    if item_key == "7A":  # SRCs may omit; if filer status unknown, do not penalise
-        return EXPECTED if profile.smaller_reporting is False else OPTIONAL
+    if item_key == "7A":  # only a confirmed smaller reporting company may omit 7A; if the
+        return OPTIONAL if profile.smaller_reporting is True else EXPECTED  # status is unknown, flag a drop rather than excuse it
     if item_key in {"1B", "4", "9B", "16"}:  # routinely "None"/"Not applicable"
         return OPTIONAL
     return EXPECTED

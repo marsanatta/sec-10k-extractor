@@ -40,16 +40,16 @@ def _split_runs(headers):
 
 
 def _pick_body_run(runs):
-    """The body run holds real prose between items; the TOC run is one line per item, so
-    the body normally spans far more characters. On a near-tie prefer the later-starting
-    run, since the body follows the table of contents. Known limit: a TOC with unusually
-    long entries can still out-span a terse body -- the P1 validation layer (round-trip,
-    dual-extractor) is the backstop for that silent mis-segmentation."""
+    """The body run follows the table of contents, and both list a comparable set of item
+    headers. So among runs holding at least half the maximum header count, pick the
+    latest-starting one -- the body always comes after the TOC. Using header COUNT (not
+    character span) avoids being fooled by a TOC with long, padded entries that could
+    out-span a terse body."""
     if not runs:
         return []
-    best_span = max(r[-1][1] - r[0][1] for r in runs)
-    near = [r for r in runs if (r[-1][1] - r[0][1]) >= 0.8 * best_span] if best_span else runs
-    return max(near, key=lambda r: r[0][1])
+    max_count = max(len(r) for r in runs)
+    rich = [r for r in runs if len(r) >= 0.5 * max_count]
+    return max(rich, key=lambda r: r[0][1])
 
 
 def segment(canonical_text: str) -> list[tuple[str, int, int]]:

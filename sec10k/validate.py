@@ -17,8 +17,18 @@ _KEYWORDS = {
 
 _SCORE = {Band.HIGH: 0.9, Band.MEDIUM: 0.6, Band.LOW: 0.3, Band.UNSCORED: None}
 
+# A real 10-K body (first item to end) covers most of the document. Coverage far below
+# this means the chosen spans are not the body (e.g. the segmenter latched onto the table
+# of contents). This is the non-tautological mis-segmentation detector: unlike the tiling
+# invariants below, it is NOT guaranteed by the segmenter's construction.
+MIN_COVERAGE = 0.4
+
 
 def structural_invariants(ranges: list[tuple[int, int]]) -> dict[str, bool]:
+    """Tiling invariants. NOTE: the current segmenter emits a contiguous, ordered,
+    non-overlapping tiling by construction, so these pass on its output by design. They
+    are kept as cheap regression guards for any extractor (P2 SGML, future LLM spans) that
+    might NOT tile -- they are not, on their own, evidence the segmentation is correct."""
     pairs = list(zip(ranges, ranges[1:]))
     return {
         "monotonic": all(a[0] < b[0] for a, b in pairs),
@@ -29,8 +39,8 @@ def structural_invariants(ranges: list[tuple[int, int]]) -> dict[str, bool]:
 
 def round_trip(ranges: list[tuple[int, int]], canonical: str) -> tuple[bool, float]:
     """Reconstruct the document as preamble + concatenated item spans; it must equal the
-    canonical text byte-for-byte. Proves coverage (no dropped/duplicated text); it does
-    not prove the labels are correct, so it is paired with the other signals."""
+    canonical text byte-for-byte. Proves coverage has no dropped/duplicated text (again
+    guaranteed by the current tiling segmenter; a real guard for non-tiling extractors)."""
     if not ranges or not canonical:
         return False, 0.0
     ordered = sorted(ranges)
@@ -47,10 +57,13 @@ def content_ok(item_key: str, text: str) -> bool:
     return any(k in low for k in kws)
 
 
-def _band_present(global_ok: bool, content: bool, agree) -> Band:
+def _band_present(global_ok: bool, content: bool, title_match: bool) -> Band:
+    # A filing-level structural / coverage break makes every present item suspect.
     if not global_ok:
         return Band.LOW
-    if content and agree is not False:
+    # HIGH needs BOTH independent per-item signals (keyword content AND title-at-start);
+    # missing either is only MEDIUM, never HIGH -- absence of corroboration is not trust.
+    if content and title_match:
         return Band.HIGH
     return Band.MEDIUM
 
@@ -83,27 +96,25 @@ def assess(
     present_items: list[Item],
     canonical: str,
     profile: FilerProfile,
-    agree_map: dict[str, bool],
+    title_match: dict[str, bool],
 ) -> tuple[list[Item], dict]:
     """Run the validation stack, attach per-item confidence + provenance, classify absent
     items, and return (all_items_in_canonical_order, filing_summary)."""
     ranges = [it.char_range for it in present_items if it.char_range]
     struct = structural_invariants(ranges)
     rt_ok, rt_frac = round_trip(ranges, canonical)
-    global_ok = all(struct.values()) and rt_ok
-    global_checks = {**struct, "round_trip": rt_ok}
+    coverage_plausible = rt_frac >= MIN_COVERAGE
+    global_ok = all(struct.values()) and rt_ok and coverage_plausible
+    global_checks = {**struct, "round_trip": rt_ok, "coverage_plausible": coverage_plausible}
 
     for it in present_items:
         cok = content_ok(it.item, it.text)
-        agree = agree_map.get(it.item)
-        band = _band_present(global_ok, cok, agree)
+        tmatch = title_match.get(it.item, False)
+        band = _band_present(global_ok, cok, tmatch)
         passed = [k for k, v in global_checks.items() if v]
         failed = [k for k, v in global_checks.items() if not v]
         (passed if cok else failed).append("content")
-        if agree is True:
-            passed.append("dual_agreement")
-        elif agree is False:
-            failed.append("dual_agreement")
+        (passed if tmatch else failed).append("title_match")
         it.confidence = Confidence(band=band, score=_SCORE[band], signals=passed)
         it.provenance = Provenance(
             extractors=["anchor", "title"], checks_passed=passed, checks_failed=failed
@@ -115,6 +126,19 @@ def assess(
 
     n_fail = sum(1 for it in absent if it.status == Status.EXTRACTION_FAILURE)
     n_low = sum(1 for it in present_items if it.confidence.band == Band.LOW)
+    n_med = sum(1 for it in present_items if it.confidence.band == Band.MEDIUM)
+    title_mismatches = sum(1 for it in present_items if not title_match.get(it.item, False))
+
+    # needs_review is an OR of genuinely independent problem signals (each reachable on its
+    # own), NOT a restatement of the tiling invariant. The eval harness (P4) measures the
+    # silent-failure RATE: filings that are NOT needs_review but disagree with gold.
+    needs_review = (
+        not all(struct.values())
+        or not rt_ok
+        or not coverage_plausible
+        or n_fail > 0
+        or n_low > 0
+    )
     summary = {
         "items_present": len(present_items),
         "items_legitimately_absent": sum(
@@ -124,10 +148,10 @@ def assess(
         "structural_ok": all(struct.values()),
         "round_trip_ok": rt_ok,
         "coverage_fraction": round(rt_frac, 4),
+        "coverage_plausible": coverage_plausible,
+        "title_mismatches": title_mismatches,
         "low_confidence_items": n_low,
-        # Silent failure = a coverage/structural break or a missing expected item that is
-        # NOT surfaced by any flag. By construction each such case raises a flag above, so
-        # this is 0 here; the eval harness (P4) measures the rate across many filings.
-        "unflagged_failure": (not global_ok) and n_low == 0 and n_fail == 0,
+        "medium_confidence_items": n_med,
+        "needs_review": needs_review,
     }
     return all_items, summary

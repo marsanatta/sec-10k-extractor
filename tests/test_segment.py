@@ -72,6 +72,22 @@ def test_extract_from_text_present_and_classified():
     assert present == {"1", "1A", "2", "7"}
     assert len(result.items) == 23  # every canonical item appears, classified
     s = result.summary
-    assert s["structural_ok"] and s["round_trip_ok"]
-    assert not s["unflagged_failure"]
+    assert s["structural_ok"] and s["round_trip_ok"] and s["coverage_plausible"]
+    # the toy doc legitimately lacks expected items (3, 5, 8, ...) -> flagged, not silent
+    assert s["items_extraction_failure"] > 0
+    assert s["needs_review"] is True
     assert result.canonical_text_len == len(DOC)
+
+
+def test_padded_toc_does_not_win_over_body():
+    # a TOC whose entries are padded to out-span a terse body must NOT be chosen
+    pad = " filler" * 60
+    doc = (
+        "TABLE OF CONTENTS\n"
+        f"Item 1. Business{pad}\nItem 2. Properties{pad}\nItem 7. MD&A{pad}\n"
+        "PART I\nItem 1. Business\nWe make things.\n"
+        "Item 2. Properties\nWe lease space.\n"
+        "Item 7. Management's Discussion\nRevenue grew.\n"
+    )
+    item1_start = next(s for k, s, _ in segment(doc) if k == "1")
+    assert "PART I" in doc[:item1_start]  # the body Item 1, not the padded TOC entry
