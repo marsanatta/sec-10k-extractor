@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sec10k.dual import title_matches
+from sec10k.escalation import run_escalation
 from sec10k.ingest import RawFiling, fetch_10k
 from sec10k.items import CANONICAL_ITEMS
 from sec10k.normalize import to_canonical
@@ -11,17 +12,17 @@ from sec10k.template import FilerProfile
 from sec10k.validate import assess
 
 
-def extract(ticker_or_cik=None, fiscal_year=None, accession=None) -> ExtractionResult:
+def extract(ticker_or_cik=None, fiscal_year=None, accession=None, llm_client=None) -> ExtractionResult:
     raw = fetch_10k(ticker_or_cik, fiscal_year, accession)
     canonical, era = to_canonical(raw)
-    return _build_result(canonical, era, raw)
+    return _build_result(canonical, era, raw, llm_client=llm_client)
 
 
 def extract_from_text(
-    canonical_text: str, era: str = "html", fiscal_year=None, smaller_reporting=None
+    canonical_text: str, era: str = "html", fiscal_year=None, smaller_reporting=None, llm_client=None
 ) -> ExtractionResult:
     """Run the pipeline on already-normalised text (no network). Used by tests."""
-    return _build_result(canonical_text, era, None, fiscal_year, smaller_reporting)
+    return _build_result(canonical_text, era, None, fiscal_year, smaller_reporting, llm_client)
 
 
 def _present_items(canonical: str):
@@ -38,7 +39,7 @@ def _present_items(canonical: str):
     return items, spans
 
 
-def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None):
+def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None, llm_client=None):
     meta = _build_meta(raw, era)
     present, spans = _present_items(canonical)
     profile = FilerProfile(
@@ -50,9 +51,11 @@ def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None)
         present, canonical, profile, title_matches(canonical, spans), xbrl_facts
     )
     summary["format_era"] = era
-    return ExtractionResult(
+    result = ExtractionResult(
         meta=meta, items=items, canonical_text_len=len(canonical), summary=summary
     )
+    summary.update(run_escalation(result, canonical, llm_client))
+    return result
 
 
 def _build_meta(raw: RawFiling | None, era: str) -> FilingMeta:
