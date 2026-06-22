@@ -55,6 +55,7 @@ class FilingMeta:
     format_era: str               # "sgml" | "html" | "ixbrl"
     primary_document: str | None
     source_url: str | None
+    smaller_reporting: bool | None = None
 
 
 @dataclass

@@ -17,6 +17,7 @@ class RawFiling:
     period_of_report: str | None
     primary_document: str | None
     source_url: str | None
+    smaller_reporting: bool | None
     html: str | None
     text: str
 
@@ -46,12 +47,17 @@ def fetch_10k(
 ) -> RawFiling:
     _ensure_identity()
 
+    smaller_reporting: bool | None = None
     if accession:
         filing = edgar.get_by_accession_number(accession)
         if filing is None:
             raise ValueError(f"No filing found for accession {accession}")
     elif ticker_or_cik:
         company = edgar.Company(ticker_or_cik)
+        try:
+            smaller_reporting = bool(company.is_smaller_reporting_company)
+        except Exception:
+            smaller_reporting = None
         filings = company.get_filings(form="10-K")
         filing = _select_by_fiscal_year(filings, fiscal_year) if fiscal_year else None
         if filing is None:
@@ -81,6 +87,7 @@ def fetch_10k(
         period_of_report=(str(getattr(filing, "period_of_report", "") or "") or None),
         primary_document=primary_document,
         source_url=source_url or None,
+        smaller_reporting=smaller_reporting,
         html=html,
         text=text,
     )

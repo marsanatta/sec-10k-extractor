@@ -66,10 +66,12 @@ def test_dash_separator_headers_recognised():
     assert [k for k, _, _ in segment(text)] == ["1", "2"]
 
 
-def test_extract_from_text_marks_present_and_missing():
-    result = extract_from_text(DOC)
-    present = {it.item for it in result.items}
+def test_extract_from_text_present_and_classified():
+    result = extract_from_text(DOC, fiscal_year=2024)
+    present = {it.item for it in result.items if it.status == Status.PRESENT}
     assert present == {"1", "1A", "2", "7"}
-    assert all(it.status == Status.PRESENT for it in result.items)
-    assert "8" in result.summary["missing_keys_unclassified"]
+    assert len(result.items) == 23  # every canonical item appears, classified
+    s = result.summary
+    assert s["structural_ok"] and s["round_trip_ok"]
+    assert not s["unflagged_failure"]
     assert result.canonical_text_len == len(DOC)

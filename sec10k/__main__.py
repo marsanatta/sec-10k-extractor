@@ -27,18 +27,20 @@ def main(argv=None) -> int:
         sys.stdout.write("\n")
         return 0
 
-    m = result.meta
+    m, s = result.meta, result.summary
     print(f"{m.company} {m.form} FY{m.fiscal_year} [{m.format_era}] acc={m.accession}")
     print(
-        f"canonical_text_len={result.canonical_text_len}  "
-        f"items_present={result.summary['items_present']}/{result.summary['items_total']}"
+        f"present={s['items_present']} legit_absent={s['items_legitimately_absent']} "
+        f"extraction_failure={s['items_extraction_failure']}  |  "
+        f"structural_ok={s['structural_ok']} round_trip_ok={s['round_trip_ok']} "
+        f"coverage={s['coverage_fraction']} low_conf={s['low_confidence_items']}"
     )
     for it in result.items:
         rng = f"{it.char_range[0]}-{it.char_range[1]}" if it.char_range else "-"
-        print(f"  Item {it.item:<3} {it.title[:48]:<48} [{rng}]")
-    missing = result.summary["missing_keys_unclassified"]
-    if missing:
-        print("  missing (unclassified; P1 will classify): " + ", ".join(missing))
+        print(
+            f"  {it.status.value:<20} {it.confidence.band.value:<7} "
+            f"Item {it.item:<3} {it.title[:38]:<38} [{rng}]"
+        )
     return 0
 
 
