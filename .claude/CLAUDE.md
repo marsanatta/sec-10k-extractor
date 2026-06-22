@@ -106,6 +106,66 @@ the whole internet will read it — because it will.
   from stale memory.
 - **The standard is high.** Not "good enough." Highest engineering rigor at all times.
 
+## SEC 10-K Extractor — Design / Implementation / Verification Principles
+
+Binding for all build work on this project; they encode what `ASSIGNMENT.md` rewards
+(robustness under format variance, verification without ground truth, no silent failures,
+cost discipline). Detail + sources live in `docs/` — run **`/10k-expert`** to load the
+governing doc before building a stage; the capstone is `docs/10-pipeline-architecture.md`.
+
+### Design
+- **Index, don't generate.** Item extraction = indexing into source bytes (char ranges),
+  never LLM free-text generation. Preserve byte offsets end-to-end (round-trip depends on it).
+- **Layered ensemble, LLM last.** TOC+regex anchors (~95%) → independent CRF line-labeller
+  → LLM "index-don't-generate" (LIB) **only** on flagged/low-confidence boundaries and novel
+  items. The LLM never touches the common case.
+- **The validation layer is the product, not the segmenter** — no existing tool emits
+  confidence; that's the differentiator. Every item carries calibrated confidence + provenance.
+- **Derive the expected-item template** from filing date + DEI tags before judging
+  completeness (Item 1C FY2024+, Item 6 `[Reserved]` post-2021, SRC omissions, Part III
+  incorporated-by-reference, 10-K/A scope).
+- **Stable item IDs + cross-year boundary consistency are first-class** — boundary drift is a
+  silent-failure mode.
+- **Cost discipline by construction:** target ~$0.003–0.006/filing blended; cache by
+  accession (filings are immutable); honour EDGAR 10 req/s + descriptive User-Agent.
+
+### Implementation
+- **Reuse vs build by license:** `edgartools` (MIT) for ingest/normalize; **reimplement** the
+  CRF method (itemseg is NonCommercial, edgar-crawler GPL-3.0 — do not embed).
+- **CRF features are structural** (`is-line-start`, `prior-item-seen`, `in-TOC`), not
+  text-only; train on TOC-derived silver labels.
+- **Constrain the escalation LLM** with grammar/structured decoding (XGrammar): emit only
+  `{item_id ∈ closed set, line_ref ∈ doc range}` — deletes the bad-JSON / invented-item class.
+  Feed a *window* (LumberChunker shape), never the whole filing.
+- **Output contract:** `{part, item, title, text, char_range, confidence, signals[], status}`
+  + a filing-level summary (AIS-style attribution = char_range + provenance).
+- **Classify missing items** (`legitimately-absent` vs `extraction-failure`) — never silently
+  drop one or coerce it into the canonical template.
+- Handle the three format eras (SGML txt / HTML / iXBRL); scope vision/layout parsing out
+  (EDGAR ships text+tags).
+
+### Verification (there is no public filing-level ground truth)
+- **Independent oracles ONLY.** Self-consistency is not validation; a model judging its own
+  output cannot catch *confident systematic* errors. Oracles/gold labels must be independent
+  of the production code and the silver toolkit's lineage.
+- **Validation stack (cheap→expensive):** structural invariants → round-trip byte-
+  reconstruction (proves *coverage*, not labelling) → independent dual-extractor agreement →
+  XBRL Item-8 + DEI oracle → content heuristics.
+- **LLM judge = non-gating, last-resort flag only** (JudgeBench: ≈random on objective
+  correctness; panels don't fix correlated error). Never feed the generator's rationale to
+  the judge.
+- **Calibrated confidence with a statistical guarantee:** conformal prediction, stratified
+  per era (Mondrian); prediction-set size is the abstention/escalation trigger.
+- **Eval harness = Inspect AI `Task = Dataset + Solver + Scorer`**, four independent scorers
+  (structural + round-trip on 100%, XBRL Item-8, gold boundary-F1 on 150). Grade the output
+  state, not the path.
+- **Report honestly:** every rate as `value(SE)` with **filing-clustered** CIs;
+  **Abstention-Recall** is the headline silent-failure metric; **pass^k** for the
+  nondeterministic escalation; cost/accuracy on one Pareto table; enforce a `run_manifest`.
+  150 gold ⇒ ±3–5% aggregate F1 but wide bars on rare strata (1C/7A) — state it, never over-claim.
+- **Validate-the-validator:** inject perturbations (delete/reorder/truncate an item) into
+  known-good filings and assert each check fires; a check that never fails is worthless.
+
 ## Commit Messages
 
 - Commit history should reflect the actual development process (the test asks for this).
