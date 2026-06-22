@@ -29,6 +29,10 @@ build/
 data/cache/
 *.local
 
+# Claude Code runtime
+.claude/*.lock
+.claude/scheduled_tasks.lock
+
 # OS / editor
 .DS_Store
 Thumbs.db
