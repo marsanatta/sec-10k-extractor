@@ -74,6 +74,22 @@ def test_eval_returns_markdown(client):
     assert isinstance(resp.json()["markdown"], str)
 
 
+def test_demo_result_is_open_without_token(client, monkeypatch):
+    monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)  # gate set, but demo path bypasses it
+    monkeypatch.setattr(server.pipeline, "extract", lambda **kw: _fake_result())
+    resp = client.get("/api/demo-result/apple-fy2024")  # no Authorization header
+    assert resp.status_code == 200
+    assert resp.json()["items"][0]["status"] == "present"
+
+
+def test_demo_result_unknown_id_returns_404(client, monkeypatch):
+    monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
+    resp = client.get("/api/demo-result/nope")
+    assert resp.status_code == 404
+    assert "error" in resp.json()
+
+
 def test_extract_returns_full_shape(client, monkeypatch):
     monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
     monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)

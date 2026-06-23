@@ -21,6 +21,10 @@ export async function fetchEval(): Promise<string> {
   return body.markdown;
 }
 
+export async function extractDemo(id: string): Promise<ExtractionResult> {
+  return asJson<ExtractionResult>(await fetch(`/api/demo-result/${encodeURIComponent(id)}`));
+}
+
 export async function extract(req: ExtractRequest, token?: string): Promise<ExtractionResult> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;

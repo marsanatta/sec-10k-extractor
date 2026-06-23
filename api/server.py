@@ -66,27 +66,25 @@ def eval_report() -> dict:
     return {"markdown": EVAL_REPORT.read_text(encoding="utf-8")}
 
 
-@app.post("/api/extract")
-def extract(req: ExtractRequest) -> JSONResponse:
+def _run_extraction(ticker, fiscal_year, accession) -> JSONResponse:
     if not os.environ.get("SEC_EDGAR_USER_AGENT", "").strip():
         return JSONResponse(
             status_code=500,
             content={"error": "SEC_EDGAR_USER_AGENT is not set on the server. SEC requires a "
                               "descriptive User-Agent such as 'Jane Doe jane@example.com'."},
         )
-    if not req.accession and not req.ticker:
+    if not accession and not ticker:
         return JSONResponse(
             status_code=400,
             content={"error": "Provide an accession, or a ticker (with optional fiscal_year)."},
         )
 
-    cache_key = req.accession or f"{req.ticker}:{req.fiscal_year}"
+    cache_key = accession or f"{ticker}:{fiscal_year}"
     if cache_key in _cache:
         return JSONResponse(content=_cache[cache_key])
 
     future = _pool.submit(
-        pipeline.extract,
-        ticker_or_cik=req.ticker, fiscal_year=req.fiscal_year, accession=req.accession,
+        pipeline.extract, ticker_or_cik=ticker, fiscal_year=fiscal_year, accession=accession,
     )
     try:
         result = future.result(timeout=EXTRACT_TIMEOUT_S)
@@ -105,6 +103,22 @@ def extract(req: ExtractRequest) -> JSONResponse:
     if real_accession:
         _cache[real_accession] = payload
     return JSONResponse(content=payload)
+
+
+@app.post("/api/extract")
+def extract(req: ExtractRequest) -> JSONResponse:
+    return _run_extraction(req.ticker, req.fiscal_year, req.accession)
+
+
+@app.get("/api/demo-result/{demo_id}")
+def demo_result(demo_id: str) -> JSONResponse:
+    """Open (ungated) extraction for the fixed curated demo set. The token gate exists to stop
+    arbitrary EDGAR queries; the demos are a small fixed list (not user input), so reviewers
+    can browse them without a token. Cached after the first hit like any other extraction."""
+    entry = next((d for d in DEMO_FILINGS if d["id"] == demo_id), None)
+    if entry is None:
+        return JSONResponse(status_code=404, content={"error": f"Unknown demo id: {demo_id}"})
+    return _run_extraction(entry.get("ticker"), entry.get("fiscal_year"), entry.get("accession"))
 
 
 if WEB_DIST.exists():

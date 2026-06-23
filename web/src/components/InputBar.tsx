@@ -6,17 +6,22 @@ interface Props {
   loading: boolean;
   elapsed: number;
   onSubmit: (req: ExtractRequest) => void;
+  onDemo: (id: string) => void;
   token: string;
   onToken: (value: string) => void;
 }
 
-export function InputBar({ demos, loading, elapsed, onSubmit, token, onToken }: Props) {
+export function InputBar({ demos, loading, elapsed, onSubmit, onDemo, token, onToken }: Props) {
   const [ticker, setTicker] = useState("");
   const [fiscalYear, setFiscalYear] = useState("");
   const [accession, setAccession] = useState("");
   const [demo, setDemo] = useState("");
 
+  const hasCustom = Boolean(accession.trim() || ticker.trim());
+  const needsToken = hasCustom && !token.trim();
+
   function submit() {
+    if (needsToken) return;
     if (accession.trim()) {
       onSubmit({ accession: accession.trim() });
     } else if (ticker.trim()) {
@@ -34,17 +39,15 @@ export function InputBar({ demos, loading, elapsed, onSubmit, token, onToken }: 
     setFiscalYear("");
     setAccession("");
     setDemo("");
-    onSubmit(
-      entry.accession
-        ? { accession: entry.accession }
-        : { ticker: entry.ticker, fiscal_year: entry.fiscal_year },
-    );
+    onDemo(entry.id);
   }
 
   return (
     <div className="inputbar">
       <div className="field">
-        <label htmlFor="demo">Demo filing</label>
+        <label htmlFor="demo">
+          Demo filing <small>(no token needed)</small>
+        </label>
         <select
           id="demo"
           value={demo}
@@ -63,7 +66,7 @@ export function InputBar({ demos, loading, elapsed, onSubmit, token, onToken }: 
         </select>
       </div>
 
-      <span className="sep">or</span>
+      <span className="sep">or look up any filing</span>
 
       <div className="field">
         <label htmlFor="ticker">Ticker</label>
@@ -88,9 +91,6 @@ export function InputBar({ demos, loading, elapsed, onSubmit, token, onToken }: 
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
       </div>
-
-      <span className="sep">or</span>
-
       <div className="field">
         <label htmlFor="acc">Accession</label>
         <input
@@ -102,17 +102,10 @@ export function InputBar({ demos, loading, elapsed, onSubmit, token, onToken }: 
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
       </div>
-
-      <button
-        className="btn-primary"
-        disabled={loading || (!accession.trim() && !ticker.trim())}
-        onClick={submit}
-      >
-        {loading ? "Extracting…" : "Extract"}
-      </button>
-
       <div className="field">
-        <label htmlFor="token">Access token</label>
+        <label htmlFor="token">
+          Access token <small>(for custom lookups)</small>
+        </label>
         <input
           id="token"
           type="password"
@@ -124,6 +117,17 @@ export function InputBar({ demos, loading, elapsed, onSubmit, token, onToken }: 
         />
       </div>
 
+      <button
+        className="btn-primary"
+        disabled={loading || !hasCustom || needsToken}
+        onClick={submit}
+      >
+        {loading ? "Extracting…" : "Extract"}
+      </button>
+
+      {needsToken && (
+        <span className="hint">Enter the access token to run a custom lookup (demos don't need it).</span>
+      )}
       {loading && (
         <span className="elapsed">
           <span className="spinner" aria-hidden="true" />

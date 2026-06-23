@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { extract, fetchDemos } from "./api";
+import { extract, extractDemo, fetchDemos } from "./api";
 import { EvalView } from "./components/EvalView";
 import { FailureInspector } from "./components/FailureInspector";
 import { InputBar } from "./components/InputBar";
@@ -31,7 +31,7 @@ export default function App() {
       .catch((e: Error) => setError(e.message));
   }, []);
 
-  async function runExtract(req: ExtractRequest) {
+  async function run(fetcher: () => Promise<ExtractionResult>) {
     setLoading(true);
     setError(null);
     setElapsed(0);
@@ -41,7 +41,7 @@ export default function App() {
       1000,
     );
     try {
-      const res = await extract(req, token);
+      const res = await fetcher();
       setResult(res);
       const firstPresent = res.items.find((it) => it.status === "present") ?? res.items[0] ?? null;
       setSelected(firstPresent);
@@ -54,6 +54,9 @@ export default function App() {
       setLoading(false);
     }
   }
+
+  const runExtract = (req: ExtractRequest) => run(() => extract(req, token));
+  const runDemo = (id: string) => run(() => extractDemo(id));
 
   return (
     <div className="app">
@@ -85,6 +88,7 @@ export default function App() {
             loading={loading}
             elapsed={elapsed}
             onSubmit={runExtract}
+            onDemo={runDemo}
             token={token}
             onToken={setToken}
           />

@@ -164,6 +164,12 @@ a:focus-visible,
   gap: 8px;
 }
 
+.hint {
+  color: var(--amber);
+  font-size: 0.85rem;
+  align-self: center;
+}
+
 .spinner {
   width: 14px;
   height: 14px;
