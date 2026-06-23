@@ -1,0 +1,16 @@
+.git
+.claude
+.env
+.env.*
+!.env.example
+web/node_modules
+web/dist
+**/__pycache__
+.pytest_cache
+.cache
+*.egg-info
+prompts
+scratch
+tasks
+docs
+tests
