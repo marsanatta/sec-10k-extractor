@@ -10,7 +10,7 @@ Self-built eval set; presence-level gold (conservative hand-labels). Rates are W
 - Structural-ok: 7/7 (obs 1.00, 95% CI [0.65, 1.00])
 - Coverage-plausible: 4/7 (obs 0.57, 95% CI [0.25, 0.84])
 - Item-8 XBRL oracle ok: 4/7 (obs 0.57, 95% CI [0.25, 0.84])
-- Needs-review (flagged): 5/7 (obs 0.71, 95% CI [0.36, 0.92])
+- Needs-review (flagged): 6/7 (obs 0.86, 95% CI [0.49, 0.97])
 - Mean presence recall: 0.8571
 - N filings: 7
 
@@ -24,4 +24,4 @@ Self-built eval set; presence-level gold (conservative hand-labels). Rates are W
 | msft-fy1995 | sgml | 14 | 1.0 | - | False | True | 0/0 |
 | chemed-amend-fy2024 | ixbrl | 2 | 1.0 | - | False | True | 0/0 |
 | msft-fy2023 | ixbrl | 22 | 1.0 | - | False | True | 2/2 |
-| ko-fy2023 | ixbrl | 23 | 1.0 | - | False | False | 2/2 |
+| ko-fy2023 | ixbrl | 23 | 1.0 | - | False | True | 2/2 |
