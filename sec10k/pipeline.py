@@ -56,7 +56,8 @@ def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None,
     )
     summary["format_era"] = era
     result = ExtractionResult(
-        meta=meta, items=items, canonical_text_len=len(canonical), summary=summary
+        meta=meta, items=items, canonical_text_len=len(canonical), summary=summary,
+        canonical_text=canonical,
     )
     summary.update(run_escalation(result, canonical, llm_client))
     return result

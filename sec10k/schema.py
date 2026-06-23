@@ -64,6 +64,7 @@ class ExtractionResult:
     items: list[Item]
     canonical_text_len: int
     summary: dict = field(default_factory=dict)
+    canonical_text: str = ""
 
     def to_dict(self) -> dict:
         # asdict keeps Enum members as-is; Status/Band derive from str, so json.dumps
