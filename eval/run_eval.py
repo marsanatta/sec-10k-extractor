@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path for `python eval/run_eval.py`
 
 from sec10k.evalkit import (
+    boundary_scores,
     fmt_rate,
     is_silent_failure,
     label_free_signals,
@@ -17,6 +18,8 @@ from sec10k.pipeline import extract
 
 HERE = Path(__file__).parent
 MANIFEST = HERE / "eval_set.json"
+GOLD_FILE = HERE / "boundary_gold.json"
+GOLD = json.loads(GOLD_FILE.read_text()) if GOLD_FILE.exists() else {}
 
 
 def _run_one(entry: dict) -> dict:
@@ -26,6 +29,7 @@ def _run_one(entry: dict) -> dict:
         result = extract(ticker_or_cik=entry["ticker"], fiscal_year=entry.get("fiscal_year"))
     exp = entry.get("expected_present", [])
     s = result.summary
+    g = GOLD.get(entry["id"])
     return {
         "id": entry["id"],
         "company": entry.get("company", ""),
@@ -33,6 +37,7 @@ def _run_one(entry: dict) -> dict:
         "presence": presence_scores(result, exp),
         "signals": label_free_signals(result),
         "silent_failure": is_silent_failure(result, exp),
+        "boundary": boundary_scores(result, g["items"]) if g else None,
         "summary": {
             k: s.get(k)
             for k in (
@@ -72,6 +77,10 @@ def main(argv=None) -> int:
         "needs_review_rate": rate(lambda r: r["signals"]["needs_review"]),
         "mean_presence_recall": round(sum(r["presence"]["recall"] for r in ok) / n, 4) if n else 0.0,
     }
+    brows = [r for r in ok if r.get("boundary")]
+    mrs = [r["boundary"]["match_rate"] for r in brows if r["boundary"]["match_rate"] is not None]
+    agg["boundary_gold_filings"] = len(brows)
+    agg["boundary_match_rate_mean"] = round(sum(mrs) / len(mrs), 3) if mrs else None
     md = _render_md(agg, rows)
     (HERE / "report.json").write_text(json.dumps({"aggregate": agg, "filings": rows}, indent=2, default=str))
     (HERE / "report.md").write_text(md)
@@ -84,12 +93,15 @@ def _render_md(agg: dict, rows: list[dict]) -> str:
         "# Evaluation Report",
         "",
         "Self-built eval set; presence-level gold (conservative hand-labels). Rates are Wilson",
-        "95% CI -- small N means wide bars. Char-exact boundary F1 vs NTU itemseg is STRETCH.",
+        "95% CI -- small N means wide bars. Boundary match-rate uses a small INDEPENDENT",
+        "char-exact gold (seed) keyed to the big items 1/1A/7/8.",
         "",
         "## Headline",
         "",
         f"- **Presence-level silent-failure rate (lower is better): {agg['silent_failure_rate']}**",
-        "  (missed expected items with no flag; char-exact boundary-drift is STRETCH, not measured here)",
+        "  (missed expected items with no flag; boundary correctness is the separate metric below)",
+        f"- **Boundary match-rate @ IoU>=0.9 vs INDEPENDENT gold: {agg.get('boundary_match_rate_mean')}"
+        f" over {agg.get('boundary_gold_filings', 0)} gold filings** (a wrong boundary shows up here as a number)",
         f"- Structural-ok: {agg['structural_ok_rate']}",
         f"- Coverage-plausible: {agg['coverage_plausible_rate']}",
         f"- Item-8 XBRL oracle ok: {agg['item8_oracle_ok_rate']}",
@@ -103,17 +115,18 @@ def _render_md(agg: dict, rows: list[dict]) -> str:
     lines += [
         "## Per-filing",
         "",
-        "| id | era | present | recall | missing | silent_fail | needs_review | item8_xbrl |",
-        "|----|-----|---------|--------|---------|-------------|--------------|-----------|",
+        "| id | era | present | recall | boundary@IoU0.9 | silent_fail | needs_review | item8_xbrl |",
+        "|----|-----|---------|--------|-----------------|-------------|--------------|-----------|",
     ]
     for r in rows:
         if "error" in r:
             lines.append(f"| {r['id']} | ERROR: {r['error']} | | | | | | |")
             continue
-        s, p = r["summary"], r["presence"]
+        s, p, b = r["summary"], r["presence"], r.get("boundary")
+        bstr = f"{b['match_rate']} ({b['matched']}/{b['total']})" if b else "-"
         lines.append(
             f"| {r['id']} | {s['format_era']} | {s['items_present']} | {p['recall']} | "
-            f"{','.join(p['missing']) or '-'} | {r['silent_failure']} | {s['needs_review']} | "
+            f"{bstr} | {r['silent_failure']} | {s['needs_review']} | "
             f"{s['item8_xbrl_found']}/{s['item8_xbrl_checked']} |"
         )
     return "\n".join(lines) + "\n"

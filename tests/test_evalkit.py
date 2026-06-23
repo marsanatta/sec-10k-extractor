@@ -1,4 +1,4 @@
-from sec10k.evalkit import is_silent_failure, presence_scores, wilson_ci
+from sec10k.evalkit import boundary_scores, is_silent_failure, presence_scores, wilson_ci
 from sec10k.schema import (
     Confidence,
     ExtractionResult,
@@ -34,6 +34,25 @@ def test_presence_scores():
     assert presence_scores(r, ["1", "3"])["recall"] == 1.0
     p = presence_scores(r, ["1", "3", "8"])
     assert p["recall"] < 1.0 and "8" in p["missing"]
+
+
+def _res_with(ranges: dict) -> ExtractionResult:
+    items = [
+        Item(item_id=f"I.{k}", part="I", item=k, title="t", text="x", char_range=r,
+             status=Status.PRESENT, confidence=Confidence(), provenance=Provenance())
+        for k, r in ranges.items()
+    ]
+    meta = FilingMeta("", "", "", "10-K", "", None, "html", None, None)
+    return ExtractionResult(meta, items, 1, {})
+
+
+def test_boundary_scores_catches_drift():
+    gold = {"1": [0, 1000], "1A": [1000, 2000]}
+    assert boundary_scores(_res_with({"1": (0, 1000), "1A": (1000, 2000)}), gold)["match_rate"] == 1.0
+    # a 200-char boundary drift drops IoU below 0.9 -> the wrong boundary becomes a number
+    assert boundary_scores(_res_with({"1": (0, 800), "1A": (800, 2000)}), gold)["match_rate"] < 1.0
+    # no items extracted (the M2i case) -> 0.0, not invisible
+    assert boundary_scores(_res_with({}), gold)["match_rate"] == 0.0
 
 
 def test_silent_failure_logic():

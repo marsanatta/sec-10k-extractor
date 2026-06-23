@@ -65,6 +65,36 @@ def is_silent_failure(result: ExtractionResult, expected_present: list[str]) -> 
     return presence_scores(result, expected_present)["recall"] < 1.0
 
 
+def _iou(a: tuple[int, int], b: tuple[int, int]) -> float:
+    inter = max(0, min(a[1], b[1]) - max(a[0], b[0]))
+    union = (a[1] - a[0]) + (b[1] - b[0]) - inter
+    return inter / union if union > 0 else 0.0
+
+
+def boundary_scores(result: ExtractionResult, gold_items: dict[str, list[int]], iou_thresh: float = 0.9) -> dict:
+    """Char-exact boundary scoring against an INDEPENDENT gold (offsets per item). For each
+    gold item, IoU of the extracted char_range vs the gold range; a match needs IoU >=
+    threshold. This is the only signal that turns a WRONG boundary into a number rather than
+    a needs_review flag -- and the gold is independent of both the regex and edgartools, so
+    it sees the common-mode the cross-check is blind to."""
+    ext = {it.item: it.char_range for it in result.items
+           if it.status == Status.PRESENT and it.char_range}
+    ious, matched = [], 0
+    for k, g in gold_items.items():
+        x = ext.get(k)
+        iou = _iou(x, (g[0], g[1])) if x else 0.0
+        ious.append(iou)
+        if iou >= iou_thresh:
+            matched += 1
+    n = len(gold_items)
+    return {
+        "mean_iou": round(sum(ious) / n, 3) if n else None,
+        "match_rate": round(matched / n, 3) if n else None,
+        "matched": matched,
+        "total": n,
+    }
+
+
 def fmt_rate(k: int, n: int) -> str:
     if n == 0:
         return "0/0 (n/a)"
