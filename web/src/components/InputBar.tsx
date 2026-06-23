@@ -12,6 +12,7 @@ export function InputBar({ demos, loading, elapsed, onSubmit }: Props) {
   const [ticker, setTicker] = useState("");
   const [fiscalYear, setFiscalYear] = useState("");
   const [accession, setAccession] = useState("");
+  const [demo, setDemo] = useState("");
 
   function submit() {
     if (accession.trim()) {
@@ -25,15 +26,16 @@ export function InputBar({ demos, loading, elapsed, onSubmit }: Props) {
   }
 
   function pickDemo(id: string) {
-    const demo = demos.find((d) => d.id === id);
-    if (!demo) return;
+    const entry = demos.find((d) => d.id === id);
+    if (!entry) return;
     setTicker("");
     setFiscalYear("");
     setAccession("");
+    setDemo("");
     onSubmit(
-      demo.accession
-        ? { accession: demo.accession }
-        : { ticker: demo.ticker, fiscal_year: demo.fiscal_year },
+      entry.accession
+        ? { accession: entry.accession }
+        : { ticker: entry.ticker, fiscal_year: entry.fiscal_year },
     );
   }
 
@@ -43,9 +45,12 @@ export function InputBar({ demos, loading, elapsed, onSubmit }: Props) {
         <label htmlFor="demo">Demo filing</label>
         <select
           id="demo"
-          defaultValue=""
+          value={demo}
           disabled={loading}
-          onChange={(e) => e.target.value && pickDemo(e.target.value)}
+          onChange={(e) => {
+            setDemo(e.target.value);
+            if (e.target.value) pickDemo(e.target.value);
+          }}
         >
           <option value="">Select a curated example…</option>
           {demos.map((d) => (
@@ -107,7 +112,7 @@ export function InputBar({ demos, loading, elapsed, onSubmit }: Props) {
       {loading && (
         <span className="elapsed">
           <span className="spinner" aria-hidden="true" />
-          {elapsed}s — fetching + segmenting (a large filing can take 30–60s)
+          {elapsed}s — fetching + segmenting (a large filing can take up to ~2 min)
         </span>
       )}
     </div>

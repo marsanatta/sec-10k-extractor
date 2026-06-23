@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { useEffect, useState } from "react";
 import { fetchEval } from "../api";
@@ -10,7 +11,10 @@ export function EvalView() {
     let active = true;
     fetchEval()
       .then((md) => {
-        if (active) setHtml(marked.parse(md, { async: false }) as string);
+        if (active) {
+          const raw = marked.parse(md, { async: false }) as string;
+          setHtml(DOMPurify.sanitize(raw));
+        }
       })
       .catch((e: Error) => active && setError(e.message));
     return () => {

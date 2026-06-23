@@ -63,6 +63,10 @@ export function groupByPart(items: Item[]): PartGroup[] {
 export interface TextSlice {
   before: string;
   highlight: string;
+  /** Tail of the highlighted span when it exceeds `maxHighlight` and the middle is elided. */
+  highlightTail: string;
+  /** Count of highlighted chars elided between `highlight` and `highlightTail` (0 if none). */
+  highlightOmitted: number;
   after: string;
   /** Absolute offset where `before` starts in the source — for rendering true line/char refs. */
   sliceStart: number;
@@ -73,18 +77,22 @@ export interface TextSlice {
 /**
  * Return a window of `text` around `range` split into before/highlight/after so the caller
  * can wrap the highlight without re-deriving offsets. When `range` is null there is nothing
- * to highlight, so the whole (head-capped) text is returned as `before`.
+ * to highlight, so the whole (head-capped) text is returned as `before`. A very large
+ * highlight (e.g. Item 8 spans hundreds of KB) is elided to head+tail so the DOM stays light.
  */
 export function sliceAroundRange(
   text: string,
   range: [number, number] | null,
   context = 1200,
+  maxHighlight = 6000,
 ): TextSlice {
   if (!range) {
     const head = text.slice(0, context);
     return {
       before: head,
       highlight: "",
+      highlightTail: "",
+      highlightOmitted: 0,
       after: "",
       sliceStart: 0,
       truncatedHead: false,
@@ -96,9 +104,21 @@ export function sliceAroundRange(
   const end = Math.max(start, Math.min(rawEnd, text.length));
   const sliceStart = Math.max(0, start - context);
   const sliceEnd = Math.min(text.length, end + context);
+  const full = text.slice(start, end);
+  let highlight = full;
+  let highlightTail = "";
+  let highlightOmitted = 0;
+  if (full.length > maxHighlight) {
+    const half = Math.floor(maxHighlight / 2);
+    highlight = full.slice(0, half);
+    highlightTail = full.slice(full.length - half);
+    highlightOmitted = full.length - 2 * half;
+  }
   return {
     before: text.slice(sliceStart, start),
-    highlight: text.slice(start, end),
+    highlight,
+    highlightTail,
+    highlightOmitted,
     after: text.slice(end, sliceEnd),
     sliceStart,
     truncatedHead: sliceStart > 0,

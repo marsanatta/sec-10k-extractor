@@ -119,7 +119,17 @@ describe("sliceAroundRange", () => {
   it("clamps an out-of-bounds range to text length", () => {
     const s = sliceAroundRange(text, [15, 999], 100);
     expect(s.highlight).toBe("FGHIJ");
+    expect(s.highlightTail).toBe("");
+    expect(s.highlightOmitted).toBe(0);
     expect(s.after).toBe("");
     expect(s.truncatedTail).toBe(false);
+  });
+
+  it("elides a huge highlight into head + tail with an omitted count", () => {
+    const big = "x".repeat(10000);
+    const s = sliceAroundRange(big, [0, 10000], 0, 100);
+    expect(s.highlight).toHaveLength(50);
+    expect(s.highlightTail).toHaveLength(50);
+    expect(s.highlightOmitted).toBe(9900);
   });
 });

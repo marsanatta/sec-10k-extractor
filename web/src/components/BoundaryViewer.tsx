@@ -28,6 +28,12 @@ export function BoundaryViewer({ canonicalText, item }: Props) {
       {slice.truncatedHead && <span className="truncation">…[earlier text omitted]…{"\n"}</span>}
       <span>{slice.before}</span>
       <mark ref={markRef}>{slice.highlight}</mark>
+      {slice.highlightOmitted > 0 && (
+        <>
+          <span className="truncation">…[{slice.highlightOmitted.toLocaleString()} highlighted chars elided]…</span>
+          <mark>{slice.highlightTail}</mark>
+        </>
+      )}
       <span>{slice.after}</span>
       {slice.truncatedTail && <span className="truncation">{"\n"}…[later text omitted]…</span>}
     </div>
