@@ -54,6 +54,11 @@ def demo() -> list[dict]:
     return DEMO_FILINGS
 
 
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok"}
+
+
 @app.get("/api/eval")
 def eval_report() -> dict:
     if not EVAL_REPORT.exists():

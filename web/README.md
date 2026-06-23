@@ -38,15 +38,34 @@ Open http://localhost:5173. Extraction is slow (10–60s; GE is ~4MB) — the UI
 spinner + elapsed seconds. Results are cached by accession server-side, so repeat views and
 demo picks are instant.
 
-## Prod (single container)
+## Prod + public URL (`docker compose`)
+
+`docker compose` runs two services: `app` (the container above — builds the SPA and serves it
+from FastAPI alongside `/api/*`) and `cloudflared`, which opens a **Cloudflare quick tunnel**
+and prints a public `https://<random>.trycloudflare.com` URL — no Cloudflare account needed.
 
 ```bash
-docker build -t sec10k-web .
-docker run -p 8000:8000 -e SEC_EDGAR_USER_AGENT="Your Name your@email.com" sec10k-web
+cp .env.example .env          # then edit: set SEC_EDGAR_USER_AGENT and SEC10K_ACCESS_TOKEN
+docker compose up --build -d
+docker compose logs cloudflared | grep trycloudflare.com   # <- your public URL
 ```
 
-Open http://localhost:8000. The container builds the SPA, then serves it from FastAPI
-(`StaticFiles` at `/`) alongside the JSON API at `/api/*`.
+- `SEC_EDGAR_USER_AGENT` — required, or `/api/extract` returns 500.
+- `SEC10K_ACCESS_TOKEN` — required before exposing the tunnel: it gates `POST /api/extract`
+  (503 if unset, 401 if wrong). Share it with reviewers out-of-band; the UI prompts for it and
+  stores it in `localStorage`. `/health`, `/api/demo`, `/api/eval` and the SPA stay open.
+
+For a **stable** URL instead of the rotating quick-tunnel one, create a named tunnel in the
+Cloudflare Zero Trust dashboard, set `CLOUDFLARE_TUNNEL_TOKEN` in `.env`, and swap the
+`cloudflared` command (see the comment in `docker-compose.yml`).
+
+> Note: a Cloudflare quick tunnel has a ~100s edge timeout. A cold fetch of a very large
+> filing (e.g. GE, ~4MB) can approach that; retry — the result is then served from cache.
+>
+> Note: if host port 8000 is already taken, `docker compose up` still succeeds but
+> `localhost:8000` reaches the other process — change the left side of the `ports` mapping in
+> `docker-compose.yml` (e.g. `18000:8000`). The public tunnel URL is unaffected (cloudflared
+> reaches the container over the Docker network, not the host port).
 
 ## Tests
 

@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    image: sec10k-extractor
+    env_file: .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=3).status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # DEFAULT: quick tunnel -- no Cloudflare account, no token. Prints an ephemeral
+  # https://<random>.trycloudflare.com URL (read it from `docker compose logs cloudflared`).
+  # The URL rotates on every restart; keep the stack running for the evaluation window.
+  # Sufficient here because our transport is plain request/response (no SSE).
+  #
+  # UPGRADE to a STABLE NAMED tunnel: create one in the Cloudflare Zero Trust dashboard,
+  # route it to http://app:8000, put the connector token in .env as CLOUDFLARE_TUNNEL_TOKEN,
+  # and swap the command to:  tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://app:8000
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy

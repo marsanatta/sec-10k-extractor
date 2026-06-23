@@ -51,6 +51,12 @@ def _fake_result() -> ExtractionResult:
     )
 
 
+def test_health_is_open(client):
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
 def test_demo_returns_five_entries(client):
     resp = client.get("/api/demo")
     assert resp.status_code == 200
