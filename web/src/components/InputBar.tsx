@@ -30,6 +30,7 @@ export function InputBar({
   const [fiscalYear, setFiscalYear] = useState("");
   const [accession, setAccession] = useState("");
   const [text, setText] = useState("");
+  const [fileError, setFileError] = useState("");
 
   const input =
     mode === "ticker" ? ticker.trim() : mode === "accession" ? accession.trim() : text.trim();
@@ -60,7 +61,13 @@ export function InputBar({
 
   function loadFile(file: File | undefined) {
     if (!file) return;
+    if (file.size > 24_000_000) {
+      setFileError("File too large (max 24 MB).");
+      return;
+    }
+    setFileError("");
     const reader = new FileReader();
+    reader.onerror = () => setFileError("Could not read the file.");
     reader.onload = () => {
       setText(String(reader.result ?? ""));
       setMode("text");
@@ -173,6 +180,7 @@ export function InputBar({
                 hidden
               />
             </label>
+            {fileError && <span className="hint">{fileError}</span>}
           </div>
         )}
 

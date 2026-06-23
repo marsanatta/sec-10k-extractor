@@ -117,6 +117,35 @@ def test_extract_text_runs_offline(client, monkeypatch):
     assert body["canonical_text"].startswith("PART I")
 
 
+def test_gate_not_bypassable_via_path_variants(client, monkeypatch):
+    # The gate matches by path prefix; pin that path forms which evade the literal prefix also
+    # never reach the protected handler (404/405/401), so a future routing change can't open it.
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+    for path in ("//api/extract", "/API/extract", "/api/extract/", "/api/extract-text"):
+        resp = client.post(path, json={"accession": "x"})  # no Authorization header
+        assert resp.status_code != 200, path
+
+
+def test_extract_text_too_large_returns_413(client, monkeypatch):
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+    big = "a" * (server.MAX_UPLOAD_CHARS + 1)
+    resp = client.post("/api/extract-text", json={"text": big}, headers=AUTH)
+    assert resp.status_code == 413
+
+
+def test_extract_text_makes_no_network_call(client, monkeypatch):
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+
+    def _boom(*a, **k):
+        raise AssertionError("upload path must not hit the network")
+
+    monkeypatch.setattr(server.pipeline, "fetch_xbrl_facts", _boom)
+    resp = client.post(
+        "/api/extract-text", json={"text": "PART I\nITEM 1. BUSINESS\nx\n"}, headers=AUTH
+    )
+    assert resp.status_code == 200
+
+
 def test_extract_returns_full_shape(client, monkeypatch):
     monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
     monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)

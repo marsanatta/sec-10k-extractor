@@ -27,6 +27,11 @@ from starlette.responses import JSONResponse
 
 _PROTECTED_PREFIXES = ("/api/extract",)
 
+# Reject oversized bodies from the Content-Length header BEFORE Starlette buffers them into
+# memory (the per-endpoint char cap runs only after parsing, too late to stop an OOM). Sized
+# to ~MAX_UPLOAD_CHARS * 4 bytes (worst-case UTF-8) for the paste/upload endpoint.
+MAX_REQUEST_BYTES = 25_000_000
+
 
 def _configured() -> str | None:
     return os.environ.get("SEC10K_ACCESS_TOKEN") or None
@@ -47,6 +52,9 @@ def valid(supplied: str | None) -> bool:
 
 class TokenAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        length = request.headers.get("content-length")
+        if length and length.isdigit() and int(length) > MAX_REQUEST_BYTES:
+            return JSONResponse({"error": "Request body too large."}, status_code=413)
         if any(request.url.path.startswith(p) for p in _PROTECTED_PREFIXES):
             if _configured() is None:
                 return JSONResponse(
