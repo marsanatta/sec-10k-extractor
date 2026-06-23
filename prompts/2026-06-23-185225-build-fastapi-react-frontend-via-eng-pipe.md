@@ -1,0 +1,19 @@
+# Build The FastAPI + React Frontend Via eng-pipe (Review + Test + Debug Gates)
+
+- **Datetime:** 2026-06-23 18:52:25 (Asia/Taipei, UTC+8)
+- **Summary:** Build the assignment's required web frontend as FastAPI (wrapping the existing `sec10k` pipeline) + React/Vite/TypeScript dark-theme SPA, driven through `/eng-pipe` with a mandatory independent code-review (fix bought findings, justify any skipped), `eng-test` on the core functions (not e2e/Playwright), and `/eng-debug` if anything fails. Reference the existing frontend/design skills; email any blocker via enso-manager.
+
+## Prompt
+
+> then do fastapi + react start /eng-pipe for it, must have code-review (fix the comments you buy, if you don't buy you need to have strong justification) and eng-test (defined the core functions and test it, i am not asking playwright level tests for now) if has bug use /eng-debug to RCA and fix until pass. /goal is to finish the frontend requirements, and you must refer the existing frontend and design skills we have. I want a clean and nice, dark theme UI. email me if any blocker with /enso-manager /save-prompt
+
+(Stack was locked in the preceding `/grill-me`: FastAPI + React Vite SPA, no Next.js — no SSR need.)
+
+## What I Did
+
+- **Ground/Code (eng-pipe Stage 1/3):** Pre-flight confirmed node v24/npm 11 and the four design skills present; found the one API gap (`ExtractionResult` exposed `canonical_text_len` but not the text the boundary viewer needs). Spawned an `engineer` subagent in an isolated worktree to build it against a precise spec (it read `vercel-web-design-guidelines`, `vercel-react-best-practices`, `minimax-frontend-dev`, `minimax-fullstack-dev` + repo conventions). Result: `api/server.py` (FastAPI: `POST /api/extract` off-thread + timeout + accession cache + env guard + structured error JSON, `GET /api/demo`, `GET /api/eval`, SPA static mount), `web/` React+Vite+TS dark SPA (InputBar, ItemNavigator, ItemDetail, BoundaryViewer, SummaryPanel, FailureInspector, EvalView, `lib/format.ts`), pipeline change to surface `canonical_text`, Dockerfile, `.env.example`, core tests. 4 commits.
+- **Review (Stage 4, fresh context):** Independent reviewer traced serialization, the ticker->accession cache key, env-missing and error-JSON paths — **0 RED**, 4 yellow + 4 green. I bought 6, justified skipping 2 (the `asdict` comment documents a real invariant; `== null` is an intentional null+undefined match).
+- **Fix (Stage 5):** (1) real fetch-level timeout via `edgar.configure_http(timeout=60)` so a wedged socket reclaims the worker (root cause, not just the 504 symptom) + wider pool; (2) DOMPurify-sanitized the markdown render (filing-derived content was an XSS sink); (3) controlled demo `<select>` so re-picking the same example re-triggers; (4) capped the highlighted span head+tail for huge items (Item 8); (5) aligned loading copy with the real timeout; (6) added the missing 504-path test. 2 commits.
+- **Test (Stage 6 = eng-test):** 46 pytest (8 API + 38 pipeline) + 15 vitest pass; live uvicorn smoke (`/api/demo`, `/api/eval`, SPA, env-missing 500); plus **2 live end-to-end EDGAR extractions**. The live run caught my own stale demo label: M2i is not "0 items" — it returns 23 items with 12 flagged `extraction_failure` (template filled, never dropped); "0 items" was only the tier-1 regex anchor count. GE verified accurate (23 present items, ~1.3% coverage = latched onto the cross-ref index). Corrected both notes. 1 commit. (Stage 7 debug not needed — no failures.)
+- Fast-forwarded `main` by all 7 commits (local only, **not pushed**); verified no secrets/`node_modules` tracked.
+- **One blocker emailed via enso-manager:** the assignment's public-URL requirement needs the user's hosting account (HF Spaces / Render / Zeabur) + a real `SEC_EDGAR_USER_AGENT` in the deploy env. Built fully deployable (Dockerfile + instructions) regardless.
