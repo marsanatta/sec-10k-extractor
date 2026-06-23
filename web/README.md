@@ -3,7 +3,8 @@
 FastAPI backend (`api/`) + React + Vite + TypeScript SPA (`web/`). The SPA lets a reviewer
 submit or pick a filing, inspect every canonical Item 1–16 with its source-boundary
 highlight, and read calibrated confidence + provenance. Honest about failures: GE is shown
-mis-segmented, M2i as 0 items, and the LLM escalation tier as a deferred stub (it did not run).
+mis-segmented (items cover ~1% of the document), M2i has its unlocated items flagged as
+extraction failures, and the LLM escalation tier is a deferred stub (it did not run).
 
 ## Prerequisites
 

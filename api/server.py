@@ -29,7 +29,8 @@ DEMO_FILINGS = [
     {"id": "ge-fy2023", "label": "General Electric FY2023", "accession": "0000040545-24-000027",
      "note": "known mis-segmented - regex latched onto the cross-reference index"},
     {"id": "m2i-fy2023", "label": "M2i Global FY2023", "accession": "0001493152-24-014827",
-     "note": "0 items - newline-broken headers the regex misses"},
+     "note": "newline-broken 'Item' headers defeat the regex; unlocated items are flagged "
+             "extraction_failure (not dropped) and the filing needs review"},
     {"id": "msft-fy1995", "label": "Microsoft FY1995", "accession": "0000891020-95-000433",
      "note": "legacy SGML"},
 ]
