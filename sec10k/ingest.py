@@ -29,6 +29,10 @@ def _ensure_identity() -> None:
     global _identity_set
     if not _identity_set:
         edgar.set_identity(get_user_agent())
+        # Bound each HTTP operation so a wedged EDGAR socket raises instead of hanging
+        # forever -- otherwise a stuck fetch pins its caller (e.g. an API worker thread)
+        # indefinitely, since an in-flight request cannot be cancelled mid-read.
+        edgar.configure_http(timeout=60)
         _identity_set = True
 
 

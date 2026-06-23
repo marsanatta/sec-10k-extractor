@@ -107,6 +107,17 @@ def test_extract_missing_env_returns_500(client, monkeypatch):
     assert "SEC_EDGAR_USER_AGENT" in resp.json()["error"]
 
 
+def test_extract_timeout_returns_504(client, monkeypatch):
+    import time
+
+    monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
+    monkeypatch.setattr(server, "EXTRACT_TIMEOUT_S", 0.1)
+    monkeypatch.setattr(server.pipeline, "extract", lambda **kw: time.sleep(1) or _fake_result())
+    resp = client.post("/api/extract", json={"accession": "slow"})
+    assert resp.status_code == 504
+    assert "timed out" in resp.json()["error"]
+
+
 def test_extract_failure_returns_structured_error(client, monkeypatch):
     monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
 

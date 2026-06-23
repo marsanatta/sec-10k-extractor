@@ -35,7 +35,7 @@ DEMO_FILINGS = [
 ]
 
 _cache: dict[str, dict] = {}
-_pool = ThreadPoolExecutor(max_workers=2)
+_pool = ThreadPoolExecutor(max_workers=4)
 
 app = FastAPI(title="SEC 10-K Extractor")
 
