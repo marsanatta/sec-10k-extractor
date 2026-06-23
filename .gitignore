@@ -35,6 +35,7 @@ data/cache/
 # Claude Code runtime
 .claude/*.lock
 .claude/scheduled_tasks.lock
+.claude/worktrees/
 
 # OS / editor
 .DS_Store

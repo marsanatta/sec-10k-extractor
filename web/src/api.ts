@@ -21,10 +21,12 @@ export async function fetchEval(): Promise<string> {
   return body.markdown;
 }
 
-export async function extract(req: ExtractRequest): Promise<ExtractionResult> {
+export async function extract(req: ExtractRequest, token?: string): Promise<ExtractionResult> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
   const resp = await fetch("/api/extract", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(req),
   });
   return asJson<ExtractionResult>(resp);

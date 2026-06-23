@@ -18,7 +18,12 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState(() => localStorage.getItem("sec10k_access_token") ?? "");
   const timer = useRef<number | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem("sec10k_access_token", token);
+  }, [token]);
 
   useEffect(() => {
     fetchDemos()
@@ -36,7 +41,7 @@ export default function App() {
       1000,
     );
     try {
-      const res = await extract(req);
+      const res = await extract(req, token);
       setResult(res);
       const firstPresent = res.items.find((it) => it.status === "present") ?? res.items[0] ?? null;
       setSelected(firstPresent);
@@ -75,7 +80,14 @@ export default function App() {
         <EvalView />
       ) : (
         <>
-          <InputBar demos={demos} loading={loading} elapsed={elapsed} onSubmit={runExtract} />
+          <InputBar
+            demos={demos}
+            loading={loading}
+            elapsed={elapsed}
+            onSubmit={runExtract}
+            token={token}
+            onToken={setToken}
+          />
           {error && <div className="error">{error}</div>}
 
           {result && (

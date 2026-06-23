@@ -6,9 +6,11 @@ interface Props {
   loading: boolean;
   elapsed: number;
   onSubmit: (req: ExtractRequest) => void;
+  token: string;
+  onToken: (value: string) => void;
 }
 
-export function InputBar({ demos, loading, elapsed, onSubmit }: Props) {
+export function InputBar({ demos, loading, elapsed, onSubmit, token, onToken }: Props) {
   const [ticker, setTicker] = useState("");
   const [fiscalYear, setFiscalYear] = useState("");
   const [accession, setAccession] = useState("");
@@ -108,6 +110,19 @@ export function InputBar({ demos, loading, elapsed, onSubmit }: Props) {
       >
         {loading ? "Extracting…" : "Extract"}
       </button>
+
+      <div className="field">
+        <label htmlFor="token">Access token</label>
+        <input
+          id="token"
+          type="password"
+          placeholder="shared by the operator"
+          value={token}
+          disabled={loading}
+          autoComplete="off"
+          onChange={(e) => onToken(e.target.value)}
+        />
+      </div>
 
       {loading && (
         <span className="elapsed">

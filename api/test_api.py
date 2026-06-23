@@ -15,6 +15,10 @@ from sec10k.schema import (
 )
 
 
+TOKEN = "test-access-token"
+AUTH = {"Authorization": f"Bearer {TOKEN}"}
+
+
 @pytest.fixture(autouse=True)
 def _clear_cache():
     server._cache.clear()
@@ -66,9 +70,10 @@ def test_eval_returns_markdown(client):
 
 def test_extract_returns_full_shape(client, monkeypatch):
     monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
     monkeypatch.setattr(server.pipeline, "extract", lambda **kw: _fake_result())
 
-    resp = client.post("/api/extract", json={"accession": "0000320193-24-000123"})
+    resp = client.post("/api/extract", json={"accession": "0000320193-24-000123"}, headers=AUTH)
     assert resp.status_code == 200
     body = resp.json()
     assert body["meta"]["accession"] == "0000320193-24-000123"
@@ -81,6 +86,7 @@ def test_extract_returns_full_shape(client, monkeypatch):
 
 def test_extract_caches_by_accession(client, monkeypatch):
     monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
     calls = {"n": 0}
 
     def _counting_extract(**kw):
@@ -88,43 +94,68 @@ def test_extract_caches_by_accession(client, monkeypatch):
         return _fake_result()
 
     monkeypatch.setattr(server.pipeline, "extract", _counting_extract)
-    client.post("/api/extract", json={"accession": "0000320193-24-000123"})
-    client.post("/api/extract", json={"accession": "0000320193-24-000123"})
+    client.post("/api/extract", json={"accession": "0000320193-24-000123"}, headers=AUTH)
+    client.post("/api/extract", json={"accession": "0000320193-24-000123"}, headers=AUTH)
     assert calls["n"] == 1
 
 
 def test_extract_missing_input_returns_400(client, monkeypatch):
     monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
-    resp = client.post("/api/extract", json={})
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+    resp = client.post("/api/extract", json={}, headers=AUTH)
     assert resp.status_code == 400
     assert "error" in resp.json()
 
 
 def test_extract_missing_env_returns_500(client, monkeypatch):
     monkeypatch.delenv("SEC_EDGAR_USER_AGENT", raising=False)
-    resp = client.post("/api/extract", json={"accession": "x"})
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+    resp = client.post("/api/extract", json={"accession": "x"}, headers=AUTH)
     assert resp.status_code == 500
     assert "SEC_EDGAR_USER_AGENT" in resp.json()["error"]
+
+
+def test_extract_gate_unconfigured_returns_503(client, monkeypatch):
+    monkeypatch.delenv("SEC10K_ACCESS_TOKEN", raising=False)
+    resp = client.post("/api/extract", json={"accession": "x"})
+    assert resp.status_code == 503
+    assert "SEC10K_ACCESS_TOKEN" in resp.json()["error"]
+
+
+def test_extract_wrong_token_returns_401(client, monkeypatch):
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+    resp = client.post(
+        "/api/extract", json={"accession": "x"}, headers={"Authorization": "Bearer wrong"}
+    )
+    assert resp.status_code == 401
+
+
+def test_extract_absent_token_returns_401(client, monkeypatch):
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+    resp = client.post("/api/extract", json={"accession": "x"})
+    assert resp.status_code == 401
 
 
 def test_extract_timeout_returns_504(client, monkeypatch):
     import time
 
     monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
     monkeypatch.setattr(server, "EXTRACT_TIMEOUT_S", 0.1)
     monkeypatch.setattr(server.pipeline, "extract", lambda **kw: time.sleep(1) or _fake_result())
-    resp = client.post("/api/extract", json={"accession": "slow"})
+    resp = client.post("/api/extract", json={"accession": "slow"}, headers=AUTH)
     assert resp.status_code == 504
     assert "timed out" in resp.json()["error"]
 
 
 def test_extract_failure_returns_structured_error(client, monkeypatch):
     monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
 
     def _boom(**kw):
         raise ValueError("no filing found")
 
     monkeypatch.setattr(server.pipeline, "extract", _boom)
-    resp = client.post("/api/extract", json={"accession": "bad"})
+    resp = client.post("/api/extract", json={"accession": "bad"}, headers=AUTH)
     assert resp.status_code == 502
     assert "Extraction failed" in resp.json()["error"]

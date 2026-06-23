@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from api.security import TokenAuthMiddleware
 from sec10k import pipeline
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +40,7 @@ _cache: dict[str, dict] = {}
 _pool = ThreadPoolExecutor(max_workers=4)
 
 app = FastAPI(title="SEC 10-K Extractor")
+app.add_middleware(TokenAuthMiddleware)
 
 
 class ExtractRequest(BaseModel):
