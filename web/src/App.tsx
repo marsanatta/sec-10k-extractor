@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { extract, extractDemo, fetchDemos } from "./api";
+import { extract, extractDemo, extractText, fetchDemos } from "./api";
 import { EvalView } from "./components/EvalView";
 import { FailureInspector } from "./components/FailureInspector";
 import { InputBar } from "./components/InputBar";
@@ -57,6 +57,7 @@ export default function App() {
 
   const runExtract = (req: ExtractRequest) => run(() => extract(req, token));
   const runDemo = (id: string) => run(() => extractDemo(id));
+  const runText = (text: string) => run(() => extractText(text, token));
 
   return (
     <div className="app">
@@ -89,6 +90,7 @@ export default function App() {
             elapsed={elapsed}
             onSubmit={runExtract}
             onDemo={runDemo}
+            onText={runText}
             token={token}
             onToken={setToken}
           />

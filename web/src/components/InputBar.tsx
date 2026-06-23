@@ -1,55 +1,80 @@
 import { useState } from "react";
 import type { DemoEntry, ExtractRequest } from "../types";
 
+type Mode = "ticker" | "accession" | "text";
+
 interface Props {
   demos: DemoEntry[];
   loading: boolean;
   elapsed: number;
   onSubmit: (req: ExtractRequest) => void;
   onDemo: (id: string) => void;
+  onText: (text: string) => void;
   token: string;
   onToken: (value: string) => void;
 }
 
-export function InputBar({ demos, loading, elapsed, onSubmit, onDemo, token, onToken }: Props) {
+export function InputBar({
+  demos,
+  loading,
+  elapsed,
+  onSubmit,
+  onDemo,
+  onText,
+  token,
+  onToken,
+}: Props) {
+  const [demo, setDemo] = useState("");
+  const [mode, setMode] = useState<Mode>("ticker");
   const [ticker, setTicker] = useState("");
   const [fiscalYear, setFiscalYear] = useState("");
   const [accession, setAccession] = useState("");
-  const [demo, setDemo] = useState("");
+  const [text, setText] = useState("");
 
-  const hasCustom = Boolean(accession.trim() || ticker.trim());
-  const needsToken = hasCustom && !token.trim();
-
-  function submit() {
-    if (needsToken) return;
-    if (accession.trim()) {
-      onSubmit({ accession: accession.trim() });
-    } else if (ticker.trim()) {
-      onSubmit({
-        ticker: ticker.trim().toUpperCase(),
-        fiscal_year: fiscalYear ? Number(fiscalYear) : undefined,
-      });
-    }
-  }
+  const input =
+    mode === "ticker" ? ticker.trim() : mode === "accession" ? accession.trim() : text.trim();
+  const hasInput = Boolean(input);
+  const hasToken = Boolean(token.trim());
+  const canSubmit = hasInput && hasToken && !loading;
 
   function pickDemo(id: string) {
     const entry = demos.find((d) => d.id === id);
     if (!entry) return;
-    setTicker("");
-    setFiscalYear("");
-    setAccession("");
     setDemo("");
     onDemo(entry.id);
   }
 
+  function submit() {
+    if (!canSubmit) return;
+    if (mode === "ticker") {
+      onSubmit({
+        ticker: ticker.trim().toUpperCase(),
+        fiscal_year: fiscalYear ? Number(fiscalYear) : undefined,
+      });
+    } else if (mode === "accession") {
+      onSubmit({ accession: accession.trim() });
+    } else {
+      onText(text);
+    }
+  }
+
+  function loadFile(file: File | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setText(String(reader.result ?? ""));
+      setMode("text");
+    };
+    reader.readAsText(file);
+  }
+
   return (
     <div className="inputbar">
-      <div className="field">
-        <label htmlFor="demo">
-          Demo filing <small>(no token needed)</small>
-        </label>
+      <div className="lookup-group demo-group">
+        <span className="group-title">
+          Curated demo <small>· no token</small>
+        </span>
         <select
-          id="demo"
           value={demo}
           disabled={loading}
           onChange={(e) => {
@@ -57,7 +82,7 @@ export function InputBar({ demos, loading, elapsed, onSubmit, onDemo, token, onT
             if (e.target.value) pickDemo(e.target.value);
           }}
         >
-          <option value="">Select a curated example…</option>
+          <option value="">Pick an example…</option>
           {demos.map((d) => (
             <option key={d.id} value={d.id}>
               {d.label} — {d.note}
@@ -66,68 +91,99 @@ export function InputBar({ demos, loading, elapsed, onSubmit, onDemo, token, onT
         </select>
       </div>
 
-      <span className="sep">or look up any filing</span>
+      <div className={`lookup-group custom-group${hasInput && !hasToken ? " needs-token" : ""}`}>
+        <span className="group-title">
+          Look up or submit a filing <small>· needs access token</small>
+        </span>
 
-      <div className="field">
-        <label htmlFor="ticker">Ticker</label>
-        <input
-          id="ticker"
-          placeholder="AAPL"
-          value={ticker}
-          disabled={loading}
-          onChange={(e) => setTicker(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="fy">Fiscal year</label>
-        <input
-          id="fy"
-          placeholder="2024"
-          inputMode="numeric"
-          value={fiscalYear}
-          disabled={loading}
-          onChange={(e) => setFiscalYear(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="acc">Accession</label>
-        <input
-          id="acc"
-          placeholder="0000320193-24-000123"
-          value={accession}
-          disabled={loading}
-          onChange={(e) => setAccession(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="token">
-          Access token <small>(for custom lookups)</small>
-        </label>
-        <input
-          id="token"
-          type="password"
-          placeholder="shared by the operator"
-          value={token}
-          disabled={loading}
-          autoComplete="off"
-          onChange={(e) => onToken(e.target.value)}
-        />
+        <div className="field token-field">
+          <label htmlFor="token">Access token {hasToken ? "" : "(required)"}</label>
+          <input
+            id="token"
+            type="password"
+            placeholder="shared by the operator"
+            value={token}
+            disabled={loading}
+            autoComplete="off"
+            onChange={(e) => onToken(e.target.value)}
+          />
+        </div>
+
+        <div className="mode-switch" role="tablist">
+          {(["ticker", "accession", "text"] as Mode[]).map((m) => (
+            <button
+              key={m}
+              role="tab"
+              aria-selected={mode === m}
+              className={`mode-tab${mode === m ? " active" : ""}`}
+              disabled={loading}
+              onClick={() => setMode(m)}
+            >
+              {m === "ticker" ? "Ticker" : m === "accession" ? "Accession" : "Paste / upload"}
+            </button>
+          ))}
+        </div>
+
+        {mode === "ticker" && (
+          <div className="mode-fields">
+            <input
+              placeholder="Ticker (AAPL)"
+              value={ticker}
+              disabled={loading}
+              onChange={(e) => setTicker(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+            />
+            <input
+              placeholder="Fiscal year (2024)"
+              inputMode="numeric"
+              value={fiscalYear}
+              disabled={loading}
+              onChange={(e) => setFiscalYear(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+            />
+          </div>
+        )}
+        {mode === "accession" && (
+          <div className="mode-fields">
+            <input
+              placeholder="0000320193-24-000123"
+              value={accession}
+              disabled={loading}
+              onChange={(e) => setAccession(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+            />
+          </div>
+        )}
+        {mode === "text" && (
+          <div className="mode-fields text-mode">
+            <textarea
+              placeholder="Paste filing text — or copy a result's canonical text, delete/reorder an Item, and resubmit to watch the validator react…"
+              value={text}
+              disabled={loading}
+              rows={4}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <label className="file-btn">
+              Upload .txt / .htm
+              <input
+                type="file"
+                accept=".txt,.htm,.html,.sgml"
+                disabled={loading}
+                onChange={(e) => loadFile(e.target.files?.[0])}
+                hidden
+              />
+            </label>
+          </div>
+        )}
+
+        <button className="btn-primary" disabled={!canSubmit} onClick={submit}>
+          {loading ? "Extracting…" : "Extract"}
+        </button>
+        {hasInput && !hasToken && (
+          <span className="hint">Enter the access token above to run this lookup.</span>
+        )}
       </div>
 
-      <button
-        className="btn-primary"
-        disabled={loading || !hasCustom || needsToken}
-        onClick={submit}
-      >
-        {loading ? "Extracting…" : "Extract"}
-      </button>
-
-      {needsToken && (
-        <span className="hint">Enter the access token to run a custom lookup (demos don't need it).</span>
-      )}
       {loading && (
         <span className="elapsed">
           <span className="spinner" aria-hidden="true" />

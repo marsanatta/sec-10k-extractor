@@ -25,13 +25,26 @@ export async function extractDemo(id: string): Promise<ExtractionResult> {
   return asJson<ExtractionResult>(await fetch(`/api/demo-result/${encodeURIComponent(id)}`));
 }
 
-export async function extract(req: ExtractRequest, token?: string): Promise<ExtractionResult> {
+function authHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+export async function extract(req: ExtractRequest, token?: string): Promise<ExtractionResult> {
   const resp = await fetch("/api/extract", {
     method: "POST",
-    headers,
+    headers: authHeaders(token),
     body: JSON.stringify(req),
+  });
+  return asJson<ExtractionResult>(resp);
+}
+
+export async function extractText(text: string, token?: string): Promise<ExtractionResult> {
+  const resp = await fetch("/api/extract-text", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ text }),
   });
   return asJson<ExtractionResult>(resp);
 }

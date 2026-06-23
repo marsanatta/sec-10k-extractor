@@ -90,6 +90,33 @@ def test_demo_result_unknown_id_returns_404(client, monkeypatch):
     assert "error" in resp.json()
 
 
+def test_extract_text_requires_token(client, monkeypatch):
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+    resp = client.post("/api/extract-text", json={"text": "Item 1. Business"})  # no auth header
+    assert resp.status_code == 401
+
+
+def test_extract_text_empty_returns_400(client, monkeypatch):
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+    resp = client.post("/api/extract-text", json={"text": "   "}, headers=AUTH)
+    assert resp.status_code == 400
+
+
+def test_extract_text_runs_offline(client, monkeypatch):
+    # No network, no pipeline monkeypatch: this exercises the real offline segmentation path.
+    monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)
+    body_text = (
+        "PART I\n\nITEM 1. BUSINESS\nWe design and sell widgets.\n\n"
+        "ITEM 1A. RISK FACTORS\nOur business faces risks.\n\n"
+        "ITEM 2. PROPERTIES\nWe lease offices.\n"
+    )
+    resp = client.post("/api/extract-text", json={"text": body_text}, headers=AUTH)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert isinstance(body["items"], list)
+    assert body["canonical_text"].startswith("PART I")
+
+
 def test_extract_returns_full_shape(client, monkeypatch):
     monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test Runner test@example.com")
     monkeypatch.setenv("SEC10K_ACCESS_TOKEN", TOKEN)

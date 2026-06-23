@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from dataclasses import asdict
 from pathlib import Path
 
+from bs4 import BeautifulSoup
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -12,6 +14,8 @@ from pydantic import BaseModel
 
 from api.security import TokenAuthMiddleware
 from sec10k import pipeline
+from sec10k.ingest import RawFiling
+from sec10k.normalize import to_canonical
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIST = REPO_ROOT / "web" / "dist"
@@ -19,6 +23,10 @@ EVAL_REPORT = REPO_ROOT / "eval" / "report.md"
 
 # Extraction is slow (GE is ~4MB); cap it so a wedged fetch never holds the worker forever.
 EXTRACT_TIMEOUT_S = 120
+
+# Cap pasted/uploaded filing text so a public endpoint can't be made to segment unbounded input.
+MAX_UPLOAD_CHARS = 6_000_000
+_HTML_RE = re.compile(r"<\s*(html|body|div|p|table|td|tr|span|ix:)\b", re.I)
 
 # Curated reviewer examples. Extraction still goes through /api/extract (and is cached by
 # accession), so a clean filer fetched by ticker resolves to the same cached result.
@@ -119,6 +127,53 @@ def demo_result(demo_id: str) -> JSONResponse:
     if entry is None:
         return JSONResponse(status_code=404, content={"error": f"Unknown demo id: {demo_id}"})
     return _run_extraction(entry.get("ticker"), entry.get("fiscal_year"), entry.get("accession"))
+
+
+class ExtractTextRequest(BaseModel):
+    text: str
+
+
+def _canonical_from_upload(raw_text: str) -> tuple[str, str]:
+    """Normalise pasted/uploaded filing text into the same canonical form an EDGAR fetch
+    produces, so offsets and segmentation behave identically. HTML is stripped to text first."""
+    if _HTML_RE.search(raw_text):
+        plain, html = BeautifulSoup(raw_text, "html.parser").get_text("\n"), raw_text
+    else:
+        plain, html = raw_text, None
+    raw = RawFiling(
+        cik="", accession="", company="(uploaded)", form="10-K", filing_date="",
+        period_of_report=None, primary_document=None, source_url=None,
+        smaller_reporting=None, html=html, text=plain,
+    )
+    return to_canonical(raw)
+
+
+@app.post("/api/extract-text")
+def extract_text(req: ExtractTextRequest) -> JSONResponse:
+    """Run the offline pipeline on pasted/uploaded filing text (no EDGAR fetch). Enables
+    submitting an arbitrary filing AND mutation testing -- paste a filing, delete/reorder/
+    truncate an Item, and watch the validation layer flag it. Gated like /api/extract (it is
+    under that path prefix): user-supplied compute on a public URL needs the shared token."""
+    text = req.text or ""
+    if not text.strip():
+        return JSONResponse(status_code=400, content={"error": "Provide filing text to extract."})
+    if len(text) > MAX_UPLOAD_CHARS:
+        return JSONResponse(
+            status_code=413,
+            content={"error": f"Text too large (> {MAX_UPLOAD_CHARS:,} chars)."},
+        )
+    canonical, era = _canonical_from_upload(text)
+    future = _pool.submit(pipeline.extract_from_text, canonical, era)
+    try:
+        result = future.result(timeout=EXTRACT_TIMEOUT_S)
+    except FutureTimeout:
+        return JSONResponse(
+            status_code=504,
+            content={"error": f"Extraction timed out after {EXTRACT_TIMEOUT_S}s."},
+        )
+    except Exception as exc:
+        return JSONResponse(status_code=502, content={"error": f"Extraction failed: {exc}"})
+    return JSONResponse(content=asdict(result))
 
 
 if WEB_DIST.exists():
