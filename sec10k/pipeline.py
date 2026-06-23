@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sec10k.boundary_crosscheck import boundary_signal, edgartools_item_texts
 from sec10k.dual import title_matches
 from sec10k.escalation import run_escalation
 from sec10k.ingest import RawFiling, fetch_10k
@@ -15,14 +16,16 @@ from sec10k.validate import assess
 def extract(ticker_or_cik=None, fiscal_year=None, accession=None, llm_client=None) -> ExtractionResult:
     raw = fetch_10k(ticker_or_cik, fiscal_year, accession)
     canonical, era = to_canonical(raw)
-    return _build_result(canonical, era, raw, llm_client=llm_client)
+    second = edgartools_item_texts(raw.accession)
+    return _build_result(canonical, era, raw, llm_client=llm_client, second_text=second)
 
 
 def extract_from_text(
-    canonical_text: str, era: str = "html", fiscal_year=None, smaller_reporting=None, llm_client=None
+    canonical_text: str, era: str = "html", fiscal_year=None, smaller_reporting=None,
+    llm_client=None, second_text=None,
 ) -> ExtractionResult:
     """Run the pipeline on already-normalised text (no network). Used by tests."""
-    return _build_result(canonical_text, era, None, fiscal_year, smaller_reporting, llm_client)
+    return _build_result(canonical_text, era, None, fiscal_year, smaller_reporting, llm_client, second_text)
 
 
 def _present_items(canonical: str):
@@ -39,7 +42,7 @@ def _present_items(canonical: str):
     return items, spans
 
 
-def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None, llm_client=None):
+def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None, llm_client=None, second_text=None):
     meta = _build_meta(raw, era)
     present, spans = _present_items(canonical)
     profile = FilerProfile(
@@ -47,8 +50,9 @@ def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None,
         smaller_reporting=meta.smaller_reporting if raw else smaller_reporting,
     )
     xbrl_facts = fetch_xbrl_facts(meta.cik, meta.fiscal_year) if raw is not None else {}
+    boundary = boundary_signal(spans, canonical, second_text or {})
     items, summary = assess(
-        present, canonical, profile, title_matches(canonical, spans), xbrl_facts
+        present, canonical, profile, title_matches(canonical, spans), xbrl_facts, boundary
     )
     summary["format_era"] = era
     result = ExtractionResult(

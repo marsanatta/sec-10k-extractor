@@ -99,6 +99,7 @@ def assess(
     profile: FilerProfile,
     title_match: dict[str, bool],
     xbrl_facts: dict | None = None,
+    boundary: dict[str, bool | None] | None = None,
 ) -> tuple[list[Item], dict]:
     """Run the validation stack, attach per-item confidence + provenance, classify absent
     items, and return (all_items_in_canonical_order, filing_summary)."""
@@ -136,6 +137,17 @@ def assess(
         if not item8_ok and item8.confidence.band == Band.HIGH:
             item8.confidence = Confidence(Band.MEDIUM, _SCORE[Band.MEDIUM], item8.confidence.signals)
 
+    # Independent boundary cross-check (a 2nd extractor): a per-item disagreement means the
+    # boundary is likely wrong even though the item is present and the tiling is intact --
+    # the one failure class the tiling invariants are structurally blind to.
+    boundary = boundary or {}
+    boundary_disagree = [k for k, v in boundary.items() if v is False]
+    for it in present_items:
+        if boundary.get(it.item) is False:
+            it.provenance.checks_failed.append("boundary_xcheck")
+            if it.confidence.band == Band.HIGH:
+                it.confidence = Confidence(Band.MEDIUM, _SCORE[Band.MEDIUM], it.confidence.signals)
+
     present_keys = {it.item for it in present_items}
     absent = _classify_absent(present_keys, profile)
     all_items = sorted(present_items + absent, key=lambda it: CANONICAL_ORDER[it.item])
@@ -155,6 +167,7 @@ def assess(
         or n_fail > 0
         or n_low > 0
         or not item8_ok
+        or len(boundary_disagree) > 0
     )
     summary = {
         "items_present": len(present_items),
@@ -170,6 +183,9 @@ def assess(
         "item8_markers": bool(item8_markers) if item8 is not None else None,
         "item8_xbrl_checked": item8_xbrl[0] if item8_xbrl else 0,
         "item8_xbrl_found": item8_xbrl[1] if item8_xbrl else 0,
+        "boundary_disagreements": boundary_disagree,
+        "boundary_checked": sum(1 for v in boundary.values() if v is not None),
+        "boundary_abstained": sum(1 for v in boundary.values() if v is None),
         "low_confidence_items": n_low,
         "medium_confidence_items": n_med,
         "needs_review": needs_review,
