@@ -44,13 +44,15 @@ Pooling lets the easy iXBRL cases hide the hard ones, so each bucket is reported
 **with its N**. Presence recall is over a conservative hand-labelled expected-present set;
 boundary match-rate is char-exact IoU ≥ 0.9 vs the audited gold (`eval/boundary_gold.json`).
 
-### Presence (label-free + conservative gold), all 9 filings
-- Mean presence recall **1.0** (every item the gold says is present was surfaced) — **on the
-  curated set**. This is not a general-robustness claim; the honest broad number is in §2.5.
-- Silent-failure rate **0/9** (obs 0.00, 95% CI [0.00, 0.30]) — a *silent* failure = missed a
-  gold item with `needs_review=False`. Structural-ok **9/9**, round-trip **9/9**.
-- `needs_review` fired on **8/9** (only clean apple passed unflagged) — the layer is
-  conservative, flagging every hard/medium filing.
+### Presence (label-free + conservative gold), all 16 filings
+- **Non-RED presence recall 14/14 = 1.0**; the two tracked RED residuals lower the **mean recall
+  to 0.906** (BAC 0.5, 374Water-/A 0.0) — by design (§2.5), not a hidden miss. Recall 1.0 is **the
+  curated set, not a population claim** (the broad number is §2.5).
+- Silent-failure rate **0/16** (obs 0.00, 95% CI [0.00, 0.19]) — even the REDs are *flagged*
+  (`needs_review`), so a *silent* failure (a missed gold item with `needs_review=False`) = none.
+  Structural-ok **16/16**, round-trip **16/16**.
+- `needs_review` fired on **15/16** (only clean apple unflagged) — the layer is conservative,
+  flagging every hard/medium filing and both REDs.
 
 ### Boundary (char-exact), per era — with N
 | bucket | N gold filings | boundary match-rate @ IoU≥0.9 |
@@ -187,7 +189,7 @@ cheap→expensive. Each is named by its real file + test.
    coverage drop and `needs_review` flip — verified live: KO 0.98→0.96, +3 extraction-failures).
 
 The headline metric is therefore **abstention/needs_review-gated**: the system is allowed to
-be wrong only if it says so. Silent-failure 0/9 is the number that matters; boundary 1.0 is
+be wrong only if it says so. Silent-failure 0/16 is the number that matters; boundary 1.0 is
 scoped to the iXBRL gold it was measured on.
 
 ---
