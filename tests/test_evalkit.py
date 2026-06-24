@@ -61,3 +61,21 @@ def test_silent_failure_logic():
     assert is_silent_failure(clean, ["1", "3", "8"]) is True       # missed 8, unflagged -> silent
     flagged = _result(["1", "3"], needs_review=True)
     assert is_silent_failure(flagged, ["1", "3", "8"]) is False    # missed but flagged -> not silent
+
+
+def test_scattered_item_check():
+    from sec10k.evalkit import scattered_item_check
+    canon = ("Item 7. MD&A\n" + "early mda text. " * 20 + "BOUNDARY"
+             + " unrelated section. " * 10 + "Critical Estimates here")
+    span_end = canon.index("BOUNDARY")  # the span stops at the first fragment (scattered)
+    item7 = Item(item_id="II.7", part="II", item="7", title="MD&A", text=canon[:span_end],
+                 char_range=(0, span_end), status=Status.PRESENT,
+                 confidence=Confidence(), provenance=Provenance())
+    meta = FilingMeta("", "", "", "10-K", "", None, "html", None, None)
+    r = ExtractionResult(meta, [item7], len(canon), {}, canonical_text=canon)
+    # late probe sits AFTER the span -> tail dropped -> a scattered-item failure
+    assert scattered_item_check(r, "7", "Critical Estimates")["inside"] is False
+    # a chunk genuinely inside the span -> ok
+    assert scattered_item_check(r, "7", "early mda text")["inside"] is True
+    # absent item -> abstain (None)
+    assert scattered_item_check(r, "1", "anything")["inside"] is None

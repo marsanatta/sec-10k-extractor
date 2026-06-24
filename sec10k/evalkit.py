@@ -102,3 +102,19 @@ def fmt_rate(k: int, n: int) -> str:
     center, half = wilson_ci(k, n)
     lo, hi = max(0.0, center - half), min(1.0, center + half)
     return f"{k}/{n} (obs {k / n:.2f}, 95% CI [{lo:.2f}, {hi:.2f}])"
+
+
+def scattered_item_check(result: ExtractionResult, item_key: str, tail_probe: str) -> dict:
+    """A NON-CONTIGUOUS item (a bank's Item 7 MD&A spread across non-adjacent stretches) fails
+    if the span stops at the first fragment. Given a probe known to belong to a LATE part of the
+    item, report whether it falls INSIDE the extracted span. inside=False => the tail was dropped
+    (a scattered-item failure, even though the item is 'present'). None => probe/item absent."""
+    it = next((i for i in result.items if i.item == item_key and i.status == Status.PRESENT), None)
+    if it is None or not it.char_range:
+        return {"item": item_key, "present": False, "inside": None, "probe_pos": -1, "span": None}
+    pos = result.canonical_text.find(tail_probe)
+    s, e = it.char_range
+    return {
+        "item": item_key, "present": True, "probe_pos": pos, "span": [s, e],
+        "inside": (s <= pos < e) if pos != -1 else None,
+    }

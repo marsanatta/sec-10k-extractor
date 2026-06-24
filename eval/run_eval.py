@@ -15,6 +15,7 @@ from sec10k.evalkit import (
     is_silent_failure,
     label_free_signals,
     presence_scores,
+    scattered_item_check,
 )
 from sec10k.pipeline import extract
 
@@ -69,6 +70,10 @@ def _run_one(entry: dict) -> dict:
         "tier": _tier(result),
         "recall": recall,
         "pass": recall >= 1.0,
+        "tail_probe": entry.get("tail_probe"),
+        "tail_probe_item": entry.get("tail_probe_item"),
+        "scattered": (scattered_item_check(result, entry["tail_probe_item"], entry["tail_probe"])
+                      if entry.get("tail_probe") else None),
         "presence": presence_scores(result, exp),
         "signals": label_free_signals(result),
         "silent_failure": is_silent_failure(result, exp),
@@ -189,6 +194,19 @@ def _render_md(agg: dict, rows: list[dict], run_date: str) -> str:
                   f"| {title} | n | fully-extracted (recall=1.0) | RED |", "|---|---|---|---|"]
         for name, b in agg[key]:
             lines.append(f"| {name} | {b['n']} | {b['pass']}/{b['n']} | {b['red']} |")
+
+    scat = [r for r in rows if "error" not in r and r.get("scattered")]
+    if scat:
+        lines += ["", "## Scattered-item checks (item captured WHOLE, not just non-empty)", "",
+                  "A late-MD&A probe must fall INSIDE the extracted item span; if it lands after the",
+                  "span the tail was dropped (a non-contiguous-item failure even though the item is present).",
+                  "", "| filing | item | tail probe | inside span? | verdict |", "|---|---|---|---|---|"]
+        for r in scat:
+            sc = r["scattered"]
+            inside = sc["inside"]
+            verdict = ("PASS (whole)" if inside else
+                       "**RED (tail dropped)**" if inside is False else "n/a (absent)")
+            lines.append(f"| {r['id']} | {r['tail_probe_item']} | {r['tail_probe']} | {inside} | {verdict} |")
     return "\n".join(lines) + "\n"
 
 

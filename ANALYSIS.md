@@ -169,7 +169,8 @@ cheap→expensive. Each is named by its real file + test.
    regex and edgartools are *header-anchored*, so they are correlated (a diagnostic measured
    ~97% agreement on big items = low false-alarm **but** a shared header-error blind spot);
    and it **abstains** on small items and header-less filings (GE, msft-1995). It is a real
-   gate on big items of well-formed filings, **not** a gate on the common-mode.
+   gate on big items of well-formed filings, **not** a gate on the common-mode — which is
+   exactly what the decorrelated third source (#6) probes.
 3. **Char-exact boundary gold + IoU scorer.** `boundary_scores` (`sec10k/evalkit.py`) vs
    `eval/boundary_gold.json` — **5 filings across 2 eras** (4 iXBRL + 1 SGML), each offset's
    snippet eyeballed as a real section body, not a TOC line; m2i (title) and msft-1995 (SGML,
@@ -187,6 +188,26 @@ cheap→expensive. Each is named by its real file + test.
    `needs_review` + `boundary_xcheck` in the provenance. 7 tests; the analogous live capability
    is the web `POST /api/extract-text` mutation path (paste a filing, truncate an item, watch
    coverage drop and `needs_review` flip — verified live: KO 0.98→0.96, +3 extraction-failures).
+6. **A third, decorrelated cross-check (edgar-corpus spike).** Check #2's dual-extractor is now
+   *correlated* — edgartools sits in the extraction path (the Tier-2 fallback), so
+   regex-vs-edgartools share a blind spot (~97% agreement): when both are wrong the same way, #2
+   stays green and lies. To break that, a SPIKE (`eval/edgar_corpus_spike.py`, on-demand) adds
+   **`eloukas/edgar-corpus`** — a 10-K item segmenter from an *independent* toolkit (WWW-2025 /
+   edgar-crawler lineage) — as a third signal: we locate its section text in our canonical (the
+   fallback's normalized-match trick, **never copying offsets**) and report three-way agreement
+   on items 1/1A/7 for the eval filings in its **1993–2020** coverage.
+   - **What it caught:** on **ge-2009** all three agree exactly (spread 0) on 1/1A/7 — high
+     confidence the common-mode was *not* lying there, **including where the fallback fired**; on
+     **msft-1995** edgar-corpus independently confirms our item-1/7 starts (5646/60724),
+     *matching the human-audited SGML gold* via a third method (edgartools returned nothing for
+     the SGML); on **xom-2010 item 1** edgar-corpus sides with our regex (9379) against an
+     **edgartools outlier (117219)** — the decorrelated signal breaks the tie and exposes an
+     edgartools error. **0 audit flags** (it never contradicted a real consensus).
+   - **What it can't:** edgar-corpus is **lossy** (cleaned/normalized text — locate missed
+     xom-2010's 1A/7), gives **text not offsets** (located starts are approximate), and covers
+     **1993–2020 only** (no modern filings). So it is a **cross-check, not gold**: it is NOT
+     auto-frozen, the **5 human-audited char-exact filings stay the floor**, and it runs
+     on-demand, never the CI gate.
 
 The headline metric is therefore **abstention/needs_review-gated**: the system is allowed to
 be wrong only if it says so. Silent-failure 0/16 is the number that matters; boundary 1.0 is
@@ -198,6 +219,13 @@ scoped to the iXBRL gold it was measured on.
 
 Honest failure list — the rubric rewards naming these, not hiding them.
 
+- **Scattered item — JPM FY2023 Item 7, boundary RED, tracked.** A bank holding company's MD&A
+  is non-contiguous: JPM's Item 7 span is a **396-char pointer stub** (*"…on pages 48–161…"*)
+  and the real MD&A (`Critical Accounting Estimates`, at char 450758) falls **outside** it — the
+  tail is dropped. Presence recall is still 1.0 (Item 7 *is* present), so this is invisible to a
+  recall metric; the dedicated **scattered-item check** (`evalkit.scattered_item_check`, in
+  `eval/report.md`) makes it a tracked **RED**. NOT fixed this pass (verification + coverage, not
+  capability) — tracked alongside BAC and the 10-K/A.
 - **Bank-of-America-class lead-item drop (residual).** Post-fix, a BAC 10-K still segments to
   14 items with the lead items (1/7) missing — neither the regex nor the edgartools fallback
   recovers it cleanly, so the fully-extracted rate is ~78% (§2.5), not 100%. It is **flagged**
