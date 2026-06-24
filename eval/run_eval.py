@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import datetime
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -21,31 +23,70 @@ MANIFEST = HERE / "eval_set.json"
 GOLD_FILE = HERE / "boundary_gold.json"
 GOLD = json.loads(GOLD_FILE.read_text()) if GOLD_FILE.exists() else {}
 
+_BIG = ("1", "1A", "7", "8")
+
+
+def _start_correct(result) -> int:
+    """Of the big items {1,1A,7,8} that are present, how many spans BEGIN with the matching
+    'Item N' header. A cheap self-check that the start landed on a header -- NOT the audited
+    char-gold (that stays at 5 filings); reported per filing for the covering table."""
+    n = 0
+    for k in _BIG:
+        it = next((i for i in result.items if i.item == k and i.status.value == "present"), None)
+        if it and it.text:
+            head = re.sub(r"\s+", " ", it.text[:40]).strip().lower()
+            if re.match(rf"item {k.lower()}[.:) ]", head):
+                n += 1
+    return n
+
+
+def _tier(result) -> str:
+    return (
+        "fallback"
+        if any("edgartools-fallback" in i.provenance.extractors
+               for i in result.items if i.status.value == "present")
+        else "regex"
+    )
+
 
 def _run_one(entry: dict) -> dict:
-    if entry.get("accession"):
-        result = extract(accession=entry["accession"])
-    else:
-        result = extract(ticker_or_cik=entry["ticker"], fiscal_year=entry.get("fiscal_year"))
+    result = extract(accession=entry["accession"])  # accession-pinned, immutable
     exp = entry.get("expected_present", [])
     s = result.summary
     g = GOLD.get(entry["id"])
+    recall = presence_scores(result, exp)["recall"]
     return {
         "id": entry["id"],
         "company": entry.get("company", ""),
-        "pathologies": entry.get("pathologies", []),
+        "era": s.get("format_era"),
+        "sector": entry.get("sector", ""),
+        "filer_type": entry.get("filer_type", ""),
+        "structure": entry.get("structure", ""),
+        "expect_red": entry.get("expect_red", False),
+        "note": entry.get("note", ""),
+        "items_found": s.get("items_present"),
+        "start_correct": _start_correct(result),
+        "tier": _tier(result),
+        "recall": recall,
+        "pass": recall >= 1.0,
         "presence": presence_scores(result, exp),
         "signals": label_free_signals(result),
         "silent_failure": is_silent_failure(result, exp),
         "boundary": boundary_scores(result, g["items"]) if g else None,
-        "summary": {
-            k: s.get(k)
-            for k in (
-                "format_era", "items_present", "items_extraction_failure",
-                "coverage_fraction", "item8_xbrl_found", "item8_xbrl_checked", "needs_review",
-            )
-        },
+        "summary": {k: s.get(k) for k in (
+            "format_era", "items_present", "items_extraction_failure",
+            "coverage_fraction", "item8_xbrl_found", "item8_xbrl_checked", "needs_review")},
     }
+
+
+def _bucket(ok: list[dict], key: str) -> list[tuple]:
+    out = {}
+    for r in ok:
+        b = out.setdefault(r.get(key) or "(none)", {"n": 0, "pass": 0, "red": 0})
+        b["n"] += 1
+        b["pass"] += 1 if r["pass"] else 0
+        b["red"] += 1 if r["expect_red"] else 0
+    return sorted(out.items())
 
 
 def main(argv=None) -> int:
@@ -63,6 +104,8 @@ def main(argv=None) -> int:
 
     ok = [r for r in rows if "error" not in r]
     n = len(ok)
+    reds = [r for r in ok if r["expect_red"]]
+    greens = [r for r in ok if not r["expect_red"]]
 
     def rate(pred) -> str:
         return fmt_rate(sum(1 for r in ok if pred(r)), n)
@@ -70,66 +113,82 @@ def main(argv=None) -> int:
     agg = {
         "n_filings": n,
         "errors": [r for r in rows if "error" in r],
+        "fully_extracted_rate": fmt_rate(sum(1 for r in greens if r["pass"]), len(greens)),
+        "red_cases": [r["id"] for r in reds],
         "silent_failure_rate": fmt_rate(sum(1 for r in ok if r["silent_failure"]), n),
         "structural_ok_rate": rate(lambda r: r["signals"]["structural_ok"]),
         "coverage_plausible_rate": rate(lambda r: r["signals"]["coverage_plausible"]),
-        "item8_oracle_ok_rate": rate(lambda r: r["signals"]["item8_oracle_ok"]),
         "needs_review_rate": rate(lambda r: r["signals"]["needs_review"]),
-        "mean_presence_recall": round(sum(r["presence"]["recall"] for r in ok) / n, 4) if n else 0.0,
+        "mean_presence_recall": round(sum(r["recall"] for r in ok) / n, 4) if n else 0.0,
+        "buckets_by_era": _bucket(ok, "era"),
+        "buckets_by_structure": _bucket(ok, "structure"),
+        "buckets_by_sector": _bucket(ok, "sector"),
     }
     brows = [r for r in ok if r.get("boundary")]
     mrs = [r["boundary"]["match_rate"] for r in brows if r["boundary"]["match_rate"] is not None]
     agg["boundary_gold_filings"] = len(brows)
     agg["boundary_match_rate_mean"] = round(sum(mrs) / len(mrs), 3) if mrs else None
-    md = _render_md(agg, rows)
-    (HERE / "report.json").write_text(json.dumps({"aggregate": agg, "filings": rows}, indent=2, default=str))
-    (HERE / "report.md").write_text(md)
+
+    run_date = (datetime.datetime.utcfromtimestamp(time.time()) + datetime.timedelta(hours=8)).strftime(
+        "%Y-%m-%d %H:%M Asia/Taipei")
+    md = _render_md(agg, rows, run_date)
+    (HERE / "report.json").write_text(
+        json.dumps({"aggregate": agg, "filings": rows}, indent=2, default=str), encoding="utf-8")
+    (HERE / "report.md").write_text(md, encoding="utf-8")
     print(md)
     return 0
 
 
-def _render_md(agg: dict, rows: list[dict]) -> str:
+def _render_md(agg: dict, rows: list[dict], run_date: str) -> str:
     lines = [
         "# Evaluation Report",
         "",
-        "Self-built eval set; presence-level gold (conservative hand-labels). Rates are Wilson",
-        "95% CI -- small N means wide bars. Boundary match-rate uses a small char-exact gold on the",
-        "big items, per era (apple/ko/msft-2023 iXBRL regex-derived + human-audited; m2i iXBRL",
-        "title-labelled; msft-1995 SGML human-labeled-independent). See ANALYSIS.md for per-bucket.",
+        f"Run: {run_date}. On-demand EDGAR batch (accession-pinned); NOT part of the offline unit",
+        "suite. A CURATED covering set that EXERCISES specific era/filer/structure/sector axes (NOT",
+        "a random sample) -- the per-bucket tables show WHICH axis breaks. The broad-population",
+        "fully-extracted estimate is the separate random diverse batch in ANALYSIS.md (~78%). RED =",
+        "known failures tracked on purpose, not papered over.",
         "",
         "## Headline",
         "",
-        f"- **Presence-level silent-failure rate (lower is better): {agg['silent_failure_rate']}**",
-        "  (missed expected items with no flag; boundary correctness is the separate metric below)",
-        f"- **Boundary match-rate @ IoU>=0.9 vs audited gold: {agg.get('boundary_match_rate_mean')}"
-        f" over {agg.get('boundary_gold_filings', 0)} gold filings** (a wrong boundary shows up here as a number)",
-        f"- Structural-ok: {agg['structural_ok_rate']}",
-        f"- Coverage-plausible: {agg['coverage_plausible_rate']}",
-        f"- Item-8 XBRL oracle ok: {agg['item8_oracle_ok_rate']}",
-        f"- Needs-review (flagged): {agg['needs_review_rate']}",
-        f"- Mean presence recall: {agg['mean_presence_recall']}",
-        f"- N filings: {agg['n_filings']}",
+        f"- **Covering-set non-RED pass (recall=1.0): {agg['fully_extracted_rate']}** "
+        "(curated axes; population estimate ~78% is the random batch in ANALYSIS.md)",
+        f"- **RED cases (tracked failures): {', '.join(agg['red_cases']) or 'none'}**",
+        f"- Presence silent-failure rate (lower better): {agg['silent_failure_rate']}",
+        f"- Boundary match-rate @ IoU>=0.9 vs audited gold: {agg.get('boundary_match_rate_mean')}"
+        f" over {agg.get('boundary_gold_filings', 0)} gold filings (per-era; gold stays human-audited)",
+        f"- Structural-ok: {agg['structural_ok_rate']}  |  Coverage-plausible: {agg['coverage_plausible_rate']}",
+        f"- Needs-review (flagged): {agg['needs_review_rate']}  |  Mean recall: {agg['mean_presence_recall']}"
+        f"  |  N: {agg['n_filings']}",
         "",
     ]
     if agg["errors"]:
         lines += ["## Errors", ""] + [f"- {e['id']}: {e['error']}" for e in agg["errors"]] + [""]
+
     lines += [
-        "## Per-filing",
+        "## Covering set (raw, per filing)",
         "",
-        "| id | era | present | recall | boundary@IoU0.9 | silent_fail | needs_review | item8_xbrl |",
-        "|----|-----|---------|--------|-----------------|-------------|--------------|-----------|",
+        "| filing | era | filer_type | sector | structure | items | start/4 | tier | recall | boundary | RED | note |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
         if "error" in r:
-            lines.append(f"| {r['id']} | ERROR: {r['error']} | | | | | | |")
+            lines.append(f"| {r['id']} | ERROR: {r['error']} | | | | | | | | | | |")
             continue
-        s, p, b = r["summary"], r["presence"], r.get("boundary")
-        bstr = f"{b['match_rate']} ({b['matched']}/{b['total']})" if b else "-"
+        b = r.get("boundary")
+        bstr = f"{b['match_rate']}({b['matched']}/{b['total']})" if b else "-"
+        red = "**RED**" if r["expect_red"] else ""
         lines.append(
-            f"| {r['id']} | {s['format_era']} | {s['items_present']} | {p['recall']} | "
-            f"{bstr} | {r['silent_failure']} | {s['needs_review']} | "
-            f"{s['item8_xbrl_found']}/{s['item8_xbrl_checked']} |"
+            f"| {r['id']} | {r['era']} | {r['filer_type']} | {r['sector']} | {r['structure']} | "
+            f"{r['items_found']} | {r['start_correct']}/4 | {r['tier']} | {r['recall']} | {bstr} | {red} | {r['note']} |"
         )
+
+    for title, key in (("era", "buckets_by_era"), ("structure", "buckets_by_structure"),
+                       ("sector", "buckets_by_sector")):
+        lines += ["", f"## Per-bucket by {title} (which axis breaks)", "",
+                  f"| {title} | n | fully-extracted (recall=1.0) | RED |", "|---|---|---|---|"]
+        for name, b in agg[key]:
+            lines.append(f"| {name} | {b['n']} | {b['pass']}/{b['n']} | {b['red']} |")
     return "\n".join(lines) + "\n"
 
 
