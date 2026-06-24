@@ -2,7 +2,7 @@
 
 What this system is, how well it works **with real numbers**, how it stays cheap, and — the
 part with no public ground truth — **how it verifies itself**. Every number here is produced
-by `eval/run_eval.py` over a 9-filing self-built set (`eval/eval_set.json`) plus the unit
+by `eval/run_eval.py` over a 16-filing self-built set (`eval/eval_set.json`) plus the unit
 suites; reproduce with `python eval/run_eval.py` and `python -m pytest -q`.
 
 The design in one line: **index, don't generate.** An item is a `char_range` into the
@@ -233,7 +233,7 @@ Honest failure list — the rubric rewards naming these, not hiding them.
 The tier is a **`DeferredLLMClient` stub** (`sec10k/escalation.py`): it makes no call. This is
 a deliberate **cost-discipline cut-line**, and it is defensible on three grounds:
 
-1. **The deterministic path already clears the bar.** Presence recall 1.0, silent-failure 0/9,
+1. **The deterministic path already clears the bar.** Non-RED recall 1.0 (14/14), silent-failure 0/16,
    iXBRL boundary 1.0 — all with \$0 inference. The LLM is for *recovering* flagged boundaries,
    not for the common case, so the system is fully functional without it.
 2. **Nothing is silently skipped — there is a deferral ledger.** `run_escalation` identifies
