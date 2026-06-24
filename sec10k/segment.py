@@ -9,8 +9,12 @@ from sec10k.items import CANONICAL_BY_KEY, CANONICAL_ORDER
 # "Item 10". nbsp is already normalised to a space by normalize.to_canonical. A trailing
 # separator is required to reject prose like "Item 5 of the plan"; a header with no
 # separator ("Item 1 Business") is a known P0 miss handled by later phases.
+# The item/number gap tolerates a SINGLE newline ("Item\n1.") so the line-anchored path
+# still segments iXBRL filings that render every token on its own line (e.g. m2i-fy2023);
+# a blank-line gap or no-space ("Item1.") is still rejected to avoid spurious mid-prose hits.
 _SEP = re.escape("." + ":" + ")" + "-" + chr(0x2013) + chr(0x2014))
-_HEADER_RE = re.compile(r"(?im)^[ \t>]*item[ \t]+(\d{1,2}[A-C]?)\s*[" + _SEP + "]")
+_GAP = r"(?:[ \t]+|[ \t]*\n[ \t]*)"
+_HEADER_RE = re.compile(r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)\s*[" + _SEP + "]")
 
 
 def _find_headers(text: str) -> list[tuple[str, int, int]]:

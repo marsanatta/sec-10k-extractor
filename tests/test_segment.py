@@ -66,6 +66,24 @@ def test_dash_separator_headers_recognised():
     assert [k for k, _, _ in segment(text)] == ["1", "2"]
 
 
+def test_newline_between_item_and_number_segments():
+    # iXBRL filings (e.g. m2i-fy2023) can render every token on its own line, so the header
+    # is "Item\n1." -- the line-anchored path must still segment these.
+    doc = (
+        "PART\nI\n\n"
+        "Item\n1. Business\n" + "We design and sell devices across many regions. " * 6 + "\n"
+        "Item\n1A. Risk Factors\n" + "Our business faces competitive and supply risks. " * 6 + "\n"
+        "Item\n2. Properties\n" + "We lease offices and labs in several cities. " * 6 + "\n"
+    )
+    assert [k for k, _, _ in segment(doc)] == ["1", "1A", "2"]
+
+
+def test_glued_or_blank_line_gap_not_matched():
+    # no whitespace ("Item1.") and a blank-line gap ("Item\n\n1.") must NOT match as headers
+    assert segment("PART I\nItem1. Business\nSome prose about the company and its work.\n") == []
+    assert segment("PART I\nItem\n\n1. Business\nSome prose about the company and its work.\n") == []
+
+
 def test_extract_from_text_present_and_classified():
     result = extract_from_text(DOC, fiscal_year=2024)
     present = {it.item for it in result.items if it.status == Status.PRESENT}
