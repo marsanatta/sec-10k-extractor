@@ -3,6 +3,7 @@ from __future__ import annotations
 from sec10k.boundary_crosscheck import boundary_signal, edgartools_item_texts
 from sec10k.dual import title_matches
 from sec10k.escalation import run_escalation
+from sec10k.fallback import locate_spans, needs_fallback
 from sec10k.ingest import RawFiling, fetch_10k
 from sec10k.items import CANONICAL_ITEMS
 from sec10k.normalize import to_canonical
@@ -28,13 +29,20 @@ def extract_from_text(
     return _build_result(canonical_text, era, None, fiscal_year, smaller_reporting, llm_client, second_text)
 
 
-def _present_items(canonical: str):
+def _present_items(canonical: str, second_text: dict | None = None):
     spans = {key: (s, e) for key, s, e in segment(canonical)}
+    extractor = "anchor"
+    # Tier-2 fallback: when the regex result is unusable (empty / collapsed), recover the
+    # boundaries from edgartools' structured items, located back in our canonical.
+    if second_text and needs_fallback(spans, canonical):
+        fb = locate_spans(canonical, second_text)
+        if fb and not needs_fallback(fb, canonical):
+            spans, extractor = fb, "edgartools-fallback"
     items = [
         Item(
             item_id=ci.item_id, part=ci.part, item=ci.key, title=ci.title,
             text=canonical[spans[ci.key][0]:spans[ci.key][1]], char_range=spans[ci.key],
-            status=Status.PRESENT, provenance=Provenance(extractors=["anchor"]),
+            status=Status.PRESENT, provenance=Provenance(extractors=[extractor]),
         )
         for ci in CANONICAL_ITEMS
         if ci.key in spans
@@ -44,7 +52,7 @@ def _present_items(canonical: str):
 
 def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None, llm_client=None, second_text=None):
     meta = _build_meta(raw, era)
-    present, spans = _present_items(canonical)
+    present, spans = _present_items(canonical, second_text)
     profile = FilerProfile(
         fiscal_year=meta.fiscal_year if raw else fiscal_year,
         smaller_reporting=meta.smaller_reporting if raw else smaller_reporting,

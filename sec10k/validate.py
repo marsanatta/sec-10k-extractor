@@ -119,8 +119,13 @@ def assess(
         (passed if cok else failed).append("content")
         (passed if tmatch else failed).append("title_match")
         it.confidence = Confidence(band=band, score=_SCORE[band], signals=passed)
+        # preserve the segmentation extractor (anchor or edgartools-fallback) so provenance
+        # shows which tier produced the boundary; add the title-match signal.
+        extractors = list(it.provenance.extractors) or ["anchor"]
+        if "title" not in extractors:
+            extractors.append("title")
         it.provenance = Provenance(
-            extractors=["anchor", "title"], checks_passed=passed, checks_failed=failed
+            extractors=extractors, checks_passed=passed, checks_failed=failed
         )
 
     # Independent Item-8 oracle: the financials must be inside the extracted Item 8 span

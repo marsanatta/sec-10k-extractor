@@ -111,3 +111,18 @@ def test_body_with_fewer_recognised_headers_still_wins():
     item1_start = next(s for k, s, _ in spans if k == "1")
     assert "PART I" in doc[:item1_start]          # body Item 1, not the TOC line
     assert [k for k, _, _ in spans] == ["1", "3"]  # the prose-rich body run
+
+
+def test_canonical_falls_back_to_html_when_text_is_broken():
+    # edgartools' .text() sometimes returns a repr-error stub (observed on JPM FY2023); the
+    # canonical must then be rebuilt from the html so the body isn't empty.
+    from sec10k.ingest import RawFiling
+    from sec10k.normalize import to_canonical
+    raw = RawFiling(
+        cik="", accession="", company="", form="10-K", filing_date="", period_of_report=None,
+        primary_document=None, source_url=None, smaller_reporting=None,
+        html="<html><body><p>Item 1. Business</p><p>Real body text about the company here.</p></body></html>",
+        text="<class 'edgar.documents.document.Document'>.__repr__ returned empty string",
+    )
+    canon, _ = to_canonical(raw)
+    assert "Item 1. Business" in canon and "Real body text" in canon
