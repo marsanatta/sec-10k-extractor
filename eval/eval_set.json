@@ -21,6 +21,12 @@
      "expected_present": ["1", "1A", "1B", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"]},
     {"id": "ko-fy2023", "ticker": "KO", "company": "Coca-Cola Co.", "fiscal_year": 2023,
      "pathologies": ["clean", "large_accelerated"],
-     "expected_present": ["1", "1A", "1B", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"]}
+     "expected_present": ["1", "1A", "1B", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"]},
+    {"id": "jpm-fy2023", "accession": "0000019617-24-000225", "company": "JPMorgan Chase & Co.", "fiscal_year": 2023,
+     "pathologies": ["large_bank", "broken_text_source", "regex_empty_pre_fix", "html_fallback_source"],
+     "expected_present": ["1", "1A", "2", "3", "7", "7A", "8", "9A", "15"]},
+    {"id": "scwo-fy2025", "accession": "0001654954-26-003094", "company": "374Water Inc.", "fiscal_year": 2025,
+     "pathologies": ["smaller_reporting_company", "token_per_line_headers", "regex_empty_pre_fix"],
+     "expected_present": ["1", "1A", "2", "7", "8"]}
   ]
 }

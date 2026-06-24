@@ -2,7 +2,7 @@
 
 What this system is, how well it works **with real numbers**, how it stays cheap, and — the
 part with no public ground truth — **how it verifies itself**. Every number here is produced
-by `eval/run_eval.py` over a 7-filing self-built set (`eval/eval_set.json`) plus the unit
+by `eval/run_eval.py` over a 9-filing self-built set (`eval/eval_set.json`) plus the unit
 suites; reproduce with `python eval/run_eval.py` and `python -m pytest -q`.
 
 The design in one line: **index, don't generate.** An item is a `char_range` into the
@@ -16,7 +16,7 @@ no existing item-segmenter emits confidence.
 
 ## 1. Eval set (what the numbers are measured on)
 
-7 filings, deliberately weighted toward failure modes (only 3 are "clean"):
+9 filings, deliberately weighted toward failure modes (only 3 are "clean"):
 
 | filing | era | why it's in the set |
 |---|---|---|
@@ -25,10 +25,14 @@ no existing item-segmenter emits confidence.
 | m2i-fy2023 | iXBRL | **token-per-line render** — headers arrive as `Item\n1.` |
 | msft-fy1995 | SGML | **legacy, zero `<a>` anchors**, all-caps irregular-spaced headers |
 | chemed-amend-fy2024 | iXBRL | **10-K/A** — partial scope, most items legitimately absent |
+| jpm-fy2023 | iXBRL | **broken `.text()` source** — edgartools returned a repr stub (regex saw 75 chars) |
+| scwo-fy2025 | iXBRL | **smaller-reporting**, token-per-line headers (a real SRC, full 10-K) |
 
-N is small (7), so every aggregate below carries a wide Wilson interval — stated, never
-hidden. The eval set is intentionally **not** representative of the EDGAR population; it
-over-samples hard cases so the metrics stress the failure modes.
+The last two **extracted completely empty on the pre-fix code** (0 items) and were added as
+regression cases (§2.5). N is small (9), so every aggregate carries a wide Wilson interval —
+stated, never hidden. **This set is curated, NOT a random sample of EDGAR** — it over-samples
+known-hard structures, so its recall is *not* a population robustness estimate. For that, see
+the diverse-batch number in §2.5.
 
 ---
 
@@ -38,12 +42,13 @@ Pooling lets the easy iXBRL cases hide the hard ones, so each bucket is reported
 **with its N**. Presence recall is over a conservative hand-labelled expected-present set;
 boundary match-rate is char-exact IoU ≥ 0.9 vs the audited gold (`eval/boundary_gold.json`).
 
-### Presence (label-free + conservative gold), all 7 filings
-- Mean presence recall **1.0** (every item the gold says is present was surfaced).
-- Silent-failure rate **0/7** (obs 0.00, 95% CI [0.00, 0.35]) — a *silent* failure = missed a
-  gold item with `needs_review=False`. Structural-ok **7/7**, round-trip **7/7**.
-- `needs_review` fired on **6/7** (only clean apple passed unflagged) — the layer is
-  conservative, flagging the 3 hard filings and the two medium-confidence clean ones.
+### Presence (label-free + conservative gold), all 9 filings
+- Mean presence recall **1.0** (every item the gold says is present was surfaced) — **on the
+  curated set**. This is not a general-robustness claim; the honest broad number is in §2.5.
+- Silent-failure rate **0/9** (obs 0.00, 95% CI [0.00, 0.30]) — a *silent* failure = missed a
+  gold item with `needs_review=False`. Structural-ok **9/9**, round-trip **9/9**.
+- `needs_review` fired on **8/9** (only clean apple passed unflagged) — the layer is
+  conservative, flagging every hard/medium filing.
 
 ### Boundary (char-exact), per era — with N
 | bucket | N gold filings | boundary match-rate @ IoU≥0.9 |
@@ -60,6 +65,35 @@ canonical text, then confirmed the extractor matches at IoU 1.0). Their agreemen
 cross-method confirmation, not a tautology. The three iXBRL easy filings are regex-derived but
 **human-audited** (every offset's snippet eyeballed as a real section body — §5.3).
 
+### 2.5 Robustness on a diverse batch — the curated set was hiding empties
+
+A 12-filing diverse batch (the kind a grader runs) exposed what the small curated set hid: on
+the pre-fix code only **~62%** extracted cleanly. The curated recall-1.0 was real but **not a
+robustness estimate** — it was measured on filings chosen to be segmentable. Three concrete
+failures and their root causes:
+
+| filing | pre-fix | root cause | fix | post-fix |
+|---|---|---|---|---|
+| JPM FY2023 | **0 items** | edgartools `.text()` returned a 75-char repr stub → empty canonical | **Tier-0 canonical source**: strip `raw.html` when `.text()` is broken (`normalize._source_text`) | **22 items**, recall 1.0 |
+| 374Water FY2025 | **0 items** | token-per-line iXBRL (`Item\n1.`) | newline-tolerant header regex (`segment.py`) | **21 items**, recall 1.0 |
+| GE FY2009 | **1 item** (Item 8 = 314KB blob) | regex collapsed; lead items lost | **edgartools fallback** (`fallback.py`): locate `.obj().items` heads back in our canonical, tile | **16 items** via `edgartools-fallback` |
+
+**The fallback tier** (`sec10k/fallback.py`): the regex stays primary ($0 on the cooperative
+common case). When its result is unusable — empty, or one item collapsed over the doc with the
+lead item missing — we recover boundaries from edgartools' structured `.obj().items`. edgartools
+gives item *text* on a different char stream, so to keep the `char_range` contract we **locate
+each item's head back in our canonical by normalized text match and tile** (never copy
+edgartools' offsets); round-trip/coverage then hold by construction. It is conservative — on the
+cooperative case it never fires, and where edgartools is *worse* (GE's Item 7A parses to 560KB >
+the whole document) the trigger keeps the regex result. Provenance records which tier produced
+each boundary (`anchor` vs `edgartools-fallback`).
+
+**Measured after the fix:** a fresh diverse batch (large-caps across sectors + the named
+failures) extracts cleanly on **7/9 (≈78%)**, up from ~62%. Honest residuals: a Bank-of-America
+10-K still drops the lead items (a structure neither tier nails yet), and ticker-by-year lookup
+can select a 10-K/A (Part-III-only amendment) instead of the full 10-K. Robustness improved and
+is now *measured on diverse data*, not asserted from a curated set.
+
 ---
 
 ## 3. Cost — per filing
@@ -70,7 +104,7 @@ The deterministic path does the work; the LLM is the exception, not the rule.
   structural validation + the XBRL/DEI oracles make no paid model call. The HIGH-confidence
   majority of items is accepted here at zero marginal cost.
 - **Escalation tier: flagged minority only, windowed.** A boundary is escalated only if it is
-  not HIGH confidence (or the item is an extraction-failure). Measured on this hard-weighted
+  not HIGH confidence (or the item is an extraction-failure). Measured on the 7 core curated filings (pre-batch)
   set: **64 / 161 canonical item-slots flagged (39.8%)** — but that average is dominated by the
   pathological filings (GE 23/23 all-low, chemed 12/12); on the clean filings it is **apple
   1/23, ko 3/23**. Each escalation sees a **±2000-char window** (`build_lib_prompt`,
@@ -139,7 +173,7 @@ cheap→expensive. Each is named by its real file + test.
    coverage drop and `needs_review` flip — verified live: KO 0.98→0.96, +3 extraction-failures).
 
 The headline metric is therefore **abstention/needs_review-gated**: the system is allowed to
-be wrong only if it says so. Silent-failure 0/7 is the number that matters; boundary 1.0 is
+be wrong only if it says so. Silent-failure 0/9 is the number that matters; boundary 1.0 is
 scoped to the iXBRL gold it was measured on.
 
 ---
@@ -148,6 +182,13 @@ scoped to the iXBRL gold it was measured on.
 
 Honest failure list — the rubric rewards naming these, not hiding them.
 
+- **Bank-of-America-class lead-item drop (residual).** Post-fix, a BAC 10-K still segments to
+  14 items with the lead items (1/7) missing — neither the regex nor the edgartools fallback
+  recovers it cleanly, so the fully-extracted rate is ~78% (§2.5), not 100%. It is **flagged**
+  (`needs_review`), not silent, but it is a real open failure mode.
+- **Filing selection picks amendments.** Ticker-by-year lookup can return a 10-K/A
+  (Part-III-only amendment, e.g. 374Water via ticker) instead of the full 10-K. The eval pins
+  the full filing by accession; the web/CLI should prefer the original 10-K over its /A.
 - **GE FY2023 — ungoldable, boundary "−".** Integrated MD&A + a cross-reference index means
   "Item N" appears out of body order; the regex segments to ~1.3% coverage. The validation
   layer **catches it** (coverage-implausible → `needs_review`, all 23 items low-confidence),
@@ -176,7 +217,7 @@ Honest failure list — the rubric rewards naming these, not hiding them.
 The tier is a **`DeferredLLMClient` stub** (`sec10k/escalation.py`): it makes no call. This is
 a deliberate **cost-discipline cut-line**, and it is defensible on three grounds:
 
-1. **The deterministic path already clears the bar.** Presence recall 1.0, silent-failure 0/7,
+1. **The deterministic path already clears the bar.** Presence recall 1.0, silent-failure 0/9,
    iXBRL boundary 1.0 — all with \$0 inference. The LLM is for *recovering* flagged boundaries,
    not for the common case, so the system is fully functional without it.
 2. **Nothing is silently skipped — there is a deferral ledger.** `run_escalation` identifies
@@ -201,7 +242,7 @@ deterministic path handles the rest at ≈ \$0, and the ledger proves nothing fa
 ## Reproduce
 
 ```bash
-python -m pytest -q                 # 60 unit tests incl. the mutation battery
+python -m pytest -q                 # 64 unit tests incl. the mutation battery
 SEC_EDGAR_USER_AGENT="Name email" python eval/run_eval.py   # regenerates eval/report.md + report.json
 ```
 Numbers in this doc are from that report (`eval/report.md`) and the per-filing summaries; the
