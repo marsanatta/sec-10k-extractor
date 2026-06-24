@@ -1,7 +1,8 @@
 {
   "apple-fy2024": {
     "accession": "0000320193-24-000123",
-    "source": "regex-verified",
+    "source": "regex-verified, human-audited",
+    "audited": "2026-06-24",
     "items": {
       "1": [
         10889,
@@ -23,7 +24,8 @@
   },
   "ko-fy2023": {
     "accession": "0000021344-24-000009",
-    "source": "regex-verified",
+    "source": "regex-verified, human-audited",
+    "audited": "2026-06-24",
     "items": {
       "1": [
         11955,
@@ -45,7 +47,8 @@
   },
   "msft-fy2023": {
     "accession": "0000950170-23-035122",
-    "source": "regex-verified",
+    "source": "regex-verified, human-audited",
+    "audited": "2026-06-24",
     "items": {
       "1": [
         10357,

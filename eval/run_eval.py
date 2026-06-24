@@ -93,14 +93,15 @@ def _render_md(agg: dict, rows: list[dict]) -> str:
         "# Evaluation Report",
         "",
         "Self-built eval set; presence-level gold (conservative hand-labels). Rates are Wilson",
-        "95% CI -- small N means wide bars. Boundary match-rate uses a small INDEPENDENT",
-        "char-exact gold (seed) keyed to the big items 1/1A/7/8.",
+        "95% CI -- small N means wide bars. Boundary match-rate uses a small char-exact gold keyed",
+        "to the big items 1/1A/7/8 (apple/ko/msft regex-derived + human-audited; m2i title-labelled,",
+        "method-independent).",
         "",
         "## Headline",
         "",
         f"- **Presence-level silent-failure rate (lower is better): {agg['silent_failure_rate']}**",
         "  (missed expected items with no flag; boundary correctness is the separate metric below)",
-        f"- **Boundary match-rate @ IoU>=0.9 vs INDEPENDENT gold: {agg.get('boundary_match_rate_mean')}"
+        f"- **Boundary match-rate @ IoU>=0.9 vs audited gold: {agg.get('boundary_match_rate_mean')}"
         f" over {agg.get('boundary_gold_filings', 0)} gold filings** (a wrong boundary shows up here as a number)",
         f"- Structural-ok: {agg['structural_ok_rate']}",
         f"- Coverage-plausible: {agg['coverage_plausible_rate']}",

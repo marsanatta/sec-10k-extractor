@@ -1,8 +1,10 @@
 """Build char-exact boundary gold (seed) for the big items 1/1A/7/8.
 
 Easy filings (apple/ko/msft-fy2023): the number-regex is verifiably correct, so its
-boundaries are frozen as gold (a fixed reference; a later regex regression will diverge
-from it). Hard filing (m2i): the number-regex finds 0 items (headers are newline-broken
+boundaries are frozen as gold. The committed spans have since been HUMAN-AUDITED (a snippet
+audit confirming each start is the real section body, not a TOC/cross-reference line) -- so
+they are trusted truth, not just a regression anchor. Re-running this script regenerates
+UN-audited spans that must be re-audited. Hard filing (m2i): the number-regex finds 0 items (headers are newline-broken
 'Item\\n1. Business'), so its boundaries are located INDEPENDENTLY by title text -- a
 genuinely different method, so this gold can catch what the regex/edgartools cross-check
 both miss. Run once; verify the printed snippets; the JSON is the artifact."""

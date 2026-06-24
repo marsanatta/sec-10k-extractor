@@ -72,11 +72,12 @@ def _iou(a: tuple[int, int], b: tuple[int, int]) -> float:
 
 
 def boundary_scores(result: ExtractionResult, gold_items: dict[str, list[int]], iou_thresh: float = 0.9) -> dict:
-    """Char-exact boundary scoring against an INDEPENDENT gold (offsets per item). For each
+    """Char-exact boundary scoring against an audited gold (offsets per item). For each
     gold item, IoU of the extracted char_range vs the gold range; a match needs IoU >=
     threshold. This is the only signal that turns a WRONG boundary into a number rather than
-    a needs_review flag -- and the gold is independent of both the regex and edgartools, so
-    it sees the common-mode the cross-check is blind to."""
+    a needs_review flag -- the easy-filing spans are regex-derived but HUMAN-AUDITED, and m2i
+    is method-independent of the regex/edgartools lineage, so it can catch the common-mode the
+    cross-check is blind to."""
     ext = {it.item: it.char_range for it in result.items
            if it.status == Status.PRESENT and it.char_range}
     ious, matched = [], 0
