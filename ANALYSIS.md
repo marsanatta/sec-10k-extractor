@@ -45,18 +45,20 @@ boundary match-rate is char-exact IoU ≥ 0.9 vs the audited gold (`eval/boundar
 - `needs_review` fired on **6/7** (only clean apple passed unflagged) — the layer is
   conservative, flagging the 3 hard filings and the two medium-confidence clean ones.
 
-### Boundary (char-exact), **iXBRL bucket only** — this is the honest scope
+### Boundary (char-exact), per era — with N
 | bucket | N gold filings | boundary match-rate @ IoU≥0.9 |
 |---|---|---|
 | **iXBRL** | 4 (apple, ko, msft-2023, m2i) | **1.0** — apple 4/4, ko 4/4, msft-2023 4/4, m2i 2/2 |
-| **SGML** | **0** | **unmeasured** — no char-gold exists for this era yet |
+| **SGML** | 1 (msft-1995, items 1/2/7) | **1.0 (3/3)** |
 | iXBRL, cross-ref-index (GE) | **0** | **unmeasured / ungoldable** (see §6) |
 
-**The headline "boundary 1.0 over 4 gold filings" is iXBRL-only.** SGML (msft-1995) and the
-GE cross-reference case have **N=0** char-gold — their boundary accuracy is *not* measured,
-only their presence/coverage. Closing the SGML bucket is the named next step (§6). m2i's gold
-is **method-independent** (title-labelled by hand, not frozen from the regex), so its 2/2 is a
-genuine cross-method confirmation, not a tautology.
+Boundary match-rate **1.0 over 5 gold filings spanning two eras** (iXBRL 4 + SGML 1) — reported
+**per bucket, never pooled**, because the GE cross-reference case (§6) has **N=0** char-gold
+and is excluded, not averaged away. Two labels are **method-independent**, not frozen from the
+regex: m2i (title-labelled by hand) and msft-1995 (SGML body sections located by *reading* the
+canonical text, then confirmed the extractor matches at IoU 1.0). Their agreement is a genuine
+cross-method confirmation, not a tautology. The three iXBRL easy filings are regex-derived but
+**human-audited** (every offset's snippet eyeballed as a real section body — §5.3).
 
 ---
 
@@ -119,10 +121,11 @@ cheap→expensive. Each is named by its real file + test.
    and it **abstains** on small items and header-less filings (GE, msft-1995). It is a real
    gate on big items of well-formed filings, **not** a gate on the common-mode.
 3. **Char-exact boundary gold + IoU scorer.** `boundary_scores` (`sec10k/evalkit.py`) vs
-   `eval/boundary_gold.json` — 4 filings, **human-audited** (each offset's snippet eyeballed
-   as a real section body, not a TOC line; m2i labelled by an independent title method). This
-   is the only signal that turns a *wrong* boundary into a number; it sees the common-mode the
-   cross-check is blind to, on the filings it covers. iXBRL: **1.0**.
+   `eval/boundary_gold.json` — **5 filings across 2 eras** (4 iXBRL + 1 SGML), each offset's
+   snippet eyeballed as a real section body, not a TOC line; m2i (title) and msft-1995 (SGML,
+   read-located) are method-independent of the regex. This is the only signal that turns a
+   *wrong* boundary into a number; it sees the common-mode the cross-check is blind to, on the
+   filings it covers. Boundary match **1.0** per era (iXBRL 4/4 filings, SGML 3/3 items).
 4. **XBRL Item-8 oracle (independent data source).** From the companyfacts API — never our own
    output — a tagged financial fact must fall inside the extracted Item 8 (`sec10k/oracle.py`).
    Confirmed on **4/7** (2/2 tagged facts located on each of apple/ko/msft-2023; the others
@@ -150,10 +153,11 @@ Honest failure list — the rubric rewards naming these, not hiding them.
   layer **catches it** (coverage-implausible → `needs_review`, all 23 items low-confidence),
   so it is not a *silent* failure — but it is a real extraction failure, and it is **not
   char-goldable** by hand (no clean contiguous section bodies to mark). Boundary stays "−".
-- **SGML boundary bucket is unmeasured (N=0 gold).** msft-fy1995 has presence recall 1.0 (14
-  items) but **no char-exact boundary gold exists for the SGML era** — so its boundary accuracy
-  is asserted by structural/round-trip only, not measured. This is the single highest-value
-  next label (independent, non-iXBRL).
+- **SGML boundary coverage is thin (N=1).** msft-fy1995 now carries independent char-gold on
+  items 1/2/7 (boundary 1.0, 3/3), so the SGML era is no longer unmeasured — but it rests on a
+  single filing, and **Item 8 was deliberately left ungolded**: its financial statements sit
+  *after* the short "ITEM 9" header (the classic statements-after-Item-9 SGML layout), an
+  ambiguous boundary I chose not to freeze. More pre-2001 SGML variety is the next label.
 - **m2i back-half items.** The newline-header fix (this update) makes items 1–8 segment to the
   audited gold exactly, but the cross-check still flags 6 later items (9A,11,12,14,15,16) as
   boundary-uncertain → `needs_review`. Surfaced, not silent.
