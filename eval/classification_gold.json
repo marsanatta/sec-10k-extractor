@@ -1,0 +1,83 @@
+{
+  "_note": "Signal D classification-correctness reference (autoresearch round 2). Each label is the TRUE category for that item in that filing, PROPOSED by reading the filing's own raw Part/Item structure from the canonical bytes -- NOT derived from the production classifier (expectation/_classify_absent/needs_review) or from result.items statuses. Categories: present | legitimately-absent | incorporated-by-reference. This file is HUMAN-ONLY (guard G7): the autoloop may PROPOSE but may not freeze or edit it; Signal D may gate the form-aware fix ONLY against the user-frozen version.",
+  "_audit_status": "PROPOSED -- AWAITING HUMAN AUDIT. NOT frozen, NOT trusted truth until audited (mirrors the char-gold discipline, playbook section 6). 'uncertain' lists cells where present-as-'None'-section vs legitimately-absent is a judgement call for the auditor.",
+  "filings": {
+    "apple-fy2024": {
+      "form": "10-K",
+      "provenance": "read-located: TOC declares Items 1-16 across Parts I-IV; Item 6 is [Reserved] (post-2021); Part III (10-14) incorporated by reference from the proxy statement.",
+      "uncertain": ["1B", "9", "9B", "9C", "16"],
+      "labels": {
+        "1": "present", "1A": "present", "1B": "legitimately-absent", "1C": "present",
+        "2": "present", "3": "present", "4": "legitimately-absent",
+        "5": "present", "6": "legitimately-absent", "7": "present", "7A": "present",
+        "8": "present", "9": "present", "9A": "present", "9B": "legitimately-absent",
+        "9C": "legitimately-absent",
+        "10": "incorporated-by-reference", "11": "incorporated-by-reference",
+        "12": "incorporated-by-reference", "13": "incorporated-by-reference",
+        "14": "incorporated-by-reference",
+        "15": "present", "16": "legitimately-absent"
+      }
+    },
+    "msft-fy2023": {
+      "form": "10-K",
+      "provenance": "read-located: TOC declares Items 1-16; NO Item 1C (FY ended June 2023, before the 1C effective date -> legitimately not-yet-applicable); Part III (10-14) incorporated by reference.",
+      "uncertain": ["1B", "1C", "9", "9B", "9C", "16"],
+      "labels": {
+        "1": "present", "1A": "present", "1B": "legitimately-absent", "1C": "legitimately-absent",
+        "2": "present", "3": "present", "4": "legitimately-absent",
+        "5": "present", "6": "legitimately-absent", "7": "present", "7A": "present",
+        "8": "present", "9": "present", "9A": "present", "9B": "legitimately-absent",
+        "9C": "legitimately-absent",
+        "10": "incorporated-by-reference", "11": "incorporated-by-reference",
+        "12": "incorporated-by-reference", "13": "incorporated-by-reference",
+        "14": "incorporated-by-reference",
+        "15": "present", "16": "legitimately-absent"
+      }
+    },
+    "msft-fy1996": {
+      "form": "10-K",
+      "provenance": "read-located: SGML 1996 old item numbering, Items 1-14; pre-modern items (1A/1B/1C/7A/9A/9B/9C/15/16) did not exist in 1996 -> legitimately not-yet-applicable; Part III (10-13) typically incorporated by reference; Item 14 is the old Exhibits item (present).",
+      "uncertain": ["4", "6", "10", "11", "12", "13"],
+      "labels": {
+        "1": "present", "1A": "legitimately-absent", "1B": "legitimately-absent",
+        "1C": "legitimately-absent", "2": "present", "3": "present", "4": "present",
+        "5": "present", "6": "present", "7": "present", "7A": "legitimately-absent",
+        "8": "present", "9": "present", "9A": "legitimately-absent", "9B": "legitimately-absent",
+        "9C": "legitimately-absent",
+        "10": "incorporated-by-reference", "11": "incorporated-by-reference",
+        "12": "incorporated-by-reference", "13": "incorporated-by-reference",
+        "14": "present", "15": "legitimately-absent", "16": "legitimately-absent"
+      }
+    },
+    "chemed-amend-fy2024": {
+      "form": "10-K/A",
+      "provenance": "read-located: this 10-K/A (8.7 KB) contains ONLY Part II Item 5 and Part IV Item 15 -- it amends just those two items. Every other item is OUT OF THE AMENDMENT'S SCOPE -> legitimately-absent (NOT an extraction failure). This is the load-bearing amendment case for the form-aware fix.",
+      "uncertain": [],
+      "labels": {
+        "1": "legitimately-absent", "1A": "legitimately-absent", "1B": "legitimately-absent",
+        "1C": "legitimately-absent", "2": "legitimately-absent", "3": "legitimately-absent",
+        "4": "legitimately-absent", "5": "present", "6": "legitimately-absent",
+        "7": "legitimately-absent", "7A": "legitimately-absent", "8": "legitimately-absent",
+        "9": "legitimately-absent", "9A": "legitimately-absent", "9B": "legitimately-absent",
+        "9C": "legitimately-absent", "10": "legitimately-absent", "11": "legitimately-absent",
+        "12": "legitimately-absent", "13": "legitimately-absent", "14": "legitimately-absent",
+        "15": "present", "16": "legitimately-absent"
+      }
+    },
+    "scwo-fy2025-amend": {
+      "form": "10-K/A",
+      "provenance": "read-located: this 10-K/A contains Part III Items 10-14 (present as body text -- the amendment's purpose is to supply Part III that the original incorporated by reference) plus Part IV Item 15. Part I and Part II items 5-9 are OUT OF SCOPE -> legitimately-absent. NOTE the contrast: Part III here is 'present', whereas in a full 10-K it is 'incorporated-by-reference'.",
+      "uncertain": [],
+      "labels": {
+        "1": "legitimately-absent", "1A": "legitimately-absent", "1B": "legitimately-absent",
+        "1C": "legitimately-absent", "2": "legitimately-absent", "3": "legitimately-absent",
+        "4": "legitimately-absent", "5": "legitimately-absent", "6": "legitimately-absent",
+        "7": "legitimately-absent", "7A": "legitimately-absent", "8": "legitimately-absent",
+        "9": "legitimately-absent", "9A": "legitimately-absent", "9B": "legitimately-absent",
+        "9C": "legitimately-absent",
+        "10": "present", "11": "present", "12": "present", "13": "present", "14": "present",
+        "15": "present", "16": "legitimately-absent"
+      }
+    }
+  }
+}
