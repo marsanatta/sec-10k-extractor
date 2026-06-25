@@ -12,8 +12,8 @@ never committed; `boundary_gold.json` is human-only.
 per-task attribution/provenance-tracing layer, and the round does not need one. The
 **verification tower is the targeting system**: structural invariants + decorrelated
 cross-checks + char-exact human gold + the mutation battery decide where to aim and whether
-a change helped. This plan is the *configuration*; the **domain brain** is
-`C:/Users/weishuhung/workspace/repos/job/homeworks/ITERATION-PLAYBOOK-10k.md` (read), and
+a change helped. This plan is the *configuration*; the **domain brain** is the external
+iteration playbook `ITERATION-PLAYBOOK-10k.md` (read), and
 the loop is its one-liner: *baseline → analyze failures by bucket → ONE treatment → measure
 above noise → keep iff a real signal improves AND guard passes → human-audit the gold →
 repeat → stop at the named ceiling.*
