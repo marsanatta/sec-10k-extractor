@@ -134,8 +134,16 @@ The deterministic path does the work; the LLM is the exception, not the rule.
   **161** item-slots; *escalate-only-flagged* calls **64** (**−60%**), and on a clean filing
   **1 vs 23 (−96%)**. Same correctness ceiling on the boundaries that matter, a fraction of the
   calls.
-- **Currently the cost is \$0** because the tier is deferred (§5) — and nothing is silently
-  skipped (deferral ledger).
+- **Currently the cost is a *measured* \$0**, not an estimate. `run_escalation`
+  (`sec10k/escalation.py`) is instrumented to sum real per-call token usage
+  (input/output tokens + call count) per filing; with the deferred stub no call is made, so the
+  **per-filing token ledger in `eval/report.md` reads 0 calls / 0 tokens across the set**
+  ("escalation not exercised") — measured, not assumed, and nothing is silently skipped (the
+  candidate set is still recorded per filing). The instrumentation populates the same columns
+  the moment a real client is wired; a mock-client unit test
+  (`tests/test_escalation.py`) proves the ledger sums a synthetic usage payload correctly. The
+  ≈\$0.001–0.002 / filing above is therefore the projection-if-wired; the ledger is the
+  measured floor it sits on.
 
 ---
 
@@ -283,10 +291,76 @@ deterministic path handles the rest at ≈ \$0, and the ledger proves nothing fa
 
 ---
 
+## 8. Known improvement candidates & limitations (out of scope for now)
+
+These are **recorded, not implemented** — a forward map of where robustness would improve next
+and where the design's hard ceiling sits. They come from a **separate exploratory autoresearch
+sweep** (a label-free structural pass over ~130 era/sector-diverse filings, distinct from the
+committed 16-filing eval), so the population figures below are an **upper-bound structural-pass
+signal, not char-exact accuracy** — the only accuracy floor remains the 5 human-audited gold
+filings (§5.3). They are listed here so the cut-lines are visible, not hidden.
+
+**Ranked candidate fixes (highest-ROI first):**
+
+1. **Form-type-aware expected-item template — highest ROI, not done.** `template.expectation()`
+   keys only on `fiscal_year` + `smaller_reporting`; it is **form-blind** — it never reads
+   `raw.form`, even though `RawFiling.form` is populated. So a Part-III-only **10-K/A** is judged
+   as a broken full 10-K and emits a flood of false `extraction_failure`s — *flagged*
+   (`needs_review`) but for the **wrong reason**. The sweep found amendment selection to be the
+   single largest contributor to the apparent failure tail. Fix: thread `raw.form` into the
+   template and return `MAYBE_INCORPORATED`/`OPTIONAL` for Part I-II items when the form ends in
+   `/A`. This directly addresses the tracked `scwo-fy2025-amend` RED (§6). Out of scope: a
+   multi-file change (template + pipeline + validate) that re-classifies many filings → it needs
+   its own verification pass (assert amendments stop emitting Part-I failures while full 10-Ks
+   are unchanged).
+
+2. **Run-merge for run-fragmentation lead-item drop (BAC/SCHW) — scoped down, not done.** Tracing
+   the BAC lead-item drop (§6) shows the real mechanism is **run-fragmentation**, not "a structure
+   neither tier nails": the headers *do* match, but a back-reference to an earlier item number
+   (a late `Item 1A` after `Item 7`) makes `_split_runs` break the body into two runs, and
+   `_pick_body_run` keeps the larger fragment — dropping Items 1 & 7, which live in the smaller
+   earlier run. Candidate fix: merge adjacent runs (de-duplicating by first positional
+   occurrence). **Scope correction (the non-obvious part):** this helps **only genuine
+   run-fragmentation (BAC, SCHW)** — it does **not** help KMI/OXY/MS/Citi, which have *no `Item 1`
+   token at all* (the ceiling below), so a run-merge can never recover an item that exists in no
+   run. Out of scope: real risk of regressing the passing common case; verification needs a full
+   regression sweep.
+
+3. **No-separator header relaxation (Honeywell-class) — low ROI / risky, not done.** Some
+   modern filings render `ITEM 1  About …` with **no `.`/`:` separator**, so the
+   separator-requiring header regex finds 0 headers in a clean canonical. Relaxing the
+   requirement (allow 2+ spaces + a capitalized title) risks false positives in prose
+   ("item 1 of the agreement") and is only worth it gated behind a prose filter.
+
+**The named ceiling — the one fix that is genuinely out of 4-day scope:**
+
+4. **Decorrelated non-header second extractor (CRF line-labeller).** This is the design's
+   honest hard limit, and the sweep confirmed it is **reachable by mainstream FY2024
+   large-caps**: Morgan Stanley and Citigroup FY2024 produce large, valid canonicals with
+   **zero literal "Item N" tokens anywhere** — the labels live only in styled iXBRL spans that
+   `.text()` flattens away, leaving just the section titles. Consequence: the regex finds
+   nothing **and the edgartools fallback also finds nothing** (both are header-anchored on the
+   same flattened text), so **0 items extract, `needs_review=True`** — flagged, not silent, but
+   **unrecoverable by either tier**. This is exactly the **dual-extractor common-mode** the
+   honest caveat in §5.2 names: a boundary error both methods make the same way passes the
+   cross-check, because both share the header-anchored blind spot. The **only** fix is a
+   *decorrelated*, non-header second extractor — a CRF line-labeller keying on structural
+   features (`is-line-start`, `prior-item-seen`, `in-TOC`) rather than the "Item N" token. It is
+   large effort and the documented stretch item; the layer's value is that it **flags** these
+   filings rather than silently returning a broken segmentation.
+
+**Taxonomy correction worth recording:** "lead-item-drop" is **two distinct classes**, not one —
+(a) **run-fragmentation** (Item 1 exists in another run; fixable by candidate #2) vs
+(b) **header-text-stripped** (the `Item 1` token is absent entirely; needs candidate #4). Lumping
+them would mis-scope the fix — the run-merge helps fewer filings than it first appears because
+half the modern lead-drops are really the common-mode ceiling.
+
+---
+
 ## Reproduce
 
 ```bash
-python -m pytest -q                 # 64 unit tests incl. the mutation battery
+python -m pytest -q                 # 67 unit tests incl. the mutation battery + escalation token ledger
 SEC_EDGAR_USER_AGENT="Name email" python eval/run_eval.py   # regenerates eval/report.md + report.json
 ```
 Numbers in this doc are from that report (`eval/report.md`) and the per-filing summaries; the

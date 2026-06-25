@@ -78,6 +78,9 @@ def _run_one(entry: dict) -> dict:
         "signals": label_free_signals(result),
         "silent_failure": is_silent_failure(result, exp),
         "boundary": boundary_scores(result, g["items"]) if g else None,
+        "escalation": {k: s.get(k) for k in (
+            "escalation_candidates", "escalation_performed", "escalation_provider",
+            "escalation_calls", "escalation_input_tokens", "escalation_output_tokens")},
         "summary": {k: s.get(k) for k in (
             "format_era", "items_present", "items_extraction_failure",
             "coverage_fraction", "item8_xbrl_found", "item8_xbrl_checked", "needs_review")},
@@ -207,7 +210,53 @@ def _render_md(agg: dict, rows: list[dict], run_date: str) -> str:
             verdict = ("PASS (whole)" if inside else
                        "**RED (tail dropped)**" if inside is False else "n/a (absent)")
             lines.append(f"| {r['id']} | {r['tail_probe_item']} | {r['tail_probe']} | {inside} | {verdict} |")
+
+    lines += _render_token_ledger(rows)
     return "\n".join(lines) + "\n"
+
+
+def _render_token_ledger(rows: list[dict]) -> list[str]:
+    """Per-filing LLM-escalation token ledger. Measured, not estimated: 'index-don't-generate'
+    means $0/0-token on the cooperative path, and the LLM fires only on confidence-gated
+    escalation. With the deferred stub no call is made, so calls/tokens are an honest measured
+    0 ('escalation not exercised') -- a real client populates the same columns when wired."""
+    er = [r for r in rows if "error" not in r and r.get("escalation")]
+    if not er:
+        return []
+    provider = next((r["escalation"].get("escalation_provider") for r in er), "deferred")
+    performed = any(r["escalation"].get("escalation_performed") for r in er)
+    tot_cand = tot_calls = tot_in = tot_out = 0
+    body = []
+    for r in er:
+        e = r["escalation"]
+        ncand = len(e.get("escalation_candidates") or [])
+        calls = e.get("escalation_calls") or 0
+        tin = e.get("escalation_input_tokens") or 0
+        tout = e.get("escalation_output_tokens") or 0
+        tot_cand += ncand
+        tot_calls += calls
+        tot_in += tin
+        tot_out += tout
+        body.append(f"| {r['id']} | {ncand} | {calls} | {tin} | {tout} | "
+                    f"{e.get('escalation_performed')} |")
+    note = (f"Provider = `{provider}`. " + (
+        "**Escalation NOT exercised on this set** -- the client is the deferred stub, so triggers "
+        "fire and candidates are recorded but no LLM call is made: calls/tokens are a measured 0, "
+        "not an estimate. Wire a real client (GitHub Copilot SDK) to populate these columns."
+        if not performed else
+        "A real client was wired; calls/tokens below are summed from its per-call usage payloads."))
+    return [
+        "", "## LLM escalation token ledger (measured)", "",
+        "Index-don't-generate: $0/0-token on the cooperative path; the LLM fires only on the",
+        "confidence-gated escalation minority. Calls are made for present low-confidence",
+        "boundaries (the LIB prompt indexes around an existing span); missing-item 'find'",
+        "escalation is a separate, unbuilt path and is not called here.", "",
+        note, "",
+        "| filing | escalation candidates | calls | input tokens | output tokens | performed |",
+        "|---|---|---|---|---|---|",
+        *body,
+        f"| **total** | {tot_cand} | {tot_calls} | {tot_in} | {tot_out} | {performed} |",
+    ]
 
 
 if __name__ == "__main__":

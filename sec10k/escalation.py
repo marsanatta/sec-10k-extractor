@@ -1,17 +1,29 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from sec10k.items import CANONICAL_BY_KEY
 from sec10k.schema import Band, ExtractionResult, Status
 
 
+@dataclass(frozen=True)
+class Adjudication:
+    """A boundary-adjudication response together with the token cost of producing it. Real
+    providers report usage on every call; the per-filing ledger sums these so escalation cost
+    is measured, not estimated."""
+
+    text: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
 class LLMClient(Protocol):
     name: str
 
-    def adjudicate(self, prompt: str) -> str | None:
-        """Return the model's response to a boundary-adjudication prompt, or None if the
-        call could not be made."""
+    def adjudicate(self, prompt: str) -> Adjudication | None:
+        """Return the model's boundary-adjudication response with its token usage, or None if
+        no call was made."""
 
 
 class DeferredLLMClient:
@@ -21,7 +33,7 @@ class DeferredLLMClient:
 
     name = "deferred"
 
-    def adjudicate(self, prompt: str) -> str | None:
+    def adjudicate(self, prompt: str) -> Adjudication | None:
         return None
 
 
@@ -56,20 +68,34 @@ def build_lib_prompt(canonical: str, item_key: str, char_start: int, window: int
 def run_escalation(
     result: ExtractionResult, canonical: str, client: LLMClient | None
 ) -> dict:
-    """Identify escalation candidates and, when a real client is wired, adjudicate their
-    boundaries. With the deferred stub the triggers fire but no call is made; every
-    candidate is annotated so nothing is silently skipped."""
+    """Identify escalation candidates and, when a real client is wired, adjudicate each
+    present low-confidence boundary, summing the real token cost per filing. With the deferred
+    stub the triggers fire but no call is made (calls/tokens stay 0); every candidate is
+    annotated so nothing is silently skipped."""
     candidates = escalation_candidates(result)
     client = client or DeferredLLMClient()
     deferred = getattr(client, "name", "") == "deferred"
     note = "escalation_deferred" if deferred else "escalated"
     by_key = {it.item: it for it in result.items}
+    calls = input_tokens = output_tokens = 0
     for key in candidates:
         it = by_key.get(key)
-        if it is not None and note not in it.provenance.checks_failed:
+        if it is None:
+            continue
+        if note not in it.provenance.checks_failed:
             it.provenance.checks_failed.append(note)
+        if deferred or not it.char_range:
+            continue
+        adj = client.adjudicate(build_lib_prompt(canonical, key, it.char_range[0]))
+        if adj is not None:
+            calls += 1
+            input_tokens += adj.input_tokens
+            output_tokens += adj.output_tokens
     return {
         "escalation_candidates": candidates,
         "escalation_provider": getattr(client, "name", "unknown"),
         "escalation_performed": not deferred,
+        "escalation_calls": calls,
+        "escalation_input_tokens": input_tokens,
+        "escalation_output_tokens": output_tokens,
     }

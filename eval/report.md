@@ -1,6 +1,6 @@
 # Evaluation Report
 
-Run: 2026-06-24 23:46 Asia/Taipei. On-demand EDGAR batch (accession-pinned); NOT part of the offline unit
+Run: 2026-06-25 11:27 Asia/Taipei. On-demand EDGAR batch (accession-pinned); NOT part of the offline unit
 suite. A CURATED covering set that EXERCISES specific era/filer/structure/sector axes (NOT
 a random sample) -- the per-bucket tables show WHICH axis breaks. The broad-population
 fully-extracted estimate is the separate random diverse batch in ANALYSIS.md (~78%). RED =
@@ -80,3 +80,32 @@ span the tail was dropped (a non-contiguous-item failure even though the item is
 | filing | item | tail probe | inside span? | verdict |
 |---|---|---|---|---|
 | jpm-fy2023 | 7 | Critical Accounting Estimates | False | **RED (tail dropped)** |
+
+## LLM escalation token ledger (measured)
+
+Index-don't-generate: $0/0-token on the cooperative path; the LLM fires only on the
+confidence-gated escalation minority. Calls are made for present low-confidence
+boundaries (the LIB prompt indexes around an existing span); missing-item 'find'
+escalation is a separate, unbuilt path and is not called here.
+
+Provider = `deferred`. **Escalation NOT exercised on this set** -- the client is the deferred stub, so triggers fire and candidates are recorded but no LLM call is made: calls/tokens are a measured 0, not an estimate. Wire a real client (GitHub Copilot SDK) to populate these columns.
+
+| filing | escalation candidates | calls | input tokens | output tokens | performed |
+|---|---|---|---|---|---|
+| apple-fy2024 | 1 | 0 | 0 | 0 | False |
+| ko-fy2023 | 3 | 0 | 0 | 0 | False |
+| msft-fy2023 | 11 | 0 | 0 | 0 | False |
+| xom-fy2023 | 2 | 0 | 0 | 0 | False |
+| unh-fy2024 | 7 | 0 | 0 | 0 | False |
+| so-fy2023 | 6 | 0 | 0 | 0 | False |
+| ge-fy2023 | 23 | 0 | 0 | 0 | False |
+| ge-fy2009 | 6 | 0 | 0 | 0 | False |
+| xom-fy2010 | 5 | 0 | 0 | 0 | False |
+| m2i-fy2023 | 8 | 0 | 0 | 0 | False |
+| scwo-fy2025 | 4 | 0 | 0 | 0 | False |
+| jpm-fy2023 | 4 | 0 | 0 | 0 | False |
+| msft-fy1995 | 6 | 0 | 0 | 0 | False |
+| chemed-amend-fy2024 | 12 | 0 | 0 | 0 | False |
+| bac-fy2023 | 9 | 0 | 0 | 0 | False |
+| scwo-fy2025-amend | 15 | 0 | 0 | 0 | False |
+| **total** | 122 | 0 | 0 | 0 | False |
