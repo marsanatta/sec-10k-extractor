@@ -65,19 +65,40 @@ def build_lib_prompt(canonical: str, item_key: str, char_start: int, window: int
     )
 
 
+def _line_ref_to_offset(
+    canonical: str, char_start: int, line_text: str, window: int = 2000
+) -> int | None:
+    """Map an LLM line-number answer (from the numbered window of build_lib_prompt) back to an
+    absolute char offset in the canonical. Returns None if the answer is not a valid in-range
+    line number, so a malformed or out-of-range response is rejected and never applied. The
+    window math mirrors build_lib_prompt exactly (same lo/hi), so line index N maps to the start
+    of the N-th window line."""
+    try:
+        line_no = int(str(line_text).strip())
+    except (ValueError, TypeError):
+        return None
+    lo = max(0, char_start - window)
+    hi = min(len(canonical), char_start + window)
+    lines = canonical[lo:hi].splitlines(keepends=True)
+    if not (0 <= line_no < len(lines)):
+        return None
+    return lo + sum(len(lines[i]) for i in range(line_no))
+
+
 def run_escalation(
     result: ExtractionResult, canonical: str, client: LLMClient | None
 ) -> dict:
-    """Identify escalation candidates and, when a real client is wired, adjudicate each
-    present low-confidence boundary, summing the real token cost per filing. With the deferred
-    stub the triggers fire but no call is made (calls/tokens stay 0); every candidate is
-    annotated so nothing is silently skipped."""
+    """Identify escalation candidates and, when a real client is wired, adjudicate each present
+    low-confidence boundary, sum the real token cost, AND apply the model's line answer to move
+    the item's char_range to the corrected start. With the deferred stub the triggers fire but no
+    call is made (calls/tokens/applied stay 0); every candidate is annotated so nothing is
+    silently skipped."""
     candidates = escalation_candidates(result)
     client = client or DeferredLLMClient()
     deferred = getattr(client, "name", "") == "deferred"
     note = "escalation_deferred" if deferred else "escalated"
     by_key = {it.item: it for it in result.items}
-    calls = input_tokens = output_tokens = 0
+    calls = input_tokens = output_tokens = applied = 0
     for key in candidates:
         it = by_key.get(key)
         if it is None:
@@ -87,10 +108,20 @@ def run_escalation(
         if deferred or not it.char_range:
             continue
         adj = client.adjudicate(build_lib_prompt(canonical, key, it.char_range[0]))
-        if adj is not None:
-            calls += 1
-            input_tokens += adj.input_tokens
-            output_tokens += adj.output_tokens
+        if adj is None:
+            continue
+        calls += 1
+        input_tokens += adj.input_tokens
+        output_tokens += adj.output_tokens
+        new_start = _line_ref_to_offset(canonical, it.char_range[0], adj.text)
+        # Apply only a valid, span-preserving correction (in range, non-empty, actually moves);
+        # a malformed / out-of-range / no-op answer is rejected so the boundary never degrades.
+        if new_start is not None and new_start != it.char_range[0] and 0 <= new_start < it.char_range[1]:
+            it.char_range = (new_start, it.char_range[1])
+            it.text = canonical[new_start:it.char_range[1]]
+            if "escalation_applied" not in it.provenance.checks_passed:
+                it.provenance.checks_passed.append("escalation_applied")
+            applied += 1
     return {
         "escalation_candidates": candidates,
         "escalation_provider": getattr(client, "name", "unknown"),
@@ -98,4 +129,5 @@ def run_escalation(
         "escalation_calls": calls,
         "escalation_input_tokens": input_tokens,
         "escalation_output_tokens": output_tokens,
+        "escalation_applied": applied,
     }
