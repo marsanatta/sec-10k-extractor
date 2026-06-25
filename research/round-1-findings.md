@@ -50,3 +50,50 @@ extract on current code before pinning):
   flaky fetch on that ~4 MB filing); excluded from N, not a code signal.
 
 ---
+
+## Iteration 2 — probe (b): form-type-aware `expectation()` → **DISCARD** (verified-correct, but moves no climbable signal)
+
+**Change tried:** thread `raw.form` into `FilerProfile`; in `expectation()`, when the form ends
+in `/A`, return `OPTIONAL` for Part I-II items (an amendment may amend only Part III, so Part I-II
+absence is legitimate, not an extraction failure). Touched only `template.py` + `pipeline.py`
+(classification) — **not** `validate.py` invariants or the scorer, so G6 is not implicated.
+
+**Measured before → after (form-blind → form-aware):**
+
+| filing | form | `extraction_failure` | `needs_review` | `structural_ok` / `coverage_plausible` |
+|---|---|---|---|---|
+| chemed-amend-fy2024 | 10-K/A | **10 → 0** | True → True | True / False — **unchanged** |
+| scwo-fy2025-amend | 10-K/A | **11 → 0** | True → True | True / True — **unchanged** |
+| apple-fy2024 (control) | 10-K | 0 → 0 | False → False | **unchanged** |
+| msft-fy1996 (control) | 10-K | 3 → 3 | True → True | **unchanged** |
+
+- **The fix is verified-correct.** The independent control passes exactly as the plan specified:
+  amendments stop emitting Part-I/II `extraction_failure`s (10→0, 11→0) **while full 10-Ks are
+  unchanged** (apple 0→0, msft-1996 3→3). It is not gaming anything.
+- **But no climbable signal moved.** **Signal A is unchanged** — geometry (`structural_ok`,
+  `round_trip_ok`, `coverage_plausible`) is template-independent, so reclassifying absent items
+  cannot change structural-pass (chemed still fails coverage; scwo still passes geometry).
+  **Signal B** unchanged. **Signal C** none. Even `needs_review` did not move (amendments stay
+  flagged by *other* drivers), so the effect lands purely on the `extraction_failure` count — a
+  member of the **deliberately-forbidden classification/presence proxy family**.
+- **G1:** offline suite **67 green network-free *with* the fix** — no guard failure. The discard
+  is purely the KEEP rule, not a broken guard.
+- **Decision: DISCARD** (code reverted to the iter-1 committed state). Per the KEEP rule —
+  and probe (b)'s own stated condition "Signal A rises on amendments" — no independent climbable
+  signal improved, so it does not qualify.
+
+**Meta-finding (the loop caught a flaw in its own approved plan):** probe (b)'s premise that the
+form-type fix would *raise Signal A* was **wrong** — a template/classification fix is orthogonal
+to structural geometry and can never move the label-free structural-pass signal. The fix's real
+benefit (correct amendment classification) is **invisible to all three of this round's
+independent signals**. I deliberately did **not** try to manufacture a Signal A gain by making
+`coverage_plausible` form-aware for amendments — that would relax the coverage floor for a subset
+to make them "pass", a textbook **G6 ruler-loosening** → auto-discard.
+
+**Recommendation (carried out of this round):** the form-aware `expectation()` is a genuine
+correctness improvement and should be adopted in a future round whose signal set includes a
+**classification-correctness** metric (e.g. "amendment false-`extraction_failure` rate, with
+full-10-K classification held fixed as the decorrelated control"). It is recorded here, not
+merged, because this round's independent signals cannot see it — keeping the loop honest.
+
+---
