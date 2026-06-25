@@ -128,3 +128,55 @@ fail **together** → 0 items, flagged. No header-anchored tier can recover this
 failure tail has reached the named ceiling; we disclose it and do not fake a green.
 
 ---
+
+## Iteration 4 — probe (d): close the escalation apply-loop → **KEEP** (independent gate passes)
+
+**The gap (code-confirmed):** `run_escalation` summed token cost but never used `adj.text` to
+move the boundary — the model's answer was computed, paid for, and discarded; the tier was
+**decorative** (flagged candidates, fixed nothing even if a real provider were wired).
+
+**Change:** added `_line_ref_to_offset` (parse the line answer → map back to a canonical char
+offset using the *same* window math as `build_lib_prompt`) and an **apply step** in
+`run_escalation`: a valid, span-preserving, actually-moving correction updates the item's
+`char_range`; a malformed / out-of-range / no-op answer is **rejected** (boundary never
+degrades). Added an `escalation_applied` counter. Touches only `escalation.py` (not
+segment/fallback/invariants/scorer).
+
+**The independent gate (NOT token accounting):** `test_escalation_apply_moves_boundary_to_correct_offset`
+injects a **deliberately-wrong** boundary, has the mock return the **correct** line, and asserts
+the span **moves to the known-correct offset (IoU ≥ 0.9)** — the reference being the item's true
+start from a clean extract, independent of the escalation path. Plus
+`test_escalation_apply_rejects_malformed_answer` (bad answer → boundary unchanged) and the
+deferred test now asserts `escalation_applied == 0` (byte-identical).
+
+- **Independent signal:** the boundary-correction gate **PASSES** — the apply-loop genuinely
+  moves a wrong boundary to the correct position, proven against an independent reference. This
+  is probe (d)'s KEEP criterion (a real boundary-correction proof, not a token count).
+- **Deferred production path byte-identical:** code-traced (`if deferred … continue` *before*
+  any adjudicate/apply) + test-confirmed (`escalation_applied == 0`). Real eval runs are
+  unchanged — the tier is functional only when a real client is wired, which it is not.
+- **Guard:** G1 offline suite **69 green network-free** (67→69, above floor) ✓ · G2 regex
+  primary / G3 fallback conservative — untouched (change is escalation-only) ✓ · G4 gold = 5 ✓ ·
+  G5 deferred path byte-identical (code-traced + test) ✓ · G6 no invariant/scorer change ✓.
+- **Decision: KEEP** — the independent gate passes, deferred behavior byte-identical, guard green.
+  The escalation tier is now **genuinely functional** (applies verified corrections) instead of
+  decorative, with the provider still safely deferred.
+
+---
+
+## Round 1 summary — STOP
+
+- **Iterations:** 0 (baseline) → 1 (a, KEEP) → 2 (b, DISCARD) → 3 (c, KEEP) → 4 (d, KEEP).
+  Four probes, ROI order a→b→c→d, **well under the ~25-iteration cap**.
+- **Stop reason: S1 — the named common-mode ceiling** (FM-2, reached at iteration 3). The
+  remaining extraction-robustness failure tail (FM-2 header-text-stripped, and the milder
+  KMI/OXY-class) is **unrecoverable by either header-anchored tier**; the only fix is a
+  **decorrelated non-header / CRF extractor — out of the 4-day scope**. Disclosed, not faked.
+- **Kept:** probe (a) eval growth (+retail, +2001–2008 HTML, +2nd SGML; +FM-1), probe (c) sweep
+  (+FM-2 the ceiling, +FM-3; 3 durable tracked REDs), probe (d) functional escalation apply-loop
+  (independent gate passing). **Discarded:** probe (b) form-aware template (verified-correct but
+  invisible to the round's independent signals — documented, recommended for a future round).
+- **Signal B (gold recall) held at 1.0/5 throughout; char-gold never expanded, never
+  auto-frozen (G4).** Silent-failure stayed 0 across every measured filing. No guard was ever
+  relaxed (G6 honored — the one temptation, form-aware coverage, was explicitly refused).
+- **NOT pushed, NOT merged.** Awaiting review.
