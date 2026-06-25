@@ -97,3 +97,34 @@ full-10-K classification held fixed as the decorrelated control"). It is recorde
 merged, because this round's independent signals cannot see it — keeping the loop honest.
 
 ---
+
+## Iteration 3 — probe (c): bounded structural sweep → **KEEP** (Signal C +2; named ceiling reached)
+
+**Bounded N=3** (logged explicitly — no silent truncation), accession-pinned, each fetched and
+measured on current code:
+
+| swept filing | accession | items / tier | flagged? | verdict |
+|---|---|---|---|---|
+| amt-fy1997 | `0000927016-98-001444` | 1 / regex (cov 0.95) | `needs_review=True` | **confirmation** — GE-class collapsed-body (B2), new era/sector |
+| ms-fy2024 | `0000895421-25-000304` | **0 / regex** (cov 0.0) | `needs_review=True` | **FM-2 NEW** — header-text-stripped common-mode (B3) — **the named ceiling** |
+| hon-fy2024 | `0000773840-25-000010` | 7 / fallback (`struct_ok=False`, lead dropped) | `needs_review=True` | **FM-3 NEW** — no-separator header |
+
+- **Signal C: +2** genuinely new flagged-not-silent classes (FM-2, FM-3), each with a concrete
+  accession; amt-1997 is a confirmation (not counted). See `round-1-failure-modes.md`.
+- **Signal A (breadth, UPPER BOUND not accuracy):** all three are structural-*fails* on current
+  code — but **all flagged**, **0 silent**. The abstention gate holds on the swept tail.
+- **Durability:** the 3 swept cases were added to `eval_set.json` as accession-pinned tracked
+  REDs so the ceiling/confirmation cases are permanently measured (regression anchors).
+- **Guard:** G1 unaffected (sweep is measurement-only, no code change) ✓ · G2/G3 no code change ✓
+  · G4 gold = 5 ✓ · G5 existing filings untouched; all swept fails flagged (0 silent) ✓ · G6 no
+  ruler change ✓.
+- **Decision: KEEP** — Signal C +2, guard green.
+
+**STOP condition S1 reached — the named ceiling.** FM-2 (Morgan Stanley FY2024) is the
+**dual-extractor common-mode (B3)**: both the regex and the edgartools fallback are
+header-anchored, so on an iXBRL filing whose "Item N" labels are presentation-only spans they
+fail **together** → 0 items, flagged. No header-anchored tier can recover this; the only fix is a
+**decorrelated non-header / CRF line-labeller — out of the 4-day scope.** The extraction-robustness
+failure tail has reached the named ceiling; we disclose it and do not fake a green.
+
+---

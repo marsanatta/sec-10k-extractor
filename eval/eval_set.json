@@ -91,6 +91,21 @@
      "sector": "retail", "filer_type": "large_accelerated", "structure": "part_glued_lead_item", "expect_red": true,
      "pathologies": ["part_glued_lead_item", "html_2001_2008"],
      "expected_present": ["1", "2", "3", "7", "8"],
-     "note": "Probe-a eval growth (round 1): fills retail sector + 2001-2008 HTML era. RED: Item 1 dropped because 'PART I ITEM 1.' shares one physical line, defeating the line-start anchor (Item 1A legitimately absent pre-2005). FLAGGED (needs_review), not silent."}
+     "note": "Probe-a eval growth (round 1): fills retail sector + 2001-2008 HTML era. RED: Item 1 dropped because 'PART I ITEM 1.' shares one physical line, defeating the line-start anchor (Item 1A legitimately absent pre-2005). FLAGGED (needs_review), not silent."},
+    {"id": "amt-fy1997", "accession": "0000927016-98-001444", "company": "AMERICAN TOWER CORP", "fiscal_year": 1997,
+     "sector": "reit", "filer_type": "legacy", "structure": "collapsed_body", "expect_red": true,
+     "pathologies": ["pre_2001_sgml", "collapsed_body"],
+     "expected_present": ["1", "2", "7", "8"],
+     "note": "Probe-c sweep (round 1): collapsed-body SGML reit -- one item swallows the doc (cov 0.95), lead Item 1 absent. Confirmation of the GE-class B2 collapsed-body across a new era/sector. FLAGGED (needs_review), not silent."},
+    {"id": "ms-fy2024", "accession": "0000895421-25-000304", "company": "MORGAN STANLEY", "fiscal_year": 2024,
+     "sector": "finance", "filer_type": "large_accelerated", "structure": "header_text_stripped_ixbrl", "expect_red": true,
+     "pathologies": ["ixbrl", "common_mode_b3", "styled_span_headers"],
+     "expected_present": ["1", "1A", "7", "8"],
+     "note": "Probe-c sweep (round 1): NAMED CEILING (S1). 'Item N' labels live only in styled iXBRL spans .text() flattens -> 0 items via regex AND edgartools fallback (both header-anchored = dual-extractor common-mode B3). FLAGGED (0 items, needs_review). Unrecoverable without a decorrelated non-header/CRF extractor (out of 4-day scope)."},
+    {"id": "hon-fy2024", "accession": "0000773840-25-000010", "company": "HONEYWELL INTERNATIONAL INC", "fiscal_year": 2024,
+     "sector": "industrial", "filer_type": "large_accelerated", "structure": "no_separator_headers", "expect_red": true,
+     "pathologies": ["ixbrl", "no_separator_header"],
+     "expected_present": ["1", "1A", "7", "8"],
+     "note": "Probe-c sweep (round 1): no-separator header 'ITEM 1  Title' -> regex finds 0; edgartools fallback partially rescues (7 items) but structural_ok=False and lead Item 1 dropped. FLAGGED (needs_review), not silent."}
   ]
 }

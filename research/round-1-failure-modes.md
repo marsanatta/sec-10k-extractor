@@ -32,3 +32,43 @@ new classes).
   prefix before `item` in the header regex, recording the header start at the `item` token (a
   named group) so the span begins at "ITEM 1", not "PART I". Out of this iteration's one-probe
   scope; logged for a future round.
+
+## FM-2 — header-text-stripped iXBRL common-mode (iteration 3, probe c) — **the named ceiling**
+
+- **Accession:** `0000895421-25-000304` (Morgan Stanley, FY2024, finance, iXBRL).
+- **Mechanism:** the "Item N" labels live only in **styled iXBRL spans** that `.text()` flattens
+  away, leaving just the section *titles* — the literal "Item N" token is absent from the
+  canonical. Both extractors are **header-anchored**, so the regex finds nothing **and the
+  edgartools fallback also finds nothing**.
+- **Measured (current code):** **0 items extracted**, `tier=regex` (fallback produced nothing
+  either), `coverage_plausible=False`, `needs_review=True`.
+- **Flagged-not-silent:** yes — 0 items + `needs_review=True`; the system does not silently
+  return a broken/empty segmentation.
+- **Distinct from named classes?** Yes — this repo names the common-mode only as a *partial-gate
+  caveat* (§5.2 of ANALYSIS), never as a concrete filing class. **New named class**, and it is the
+  **dual-extractor common-mode (playbook B3)** reached by a mainstream FY2024 large-cap.
+- **CEILING (STOP S1):** neither header-anchored tier can recover this. The only fix is a
+  **decorrelated, non-header second extractor (CRF line-labeller)** — **out of the 4-day scope**.
+  This is the round's named ceiling; we disclose it, we do not fake a green.
+
+## FM-3 — no-separator header (iteration 3, probe c)
+
+- **Accession:** `0000773840-25-000010` (Honeywell, FY2024, industrial, iXBRL).
+- **Mechanism:** headers render as `ITEM 1   About Honeywell` with **no `.`/`:` separator** after
+  the number; the segmenter's `_HEADER_RE` requires a trailing separator, so regex finds **0
+  headers** in a clean canonical.
+- **Measured (current code):** regex 0 → **edgartools fallback partially rescues (7 items)**,
+  `tier=fallback`, but `structural_ok=False` (the 7 don't tile cleanly) and **lead Item 1 dropped**;
+  coverage 0.64; `needs_review=True`.
+- **Flagged-not-silent:** yes.
+- **Distinct from named classes?** Yes — not in this repo's named set. **New named class.**
+- **Fix candidate (NOT this round):** relax the trailing-separator requirement (allow 2+ spaces +
+  capitalized title), gated behind the run-selection prose filter to avoid false positives in
+  prose ("item 1 of the agreement"). Risky; logged for a future round.
+
+## Confirmation (not a new mode) — collapsed-body SGML
+
+- **Accession:** `0000927016-98-001444` (American Tower, FY1997, reit, SGML). 1 item swallows the
+  doc (coverage 0.954), lead Item 1 absent, `needs_review=True`. This is the **GE-class
+  collapsed-body (B2)** already named in this repo (cf. `ge-fy2009`) — logged as a **confirmation
+  across a new era/sector**, not counted toward Signal C.
