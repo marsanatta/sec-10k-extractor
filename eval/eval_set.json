@@ -81,6 +81,16 @@
      "sector": "clean_tech", "filer_type": "smaller_reporting", "structure": "amendment_10ka", "expect_red": true,
      "pathologies": ["amendment", "selection_issue"],
      "expected_present": ["1", "1A", "7", "8"],
-     "note": "RED residual: exposes the 10-K/A SELECTION issue -- if ticker-by-year grabs the /A (Part III only) instead of the 10-K you lose Part I-II. NOT fixed this pass -- tracked."}
+     "note": "RED residual: exposes the 10-K/A SELECTION issue -- if ticker-by-year grabs the /A (Part III only) instead of the 10-K you lose Part I-II. NOT fixed this pass -- tracked."},
+    {"id": "msft-fy1996", "accession": "0000891020-96-001130", "company": "MICROSOFT CORP", "fiscal_year": 1996,
+     "sector": "technology", "filer_type": "legacy", "structure": "legacy_sgml", "expect_red": false,
+     "pathologies": ["pre_2001_sgml"],
+     "expected_present": ["1", "2", "3", "7", "8"],
+     "note": "Probe-a eval growth (round 1): 2nd pre-2001 SGML data point after msft-fy1995; clean structural-pass on current code (items 1/7/8 header-anchored, coverage 0.93)."},
+    {"id": "wmt-fy2003", "accession": "0000104169-03-000005", "company": "WAL MART STORES INC", "fiscal_year": 2003,
+     "sector": "retail", "filer_type": "large_accelerated", "structure": "part_glued_lead_item", "expect_red": true,
+     "pathologies": ["part_glued_lead_item", "html_2001_2008"],
+     "expected_present": ["1", "2", "3", "7", "8"],
+     "note": "Probe-a eval growth (round 1): fills retail sector + 2001-2008 HTML era. RED: Item 1 dropped because 'PART I ITEM 1.' shares one physical line, defeating the line-start anchor (Item 1A legitimately absent pre-2005). FLAGGED (needs_review), not silent."}
   ]
 }
