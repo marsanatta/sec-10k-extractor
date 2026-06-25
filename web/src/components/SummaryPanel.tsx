@@ -82,6 +82,18 @@ export function SummaryPanel({ summary: s }: Props) {
         k="Candidates"
         v={s.escalation_candidates.length ? s.escalation_candidates.join(", ") : "none"}
       />
+      <Row
+        k="Calls"
+        v={s.escalation_performed ? s.escalation_calls : "0 — not exercised (deferred)"}
+      />
+      <Row
+        k="Tokens (in / out)"
+        v={
+          s.escalation_performed
+            ? `${s.escalation_input_tokens.toLocaleString()} / ${s.escalation_output_tokens.toLocaleString()}`
+            : "0 / 0 — measured, no LLM call"
+        }
+      />
     </aside>
   );
 }
