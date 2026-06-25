@@ -1,6 +1,6 @@
 # Evaluation Report
 
-Run: 2026-06-25 16:53 Asia/Taipei. On-demand EDGAR batch (accession-pinned); NOT part of the offline unit
+Run: 2026-06-25 17:43 Asia/Taipei. On-demand EDGAR batch (accession-pinned); NOT part of the offline unit
 suite. A CURATED covering set that EXERCISES specific era/filer/structure/sector axes (NOT
 a random sample) -- the per-bucket tables show WHICH axis breaks. The broad-population
 fully-extracted estimate is the separate random diverse batch in ANALYSIS.md (~78%). RED =
@@ -9,11 +9,11 @@ known failures tracked on purpose, not papered over.
 ## Headline
 
 - **Covering-set non-RED pass (recall=1.0): 14/14 (obs 1.00, 95% CI [0.78, 1.00])** (curated axes; population estimate ~78% is the random batch in ANALYSIS.md)
-- **RED cases (tracked failures): bac-fy2023, scwo-fy2025-amend, wmt-fy2003**
-- Presence silent-failure rate (lower better): 0/17 (obs 0.00, 95% CI [0.00, 0.18])
+- **RED cases (tracked failures): bac-fy2023, scwo-fy2025-amend, wmt-fy2003, amt-fy1997, ms-fy2024, hon-fy2024**
+- Presence silent-failure rate (lower better): 0/20 (obs 0.00, 95% CI [0.00, 0.16])
 - Boundary match-rate @ IoU>=0.9 vs audited gold: 1.0 over 5 gold filings (per-era; gold stays human-audited)
-- Structural-ok: 17/17 (obs 1.00, 95% CI [0.82, 1.00])  |  Coverage-plausible: 16/17 (obs 0.94, 95% CI [0.73, 0.99])
-- Needs-review (flagged): 16/17 (obs 0.94, 95% CI [0.73, 0.99])  |  Mean recall: 0.9  |  N: 17
+- Structural-ok: 19/20 (obs 0.95, 95% CI [0.76, 0.99])  |  Coverage-plausible: 18/20 (obs 0.90, 95% CI [0.70, 0.97])
+- Needs-review (flagged): 19/20 (obs 0.95, 95% CI [0.76, 0.99])  |  Mean recall: 0.7775  |  N: 20
 
 ## Errors
 
@@ -41,14 +41,17 @@ known failures tracked on purpose, not papered over.
 | scwo-fy2025-amend | ixbrl | smaller_reporting | clean_tech | amendment_10ka | 6 | 0/4 | regex | 0.0 | - | **RED** | RED residual: exposes the 10-K/A SELECTION issue -- if ticker-by-year grabs the /A (Part III only) instead of the 10-K you lose Part I-II. NOT fixed this pass -- tracked. |
 | msft-fy1996 | sgml | legacy | technology | legacy_sgml | 14 | 3/4 | regex | 1.0 | - |  | Probe-a eval growth (round 1): 2nd pre-2001 SGML data point after msft-fy1995; clean structural-pass on current code (items 1/7/8 header-anchored, coverage 0.93). |
 | wmt-fy2003 | html | large_accelerated | retail | part_glued_lead_item | 13 | 2/4 | regex | 0.8 | - | **RED** | Probe-a eval growth (round 1): fills retail sector + 2001-2008 HTML era. RED: Item 1 dropped because 'PART I ITEM 1.' shares one physical line, defeating the line-start anchor (Item 1A legitimately absent pre-2005). FLAGGED (needs_review), not silent. |
+| amt-fy1997 | sgml | legacy | reit | collapsed_body | 1 | 0/4 | regex | 0.0 | - | **RED** | Probe-c sweep (round 1): collapsed-body SGML reit -- one item swallows the doc (cov 0.95), lead Item 1 absent. Confirmation of the GE-class B2 collapsed-body across a new era/sector. FLAGGED (needs_review), not silent. |
+| ms-fy2024 | ixbrl | large_accelerated | finance | header_text_stripped_ixbrl | 0 | 0/4 | regex | 0.0 | - | **RED** | Probe-c sweep (round 1): NAMED CEILING (S1). 'Item N' labels live only in styled iXBRL spans .text() flattens -> 0 items via regex AND edgartools fallback (both header-anchored = dual-extractor common-mode B3). FLAGGED (0 items, needs_review). Unrecoverable without a decorrelated non-header/CRF extractor (out of 4-day scope). |
+| hon-fy2024 | ixbrl | large_accelerated | industrial | no_separator_headers | 7 | 0/4 | fallback | 0.25 | - | **RED** | Probe-c sweep (round 1): no-separator header 'ITEM 1  Title' -> regex finds 0; edgartools fallback partially rescues (7 items) but structural_ok=False and lead Item 1 dropped. FLAGGED (needs_review), not silent. |
 
 ## Per-bucket by era (which axis breaks)
 
 | era | n | fully-extracted (recall=1.0) | RED |
 |---|---|---|---|
 | html | 3 | 2/3 | 1 |
-| ixbrl | 12 | 10/12 | 2 |
-| sgml | 2 | 2/2 | 0 |
+| ixbrl | 14 | 10/14 | 4 |
+| sgml | 3 | 2/3 | 1 |
 
 ## Per-bucket by structure (which axis breaks)
 
@@ -56,10 +59,12 @@ known failures tracked on purpose, not papered over.
 |---|---|---|---|
 | amendment_10ka | 2 | 1/2 | 1 |
 | clean | 6 | 6/6 | 0 |
-| collapsed_body | 1 | 1/1 | 0 |
+| collapsed_body | 2 | 1/2 | 1 |
+| header_text_stripped_ixbrl | 1 | 0/1 | 1 |
 | html_era | 1 | 1/1 | 0 |
 | lead_item_drop | 1 | 0/1 | 1 |
 | legacy_sgml | 2 | 2/2 | 0 |
+| no_separator_headers | 1 | 0/1 | 1 |
 | part_glued_lead_item | 1 | 0/1 | 1 |
 | scattered_item | 1 | 1/1 | 0 |
 | token_per_line_headers | 2 | 2/2 | 0 |
@@ -71,9 +76,10 @@ known failures tracked on purpose, not papered over.
 | clean_tech | 2 | 1/2 | 1 |
 | consumer_staples | 1 | 1/1 | 0 |
 | energy | 2 | 2/2 | 0 |
-| finance | 2 | 1/2 | 1 |
+| finance | 3 | 1/3 | 2 |
 | healthcare | 2 | 2/2 | 0 |
-| industrial | 1 | 1/1 | 0 |
+| industrial | 2 | 1/2 | 1 |
+| reit | 1 | 0/1 | 1 |
 | retail | 1 | 0/1 | 1 |
 | small_cap | 1 | 1/1 | 0 |
 | technology | 4 | 4/4 | 0 |
@@ -116,4 +122,7 @@ Provider = `deferred`. **Escalation NOT exercised on this set** -- the client is
 | scwo-fy2025-amend | 15 | 0 | 0 | 0 | False |
 | msft-fy1996 | 6 | 0 | 0 | 0 | False |
 | wmt-fy2003 | 8 | 0 | 0 | 0 | False |
-| **total** | 113 | 0 | 0 | 0 | False |
+| amt-fy1997 | 12 | 0 | 0 | 0 | False |
+| ms-fy2024 | 12 | 0 | 0 | 0 | False |
+| hon-fy2024 | 16 | 0 | 0 | 0 | False |
+| **total** | 153 | 0 | 0 | 0 | False |

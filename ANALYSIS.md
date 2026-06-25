@@ -2,7 +2,7 @@
 
 What this system is, how well it works **with real numbers**, how it stays cheap, and — the
 part with no public ground truth — **how it verifies itself**. Every number here is produced
-by `eval/run_eval.py` over a 16-filing self-built set (`eval/eval_set.json`) plus the unit
+by `eval/run_eval.py` over a 21-filing self-built set (`eval/eval_set.json`) plus the unit
 suites; reproduce with `python eval/run_eval.py` and `python -m pytest -q`.
 
 The design in one line: **index, don't generate.** An item is a `char_range` into the
@@ -16,19 +16,23 @@ no existing item-segmenter emits confidence.
 
 ## 1. Eval set (what the numbers are measured on)
 
-**16 filings, a CURATED covering set, pinned by exact accession** (immutable, reproducible, and
+**21 filings, a CURATED covering set, pinned by exact accession** (immutable, reproducible, and
 it sidesteps the 10-K/A selection bug). It deliberately spans the axes a held-out reviewer batch
-will hit — it is **not** a random EDGAR sample:
+will hit — it is **not** a random EDGAR sample. The base 16 were grown by **+5 in autoresearch
+round 1** (`research/round-1-findings.md`), each accession-pinned and immutable:
 
-- **Era**: pre-2001 SGML (msft-1995), **2008–2012 HTML** (ge-2009, xom-2010 — the middle bucket
-  that was missing), modern iXBRL (the rest).
+- **Era**: pre-2001 SGML (msft-1995, **+msft-1996**), **2001–2008 HTML** (**+wmt-2003** — the
+  middle-era bucket that was missing), **2008–2012 HTML** (ge-2009, xom-2010), modern iXBRL.
 - **Sector**: technology, finance, energy, healthcare, utility, industrial, consumer-staples,
-  small-cap/clean-tech.
+  small-cap/clean-tech, **+retail (wmt-2003)**, **+reit (amt-1997)**.
 - **Structure pathology**: clean, cross-reference index (ge-2023), collapsed body → fallback
-  (ge-2009), token-per-line headers (m2i, scwo), broken `.text()` source (jpm), legacy SGML,
-  amendment 10-K/A (chemed, scwo-/A).
-- **Two RED residuals, tracked on purpose** (not papered over): `bac-fy2023` (extractor drops
-  Item 1 & Item 7) and `scwo-fy2025-amend` (10-K/A selection — grabbing the /A loses Part I-II).
+  (ge-2009, **+amt-1997 SGML**), token-per-line headers (m2i, scwo), broken `.text()` source
+  (jpm), legacy SGML, amendment 10-K/A (chemed, scwo-/A), **+PART-glued lead item (wmt-2003)**,
+  **+header-text-stripped iXBRL (ms-2024)**, **+no-separator headers (hon-2024)**.
+- **RED residuals, tracked on purpose** (not papered over): `bac-fy2023` (drops Item 1 & 7),
+  `scwo-fy2025-amend` (10-K/A selection), and the round-1 additions `wmt-fy2003` (FM-1),
+  `amt-fy1997` (collapsed SGML), `ms-fy2024` (FM-2, the named ceiling), `hon-fy2024` (FM-3) —
+  every one **flagged** (`needs_review`), never silent (see §6 + `research/round-1-failure-modes.md`).
 
 The full raw per-filing table (era / filer-type / sector / structure / items / start-of-4 /
 extractor-tier / recall / boundary / RED / note) **plus per-bucket rates** live in
@@ -44,15 +48,18 @@ Pooling lets the easy iXBRL cases hide the hard ones, so each bucket is reported
 **with its N**. Presence recall is over a conservative hand-labelled expected-present set;
 boundary match-rate is char-exact IoU ≥ 0.9 vs the audited gold (`eval/boundary_gold.json`).
 
-### Presence (label-free + conservative gold), all 16 filings
-- **Non-RED presence recall 14/14 = 1.0**; the two tracked RED residuals lower the **mean recall
-  to 0.906** (BAC 0.5, 374Water-/A 0.0) — by design (§2.5), not a hidden miss. Recall 1.0 is **the
-  curated set, not a population claim** (the broad number is §2.5).
-- Silent-failure rate **0/16** (obs 0.00, 95% CI [0.00, 0.19]) — even the REDs are *flagged*
+### Presence (label-free + conservative gold), 21-filing set (20 measured this run)
+Post-round-1 numbers (`eval/report.md`, dated). `ge-fy2023` dropped on a transient EDGAR
+disconnect (a consistent flaky fetch on that ~4 MB cross-reference-index filing — the B2 ceiling
+that structural-fails regardless), so N = 20 measured.
+- **Non-RED presence recall 14/14 = 1.0**; the **six** tracked RED residuals (bac, scwo-/A,
+  wmt-2003, amt-1997, ms-2024, hon-2024) pull the **mean recall to 0.78** — by design (§6), not a
+  hidden miss. Recall 1.0 is **the curated set, not a population claim** (the broad number is §2.5).
+- Silent-failure rate **0/20** (obs 0.00, 95% CI [0.00, 0.16]) — even the REDs are *flagged*
   (`needs_review`), so a *silent* failure (a missed gold item with `needs_review=False`) = none.
-  Structural-ok **16/16**, round-trip **16/16**.
-- `needs_review` fired on **15/16** (only clean apple unflagged) — the layer is conservative,
-  flagging every hard/medium filing and both REDs.
+  Structural-ok **19/20** (the one geometry-fail is an amendment with legit-low coverage).
+- `needs_review` fired on **19/20** — the layer is conservative, flagging every hard/medium filing
+  and all six REDs.
 
 ### Boundary (char-exact), per era — with N
 | bucket | N gold filings | boundary match-rate @ IoU≥0.9 |
@@ -110,6 +117,15 @@ rate** — the random-batch ~78% above remains the honest broad signal; BAC + th
 are now *tracked* (not papered over) so the next pass can target whichever bucket accrues the
 most reds. The HTML 2008–2012 era bucket (ge-2009, xom-2010) is now covered: **2/2** green.
 
+**Round-1 broadening (16 → 21, accession-pinned).** Autoresearch round 1
+(`research/round-1-findings.md`) grew the set by 5 — filling **retail** (wmt-2003), the
+**2001–2008 HTML** middle era (wmt-2003), a **2nd pre-2001 SGML** (msft-1996), and three
+hard-strata tracked REDs (amt-1997 collapsed SGML, ms-2024 the common-mode ceiling, hon-2024
+no-separator). Measured post-round (N=20; ge-2023 transient drop): **non-RED 14/14** still clean,
+**silent-failure 0/20**, **boundary 1.0 / 5 gold unchanged** (never auto-frozen). The six REDs
+now span six distinct failure classes (§6) — a deliberately adversarial spread, every one
+*flagged*, none silent.
+
 ---
 
 ## 3. Cost — per filing
@@ -144,6 +160,13 @@ The deterministic path does the work; the LLM is the exception, not the rule.
   (`tests/test_escalation.py`) proves the ledger sums a synthetic usage payload correctly. The
   ≈\$0.001–0.002 / filing above is therefore the projection-if-wired; the ledger is the
   measured floor it sits on.
+- **The escalation tier is now genuinely functional, not decorative** (autoresearch round 1,
+  §7). It no longer only flags candidates and accounts cost: it **parses the model's line answer,
+  maps it back to a canonical char offset, and actually moves the boundary** — proven by an
+  independent inject-wrong → mock-correct → span-moves-to-gold (IoU ≥ 0.9) test, not a token
+  count. **The cost is still a measured \$0 because the real provider stays deliberately deferred
+  (cost discipline) — no real call fires, so the ledger reads 0 — but the capability behind it is
+  now real and tested, ready the moment a provider is wired.**
 
 ---
 
@@ -218,15 +241,35 @@ cheap→expensive. Each is named by its real file + test.
      on-demand, never the CI gate.
 
 The headline metric is therefore **abstention/needs_review-gated**: the system is allowed to
-be wrong only if it says so. Silent-failure 0/16 is the number that matters; boundary 1.0 is
-scoped to the iXBRL gold it was measured on.
+be wrong only if it says so. Silent-failure 0/20 (the post-round-1 set; ge-2023 transient drop)
+is the number that matters; boundary 1.0 over the 5 human-audited gold is scoped to the era it
+was measured on.
 
 ---
 
 ## 6. Still difficult / unreliable / unsupported (concrete filings)
 
-Honest failure list — the rubric rewards naming these, not hiding them.
+Honest failure list — the rubric rewards naming these, not hiding them. Autoresearch round 1
+added three new named modes with concrete accessions (detail:
+`research/round-1-failure-modes.md`), **all flagged-not-silent**:
 
+- **FM-1 — PART-glued lead-item drop (`wmt-fy2003`, retail HTML 2003).** `PART I ITEM 1.` sits on
+  one physical line, so `PART I ` falls between the newline and `ITEM`, defeating the line-start
+  anchor `^[ \t>]*item`; **Item 1 is dropped** (Item 1A legitimately absent pre-2005). The three
+  geometry invariants still pass but the lead-item check fails; `needs_review=True`. Fix candidate
+  (not done): tolerate an optional `(?:part[ \t]+[ivx]+[ \t]*)?` prefix, recording the start at
+  the `item` token.
+- **FM-2 — dual-extractor common-mode (`ms-fy2024`; MS/Citi-class) — THE NAMED CEILING.** The
+  "Item N" labels live only in styled iXBRL spans that `.text()` flattens, so the literal token is
+  absent from the canonical. Both tiers are header-anchored, so the regex **and** the edgartools
+  fallback find **nothing** → **0 items, `needs_review=True`** (flagged, unrecoverable by either
+  tier). This is §5.2's common-mode caveat made concrete on a mainstream FY2024 large-cap. **The
+  only fix is a decorrelated non-header / CRF line-labeller — out of the 4-day scope** (§8 #4);
+  disclosed, not faked.
+- **FM-3 — no-separator headers (`hon-fy2024`).** `ITEM 1   About …` with no `.`/`:` separator →
+  the separator-requiring regex finds 0 headers; the edgartools fallback partially rescues (7
+  items) but `structural_ok=False` and the lead item drops; `needs_review=True`. Fix candidate
+  (not done, risky): relax the separator gate behind the run-selection prose filter.
 - **Scattered item — JPM FY2023 Item 7, boundary RED, tracked.** A bank holding company's MD&A
   is non-contiguous: JPM's Item 7 span is a **396-char pointer stub** (*"…on pages 48–161…"*)
   and the real MD&A (`Critical Accounting Estimates`, at char 450758) falls **outside** it — the
@@ -264,30 +307,38 @@ Honest failure list — the rubric rewards naming these, not hiding them.
 
 ---
 
-## 7. The LLM escalation tier — a defended cut, not a hole
+## 7. The LLM escalation tier — functional, with the provider deferred by design
 
-The tier is a **`DeferredLLMClient` stub** (`sec10k/escalation.py`): it makes no call. This is
-a deliberate **cost-discipline cut-line**, and it is defensible on three grounds:
+**Correction to an earlier framing.** This tier used to be described as a flag-and-account-only
+stub — it identified candidates and (after the token-ledger work) summed cost, but the *apply
+step was open*: `run_escalation` computed the model's answer and threw it away, so even a wired
+provider would have fixed no boundary. Autoresearch round 1 (probe d) **closed that loop**, so
+the honest description is now "functional, provider deferred", not "decorative".
 
-1. **The deterministic path already clears the bar.** Non-RED recall 1.0 (14/14), silent-failure 0/16,
-   iXBRL boundary 1.0 — all with \$0 inference. The LLM is for *recovering* flagged boundaries,
-   not for the common case, so the system is fully functional without it.
-2. **Nothing is silently skipped — there is a deferral ledger.** `run_escalation` identifies
-   every candidate (low-confidence-boundary + extraction-failure items) and annotates each with
-   `escalation_deferred` in its provenance; the filing summary carries
-   `escalation_candidates`, `escalation_provider="deferred"`, `escalation_performed=False`. So
-   the exact set of boundaries an LLM *would* adjudicate is recorded and auditable — the cut is
-   visible, not hidden.
-3. **It is designed to be cheap and safe when wired.** "Index-don't-generate" LIB prompt
-   (`build_lib_prompt`): the model is shown numbered lines around the candidate boundary and
-   must return a line *number* from a closed item set — it indexes into the source, never
-   authors text, which deletes the invented-item / bad-JSON class. Fed a ±2000-char window, not
-   the filing. Provider planned = GitHub Copilot SDK.
+What the tier does now (`sec10k/escalation.py`):
 
-**Why a stub beats a half-built tier:** a deferred stub with a measured candidate set and a
-defended cost story is auditable and honest; a half-wired LLM tier we couldn't measure or
-bound would be the actual hole. We escalate *only* the low-confidence minority, the
-deterministic path handles the rest at ≈ \$0, and the ledger proves nothing falls through.
+1. **It closes the apply-loop — it actually moves the boundary.** `build_lib_prompt` shows the
+   model numbered lines around a candidate boundary (index-don't-generate, a ±2000-char window,
+   closed item set — no free text, deleting the invented-item / bad-JSON class). The answer is a
+   *line number*; `_line_ref_to_offset` maps it back to a canonical char offset using the same
+   window math, and the item's `char_range` is **updated** to the corrected start. A malformed /
+   out-of-range / no-op answer is **rejected** (the boundary never degrades). This is proven by
+   an **independent** test (`tests/test_escalation.py`): inject a deliberately-wrong boundary,
+   have a mock return the correct line, and assert the span **moves to the known-correct offset
+   at IoU ≥ 0.9** — a boundary-correction proof, *not* a token count.
+2. **The real provider stays deliberately deferred (`DeferredLLMClient` makes no call) — cost
+   discipline.** No real call fires, so the per-filing token ledger reads a **measured \$0 / 0
+   tokens** (§3). The capability is real and tested; the *spend* is zero because the deterministic
+   path already clears the bar (§2) and the LLM is reserved for the flagged minority. Wiring a
+   provider (planned: GitHub Copilot SDK, flat-rate quota) flips it on with no code change.
+3. **Nothing is silently skipped.** Every candidate (low-confidence boundary + extraction-failure
+   item) is annotated in provenance; the summary carries `escalation_candidates`,
+   `escalation_provider`, `escalation_performed`, the token ledger, and `escalation_applied`. The
+   exact set of boundaries the tier would (and, when wired, does) adjudicate is auditable.
+
+**Net:** the tier is no longer a hole to defend — it is a *functional, tested* index-don't-generate
+boundary-corrector whose only deferred part is the paid provider, kept off for cost discipline and
+turned on by configuration. Detail: `research/round-1-findings.md` (iteration 4).
 
 ---
 
@@ -296,7 +347,7 @@ deterministic path handles the rest at ≈ \$0, and the ledger proves nothing fa
 These are **recorded, not implemented** — a forward map of where robustness would improve next
 and where the design's hard ceiling sits. They come from a **separate exploratory autoresearch
 sweep** (a label-free structural pass over ~130 era/sector-diverse filings, distinct from the
-committed 16-filing eval), so the population figures below are an **upper-bound structural-pass
+committed 21-filing eval), so the population figures below are an **upper-bound structural-pass
 signal, not char-exact accuracy** — the only accuracy floor remains the 5 human-audited gold
 filings (§5.3). They are listed here so the cut-lines are visible, not hidden.
 
@@ -309,10 +360,23 @@ filings (§5.3). They are listed here so the cut-lines are visible, not hidden.
    (`needs_review`) but for the **wrong reason**. The sweep found amendment selection to be the
    single largest contributor to the apparent failure tail. Fix: thread `raw.form` into the
    template and return `MAYBE_INCORPORATED`/`OPTIONAL` for Part I-II items when the form ends in
-   `/A`. This directly addresses the tracked `scwo-fy2025-amend` RED (§6). Out of scope: a
-   multi-file change (template + pipeline + validate) that re-classifies many filings → it needs
-   its own verification pass (assert amendments stop emitting Part-I failures while full 10-Ks
-   are unchanged).
+   `/A`. This directly addresses the tracked `scwo-fy2025-amend` RED (§6).
+
+   **Autoresearch round 1 implemented and then *deliberately discarded* this fix — and the
+   discard is a strength, not a gap.** Measured, it was **verified-correct**: the form-aware
+   `expectation()` dropped the amendments' false `extraction_failure`s (chemed 10→0, scwo 11→0)
+   **while the full-10-K controls were byte-unchanged** (apple 0→0, msft-1996 3→3). But its
+   *only* benefit landed on the round's **forbidden proxies** (`extraction_failure` /
+   `needs_review` classification): **none of the three independent climbable signals moved** —
+   structural-pass is template-independent geometry, gold recall was unchanged, no new mode. Per
+   the anti-Goodhart KEEP rule the change was reverted. Crucially, **we refused to manufacture a
+   structural-pass gain by making the coverage floor form-aware** — relaxing a ruler to make a
+   change "pass" is exactly the Goodhart move the guard (G6) forbids. The fix is correct and is
+   **recommended for a future round whose signal set includes a classification-correctness metric**
+   (amendment false-`extraction_failure` rate, with full-10-K classification held fixed as the
+   decorrelated control). Detail: `research/round-1-findings.md` (iteration 2). Out of scope here:
+   a multi-file change (template + pipeline + validate) that needs that dedicated signal to be
+   measurable rather than gamed.
 
 2. **Run-merge for run-fragmentation lead-item drop (BAC/SCHW) — scoped down, not done.** Tracing
    the BAC lead-item drop (§6) shows the real mechanism is **run-fragmentation**, not "a structure
