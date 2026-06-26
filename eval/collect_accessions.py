@@ -21,27 +21,57 @@ import edgar
 
 from sec10k.config import get_user_agent
 
-# Curated, diverse, mostly long-continuous-history companies (ticker, sector).
+# Curated, diverse, mostly long-continuous-history companies (ticker, sector). Expanded for the
+# round-3 ~1000-filing sweep: ~100 filers x a denser year grid. Some tickers may not resolve in
+# edgartools (renames/IPO-after-start) -- collect() skips and logs them, so the count is honest.
 COMPANIES = [
-    ("AAPL", "technology"), ("MSFT", "technology"), ("IBM", "technology"),
-    ("INTC", "technology"), ("ORCL", "technology"), ("CSCO", "technology"), ("TXN", "technology"),
+    # technology
+    ("AAPL", "technology"), ("MSFT", "technology"), ("IBM", "technology"), ("INTC", "technology"),
+    ("ORCL", "technology"), ("CSCO", "technology"), ("TXN", "technology"), ("HPQ", "technology"),
+    ("QCOM", "technology"), ("ADBE", "technology"), ("MU", "technology"), ("AMAT", "technology"),
+    ("GLW", "technology"), ("ADI", "technology"), ("ADP", "technology"), ("WDC", "technology"),
+    # finance
     ("JPM", "finance"), ("BAC", "finance"), ("WFC", "finance"), ("AXP", "finance"), ("USB", "finance"),
-    ("XOM", "energy"), ("CVX", "energy"), ("SLB", "energy"), ("OXY", "energy"),
+    ("C", "finance"), ("GS", "finance"), ("MS", "finance"), ("PNC", "finance"), ("COF", "finance"),
+    ("SCHW", "finance"), ("BK", "finance"), ("MET", "finance"), ("PRU", "finance"), ("AIG", "finance"),
+    ("ALL", "finance"), ("TRV", "finance"), ("AFL", "finance"),
+    # energy
+    ("XOM", "energy"), ("CVX", "energy"), ("SLB", "energy"), ("OXY", "energy"), ("COP", "energy"),
+    ("EOG", "energy"), ("HAL", "energy"), ("VLO", "energy"), ("WMB", "energy"), ("APA", "energy"),
+    # healthcare
     ("JNJ", "healthcare"), ("PFE", "healthcare"), ("MRK", "healthcare"), ("ABT", "healthcare"),
-    ("BMY", "healthcare"), ("LLY", "healthcare"),
+    ("BMY", "healthcare"), ("LLY", "healthcare"), ("AMGN", "healthcare"), ("MDT", "healthcare"),
+    ("TMO", "healthcare"), ("CVS", "healthcare"), ("BAX", "healthcare"), ("BDX", "healthcare"),
+    ("SYK", "healthcare"),
+    # consumer staples
     ("KO", "consumer_staples"), ("PG", "consumer_staples"), ("PEP", "consumer_staples"),
     ("CL", "consumer_staples"), ("MO", "consumer_staples"), ("GIS", "consumer_staples"),
+    ("CLX", "consumer_staples"), ("K", "consumer_staples"), ("KMB", "consumer_staples"),
+    ("HSY", "consumer_staples"), ("ADM", "consumer_staples"), ("SYY", "consumer_staples"),
+    # industrial
     ("GE", "industrial"), ("BA", "industrial"), ("CAT", "industrial"), ("MMM", "industrial"),
-    ("HON", "industrial"), ("EMR", "industrial"),
+    ("HON", "industrial"), ("EMR", "industrial"), ("LMT", "industrial"), ("NOC", "industrial"),
+    ("GD", "industrial"), ("DE", "industrial"), ("UPS", "industrial"), ("FDX", "industrial"),
+    ("ITW", "industrial"), ("CMI", "industrial"), ("NSC", "industrial"), ("UNP", "industrial"),
+    # retail
     ("WMT", "retail"), ("HD", "retail"), ("TGT", "retail"), ("MCD", "retail"), ("COST", "retail"),
-    ("SO", "utility"), ("DUK", "utility"), ("D", "utility"),
-    ("NEM", "materials"), ("APD", "materials"),
-    ("T", "telecom_media"), ("VZ", "telecom_media"), ("DIS", "telecom_media"),
+    ("LOW", "retail"), ("SBUX", "retail"), ("NKE", "retail"), ("TJX", "retail"), ("KR", "retail"),
+    # utility
+    ("SO", "utility"), ("DUK", "utility"), ("D", "utility"), ("AEP", "utility"), ("EXC", "utility"),
+    ("XEL", "utility"), ("ED", "utility"), ("PEG", "utility"),
+    # materials
+    ("NEM", "materials"), ("APD", "materials"), ("NUE", "materials"), ("PPG", "materials"),
+    ("SHW", "materials"), ("ECL", "materials"), ("IP", "materials"),
+    # telecom / media
+    ("T", "telecom_media"), ("VZ", "telecom_media"), ("DIS", "telecom_media"), ("CMCSA", "telecom_media"),
+    # auto
     ("F", "auto"),
 ]
-# Over-sample the 2001-2018 middle (6 of 10 years fall there).
-TARGET_YEARS = [1996, 1999, 2003, 2006, 2009, 2012, 2015, 2018, 2021, 2024]
-AMEND_TICKERS = ["AAPL", "GE", "JPM", "PFE", "KO", "BA", "XOM", "WMT", "DIS", "MMM"]
+# Denser year grid (every ~2 years, 1994-2025) to lift per-filer era coverage toward ~1000 total.
+TARGET_YEARS = [1994, 1996, 1998, 2000, 2002, 2004, 2006, 2008, 2010, 2012, 2014, 2016, 2018, 2020,
+                2022, 2024, 2025]
+AMEND_TICKERS = ["AAPL", "GE", "JPM", "PFE", "KO", "BA", "XOM", "WMT", "DIS", "MMM",
+                 "C", "LMT", "CVS", "MET", "DUK", "TGT"]
 
 
 def _fy(f) -> int | None:
