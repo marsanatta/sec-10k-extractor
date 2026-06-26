@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { GlossaryKey } from "../i18n";
-import type { DemoEntry, ExtractRequest } from "../types";
+import type { DemoEntry, ExtractRequest, ModelInfo } from "../types";
 import { InfoTip } from "./InfoTip";
 
 type Mode = "ticker" | "accession" | "text";
@@ -20,17 +20,21 @@ const MODE_TERM: Record<Mode, GlossaryKey> = {
 
 interface Props {
   demos: DemoEntry[];
+  models: ModelInfo[];
+  defaultModel: string;
   loading: boolean;
   elapsed: number;
   onSubmit: (req: ExtractRequest) => void;
   onDemo: (id: string) => void;
-  onText: (text: string) => void;
+  onText: (text: string, model?: string) => void;
   token: string;
   onToken: (value: string) => void;
 }
 
 export function InputBar({
   demos,
+  models,
+  defaultModel,
   loading,
   elapsed,
   onSubmit,
@@ -46,7 +50,10 @@ export function InputBar({
   const [fiscalYear, setFiscalYear] = useState("");
   const [accession, setAccession] = useState("");
   const [text, setText] = useState("");
+  const [model, setModel] = useState("");
   const [fileError, setFileError] = useState("");
+
+  const effectiveModel = model || defaultModel;
 
   const input =
     mode === "ticker" ? ticker.trim() : mode === "accession" ? accession.trim() : text.trim();
@@ -67,11 +74,12 @@ export function InputBar({
       onSubmit({
         ticker: ticker.trim().toUpperCase(),
         fiscal_year: fiscalYear ? Number(fiscalYear) : undefined,
+        model: effectiveModel || undefined,
       });
     } else if (mode === "accession") {
-      onSubmit({ accession: accession.trim() });
+      onSubmit({ accession: accession.trim(), model: effectiveModel || undefined });
     } else {
-      onText(text);
+      onText(text, effectiveModel || undefined);
     }
   }
 
@@ -143,6 +151,25 @@ export function InputBar({
             onChange={(e) => onToken(e.target.value)}
           />
         </div>
+
+        {models.length > 0 && (
+          <div className="field model-field">
+            <label htmlFor="model">{t("input.modelLabel")}</label>
+            <select
+              id="model"
+              value={effectiveModel}
+              disabled={loading}
+              onChange={(e) => setModel(e.target.value)}
+            >
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <small className="hint">{t("input.modelNote")}</small>
+          </div>
+        )}
 
         <div className="mode-switch" role="tablist">
           {(["ticker", "accession", "text"] as Mode[]).map((m) => (

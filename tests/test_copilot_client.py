@@ -12,19 +12,23 @@ def test_default_client_is_deferred_without_token(monkeypatch):
     assert default_llm_client().name == "deferred"
 
 
-def test_default_client_selects_copilot_with_token(monkeypatch):
+def test_default_client_selects_copilot_with_token_and_threads_model(monkeypatch):
     monkeypatch.setenv("GH_TOKEN", "selection-test-token-not-real")
+    captured: dict = {}
 
     class _StubCopilot:  # stand-in: no SDK import, no network -- selection only
-        name = "copilot:stub"
+        def __init__(self, model=None):
+            captured["model"] = model
+            self.name = f"copilot:{model or 'default'}"
 
         def adjudicate(self, prompt: str):
             return None
 
     monkeypatch.setattr(cc, "CopilotLLMClient", _StubCopilot)
-    client = default_llm_client()
+    client = default_llm_client("claude-opus-4.8")
     assert client.name.startswith("copilot")
     assert not isinstance(client, DeferredLLMClient)
+    assert captured["model"] == "claude-opus-4.8"  # the UI-selected model reaches the client
 
 
 def test_copilot_client_swallows_errors_returns_none(monkeypatch):
@@ -37,3 +41,8 @@ def test_copilot_client_swallows_errors_returns_none(monkeypatch):
 def test_copilot_client_name_carries_model():
     assert cc.CopilotLLMClient(model="gpt-5.4-mini").name == "copilot:gpt-5.4-mini"
     assert isinstance(Adjudication("3", 1, 1), Adjudication)
+
+
+def test_copilot_client_default_model_is_opus_48(monkeypatch):
+    monkeypatch.delenv("COPILOT_MODEL", raising=False)
+    assert cc.CopilotLLMClient().name == "copilot:claude-opus-4.8"

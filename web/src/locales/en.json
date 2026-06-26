@@ -57,6 +57,8 @@
     "tokenLabel": "Access token",
     "tokenRequired": "(required)",
     "tokenPlaceholder": "shared by the operator",
+    "modelLabel": "Escalation model",
+    "modelNote": "Used only for low-confidence boundaries; clean filings never call the LLM ($0). The model actually used shows in the summary's escalation provider.",
     "modeTicker": "Ticker",
     "modeAccession": "Accession",
     "modeText": "Paste / upload",

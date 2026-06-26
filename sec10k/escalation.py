@@ -40,17 +40,18 @@ class DeferredLLMClient:
         return None
 
 
-def default_llm_client() -> LLMClient:
+def default_llm_client(model: str | None = None) -> LLMClient:
     """Pick the escalation provider: the REAL GitHub Copilot client when a token is configured in
     the environment, else the deferred (recording-only) stub. This is the graceful-fallback
     "real-when-configured" contract -- a token-less environment (CI, or a deploy without a Copilot
     PAT) gets the stub, so the tier degrades cleanly and the offline suite never makes a network
-    call. Import is lazy so the SDK is only required when a token is actually present."""
+    call. Import is lazy so the SDK is only required when a token is actually present. `model`
+    selects the Copilot model (UI-configurable); None falls back to the configured default."""
     if any(os.environ.get(v) for v in _TOKEN_VARS):
         try:
             from sec10k.copilot_client import CopilotLLMClient
 
-            return CopilotLLMClient()
+            return CopilotLLMClient(model=model)
         except Exception:
             return DeferredLLMClient()
     return DeferredLLMClient()
@@ -105,7 +106,7 @@ def _line_ref_to_offset(
 
 
 def run_escalation(
-    result: ExtractionResult, canonical: str, client: LLMClient | None
+    result: ExtractionResult, canonical: str, client: LLMClient | None, model: str | None = None
 ) -> dict:
     """Identify escalation candidates and, when a real client is wired, adjudicate each present
     low-confidence boundary, sum the real token cost, AND apply the model's line answer to move
@@ -113,7 +114,7 @@ def run_escalation(
     call is made (calls/tokens/applied stay 0); every candidate is annotated so nothing is
     silently skipped."""
     candidates = escalation_candidates(result)
-    client = client or default_llm_client()
+    client = client or default_llm_client(model)
     deferred = getattr(client, "name", "") == "deferred"
     note = "escalation_deferred" if deferred else "escalated"
     by_key = {it.item: it for it in result.items}

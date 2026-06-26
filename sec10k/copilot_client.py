@@ -23,16 +23,33 @@ import os
 import threading
 
 from sec10k.escalation import Adjudication
+from sec10k.llm_models import DEFAULT_MODEL
 
-_DEFAULT_MODEL = "gpt-5.4-mini"  # small/fast, fine for "return one line number"; override w/ COPILOT_MODEL
+
+def list_models_sync(timeout: int = 60) -> list[dict[str, str]]:
+    """Query the LIVE Copilot model list (id + display name). Starts a short-lived stdio client,
+    which auto-auths from the env token; raises on any failure so the caller can fall back to the
+    static snapshot. Synchronous wrapper around the async SDK for the sync FastAPI endpoint."""
+    async def _run() -> list[dict[str, str]]:
+        from copilot import CopilotClient
+
+        client = CopilotClient()
+        await client.start()
+        try:
+            models = await client.list_models()
+            return [{"id": m.id, "name": m.name} for m in models]
+        finally:
+            await client.stop()
+
+    return asyncio.run(asyncio.wait_for(_run(), timeout))
 
 
 class CopilotLLMClient:
     name = "copilot"
 
     def __init__(self, model: str | None = None, timeout: int = 120) -> None:
-        self.name = f"copilot:{model or os.environ.get('COPILOT_MODEL', _DEFAULT_MODEL)}"
-        self._model = model or os.environ.get("COPILOT_MODEL", _DEFAULT_MODEL)
+        self.name = f"copilot:{model or os.environ.get('COPILOT_MODEL', DEFAULT_MODEL)}"
+        self._model = model or os.environ.get("COPILOT_MODEL", DEFAULT_MODEL)
         self._timeout = timeout
         self._loop: asyncio.AbstractEventLoop | None = None
         self._client = None  # copilot.CopilotClient, lazily started
