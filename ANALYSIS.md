@@ -126,6 +126,28 @@ no-separator). Measured post-round (N=20; ge-2023 transient drop): **non-RED 14/
 now span six distinct failure classes (§6) — a deliberately adversarial spread, every one
 *flagged*, none silent.
 
+**Population structural sweep (committed + reproducible).** The 21-filing curated set is small
+(wide CIs) and the broad ~97% number cited in §8 came from an *external* worktree, not reproducible
+here. A committed label-free sweep (`eval/structural_sweep.py` + the pinned `eval/sweep_accessions.txt`)
+over **471 accession-pinned filings** — 48 diverse companies × target years, deliberately
+over-sampling the 2001–2018 middle — now gives an **in-repo, reproducible population number. It is
+an UPPER BOUND on robustness, NOT accuracy**: it catches the gross-failure tail (empty body, lead
+dropped, no tiling, implausible coverage) but is blind to interior boundary drift, so the accuracy
+floor stays the 5 char-gold.
+- **Full-10-K structural-pass: 376/423 = 88.9% (95% CI [85.5%, 91.5%]).** By era: SGML **92.5%**,
+  HTML **90.3%**, iXBRL **82.8%**. 10-K/A reported as a separate stratum (6/40 — amendments
+  legitimately lack Part I, so they are not failures).
+- **The fail tail is concentrated, not random:** GE/INTC cross-reference-index (coverage ~1%),
+  OXY/USB/GIS `empty` (the regex finds 0 items). 8 honest drops logged (7 large-filing segmenter
+  timeouts — a real performance edge case the per-filing timeout caught — + 1 stdout-encoding glitch).
+- **Flag-vs-silent on the fail tail:** a full-pipeline pass (`eval/sweep_fail_tail.py`) confirms the
+  structural fails raise `needs_review` — **0 silent** — so the abstention gate holds at population
+  scale, not just on the curated set. Detail: `eval/sweep_report.md`.
+
+**88.9% is honest, and lower than the curated 100% by design** — a diverse 471-filing sample exposes
+the failure tail the 21 hand-picked filings cannot. This replaces the external/uncommitted ~130
+reference with a number anyone can regenerate (`python eval/structural_sweep.py`).
+
 ---
 
 ## 3. Cost — per filing
@@ -359,11 +381,10 @@ turned on by configuration. Detail: `research/round-1-findings.md` (iteration 4)
 ## 8. Known improvement candidates & limitations (out of scope for now)
 
 These are **recorded, not implemented** — a forward map of where robustness would improve next
-and where the design's hard ceiling sits. They come from a **separate exploratory autoresearch
-sweep** (a label-free structural pass over ~130 era/sector-diverse filings, distinct from the
-committed 21-filing eval), so the population figures below are an **upper-bound structural-pass
-signal, not char-exact accuracy** — the only accuracy floor remains the 5 human-audited gold
-filings (§5.3). They are listed here so the cut-lines are visible, not hidden.
+and where the design's hard ceiling sits. The fail tail they describe is now quantified by the
+**committed 471-filing structural sweep (§2.5)** — an **upper-bound structural-pass signal, not
+char-exact accuracy** (the only accuracy floor remains the 5 human-audited gold filings, §5.3). They
+are listed here so the cut-lines are visible, not hidden.
 
 **Ranked candidate fixes (highest-ROI first):**
 
