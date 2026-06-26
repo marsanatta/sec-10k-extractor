@@ -144,4 +144,23 @@ Not a proxy; a ruler.
 
 ---
 
-_(probe #3 stratified eval growth, #4 failure-mode discovery — next, then STOP + report.)_
+## Round 2 — session STOP (for review before merge)
+
+**Headline complete:** the round-2 goal — build a genuinely independent classification-correctness
+signal and *only then* earn the form-aware fix — is **done and verified**:
+- **iter-1 (probe #1):** Signal D built; **independent** (read-located human-audited reference,
+  control 3a fires, decorrelated from `needs_review`, independently catches real production errors
+  1C / 7A·9A·15); **frozen by human audit 2026-06-26**.
+- **iter-2 (probe #2):** the form-aware fix **earned** against the frozen signal — amendments
+  13→23 and 12→23, full-10-K controls + Signal A + silent-failure all held; G6 coverage-ruler not
+  loosened. Round-1's honest discard is now correctly resolved.
+
+**Deliberately stopped here** (not a ceiling, a scope choice for this session). Probes **#3
+stratified eval growth** and **#4 failure-mode discovery** are secondary, ROI-ranked below the
+headline, and were already exercised heavily in round 1 (eval grown 16→21; failure tail mapped to
+the named common-mode ceiling S1). They remain ready-to-run bounded follow-ups; deferred to avoid
+low-marginal-value network churn at the end of a long session. **Not a silent drop — declared.**
+
+**Not merged, not pushed.** Awaiting review. A natural next infrastructure step (separate from
+#3/#4): wire `classification_match_rate` into `eval/run_eval.py` so Signal D is reported per filing
+in the standing eval, with `classification_gold.json` as the frozen reference.
