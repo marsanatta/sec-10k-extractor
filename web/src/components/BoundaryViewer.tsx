@@ -22,7 +22,7 @@ export function BoundaryViewer({ canonicalText, item }: Props) {
   }
 
   return (
-    <div className="boundary" aria-label={t("boundary.ariaLabel")}>
+    <div className="boundary" aria-label={t("boundary.ariaLabel")} data-tour="boundary">
       {slice.truncatedHead && (
         <span className="truncation">{t("boundary.earlierOmitted")}{"\n"}</span>
       )}

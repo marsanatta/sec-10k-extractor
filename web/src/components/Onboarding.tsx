@@ -1,21 +1,42 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { hasSeenTour, markTourSeen, startTour } from "../onboarding";
+import {
+  hasSeenInputTour,
+  hasSeenReportTour,
+  markInputTourSeen,
+  markReportTourSeen,
+  startFullTour,
+  startInputTour,
+  startReportTour,
+} from "../onboarding";
 
-export function Onboarding() {
+interface Props {
+  hasResult: boolean;
+}
+
+export function Onboarding({ hasResult }: Props) {
   const { t } = useTranslation();
 
   useEffect(() => {
-    if (hasSeenTour()) return;
+    if (hasSeenInputTour()) return;
     const id = requestAnimationFrame(() => {
-      startTour(t);
-      markTourSeen();
+      startInputTour(t);
+      markInputTourSeen();
     });
     return () => cancelAnimationFrame(id);
   }, [t]);
 
+  useEffect(() => {
+    if (!hasResult || hasSeenReportTour()) return;
+    const id = requestAnimationFrame(() => {
+      startReportTour(t);
+      markReportTourSeen();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [hasResult, t]);
+
   return (
-    <button type="button" className="tour-replay" onClick={() => startTour(t)}>
+    <button type="button" className="tour-replay" onClick={() => startFullTour(t, hasResult)}>
       {t("onboarding.replay")}
     </button>
   );

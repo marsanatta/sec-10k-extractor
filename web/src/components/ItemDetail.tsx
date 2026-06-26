@@ -18,7 +18,7 @@ export function ItemDetail({ item, canonicalText }: Props) {
       <h1>
         <span className="item-key">{t("detail.itemKey", { item: item.item })}</span> — {item.title}
       </h1>
-      <div className="badges">
+      <div className="badges" data-tour="badges">
         <span className={`badge ${color}`}>
           {t(`status.${item.status}`)}
           <InfoTip
@@ -63,7 +63,7 @@ export function ItemDetail({ item, canonicalText }: Props) {
         {t("detail.provenance")}
         <InfoTip term="provenance" />
       </p>
-      <div className="chips">
+      <div className="chips" data-tour="provenance">
         {item.provenance.checks_passed.map((c) => (
           <span className="chip pass" key={`p-${c}`}>
             ✓ {c}

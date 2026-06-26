@@ -41,7 +41,7 @@ export function SummaryPanel({ summary: s }: Props) {
   const { t } = useTranslation();
   const drivers = reviewDrivers(s, t);
   return (
-    <aside className="panel" aria-label={t("summary.title")}>
+    <aside className="panel" aria-label={t("summary.title")} data-tour="summary">
       <h2>{t("summary.title")}</h2>
       <div className={`review-banner ${s.needs_review ? "flag" : "clean"}`}>
         <span className="banner-label">

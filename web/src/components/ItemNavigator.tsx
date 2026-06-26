@@ -12,7 +12,7 @@ export function ItemNavigator({ items, selectedId, onSelect }: Props) {
   const { t } = useTranslation();
   const groups = groupByPart(items);
   return (
-    <nav className="panel" aria-label={t("navigator.title")}>
+    <nav className="panel" aria-label={t("navigator.title")} data-tour="navigator">
       <h2>{t("navigator.title")}</h2>
       {groups.map((group) => (
         <div className="nav-part" key={group.part}>

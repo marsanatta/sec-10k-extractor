@@ -13,7 +13,7 @@ export function FailureInspector({ items, onSelect }: Props) {
   const absent = items.filter((it) => it.status === "legitimately_absent");
 
   return (
-    <aside className="panel" aria-label={t("failures.title")}>
+    <aside className="panel" aria-label={t("failures.title")} data-tour="failures">
       <h2>{t("failures.title")}</h2>
 
       <div className="failure-group">

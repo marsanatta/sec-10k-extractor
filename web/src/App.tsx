@@ -76,7 +76,7 @@ export default function App() {
           </small>
         </div>
         <div className="topbar-actions">
-          <Onboarding />
+          <Onboarding hasResult={result != null} />
           <LanguageSwitcher />
         </div>
         <div className="tabs" data-tour="tabs">
@@ -112,7 +112,7 @@ export default function App() {
           {error && <div className="error">{error}</div>}
 
           {result && (
-            <p className="meta-line">
+            <p className="meta-line" data-tour="meta">
               <strong>{result.meta.company || t("meta.unknownFiler")}</strong> · {result.meta.form}{" "}
               · {t("meta.fy")}
               {result.meta.fiscal_year ?? "?"} · {t("meta.filed")} {result.meta.filing_date || "?"}{" "}
