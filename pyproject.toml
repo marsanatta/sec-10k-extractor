@@ -8,6 +8,7 @@ dependencies = ["edgartools>=5.16"]
 [project.optional-dependencies]
 dev = ["pytest>=8", "httpx>=0.27"]
 api = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
+llm = ["github-copilot-sdk>=1.0.2"]  # real escalation tier; optional -- absent => deferred fallback
 
 [build-system]
 requires = ["setuptools>=68"]

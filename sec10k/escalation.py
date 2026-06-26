@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Protocol
 
 from sec10k.items import CANONICAL_BY_KEY
 from sec10k.schema import Band, ExtractionResult, Status
+
+_TOKEN_VARS = ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")
 
 
 @dataclass(frozen=True)
@@ -27,14 +30,30 @@ class LLMClient(Protocol):
 
 
 class DeferredLLMClient:
-    """Placeholder used until a real provider (the GitHub Copilot SDK) is wired. It makes
-    no call: escalation triggers still fire and are recorded as deferred, so the pipeline
-    is fully functional without the LLM tier (the plan's P3 cut-line)."""
+    """The graceful-fallback / recording-only provider. Makes no call: escalation triggers still
+    fire and are recorded, so the pipeline is fully functional (and the offline suite stays
+    network-free) when no Copilot token is configured."""
 
     name = "deferred"
 
     def adjudicate(self, prompt: str) -> Adjudication | None:
         return None
+
+
+def default_llm_client() -> LLMClient:
+    """Pick the escalation provider: the REAL GitHub Copilot client when a token is configured in
+    the environment, else the deferred (recording-only) stub. This is the graceful-fallback
+    "real-when-configured" contract -- a token-less environment (CI, or a deploy without a Copilot
+    PAT) gets the stub, so the tier degrades cleanly and the offline suite never makes a network
+    call. Import is lazy so the SDK is only required when a token is actually present."""
+    if any(os.environ.get(v) for v in _TOKEN_VARS):
+        try:
+            from sec10k.copilot_client import CopilotLLMClient
+
+            return CopilotLLMClient()
+        except Exception:
+            return DeferredLLMClient()
+    return DeferredLLMClient()
 
 
 def escalation_candidates(result: ExtractionResult) -> list[str]:
@@ -94,7 +113,7 @@ def run_escalation(
     call is made (calls/tokens/applied stay 0); every candidate is annotated so nothing is
     silently skipped."""
     candidates = escalation_candidates(result)
-    client = client or DeferredLLMClient()
+    client = client or default_llm_client()
     deferred = getattr(client, "name", "") == "deferred"
     note = "escalation_deferred" if deferred else "escalated"
     by_key = {it.item: it for it in result.items}

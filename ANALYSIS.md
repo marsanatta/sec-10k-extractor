@@ -9,7 +9,8 @@ The design in one line: **index, don't generate.** An item is a `char_range` int
 filing's canonical text, never LLM free-text. A deterministic regex/anchor tier segments
 ~100% of the common case at \$0; a validation layer attaches calibrated confidence +
 provenance to every item; an LLM tier is reserved for the low-confidence-boundary minority
-(currently a deferred stub — see §5). The differentiator is the **validation layer**, because
+(a real GitHub Copilot LLM, graceful-fallback to recording-only when no token is set — see §7).
+The differentiator is the **validation layer**, because
 no existing item-segmenter emits confidence.
 
 ---
@@ -150,23 +151,19 @@ The deterministic path does the work; the LLM is the exception, not the rule.
   **161** item-slots; *escalate-only-flagged* calls **64** (**−60%**), and on a clean filing
   **1 vs 23 (−96%)**. Same correctness ceiling on the boundaries that matter, a fraction of the
   calls.
-- **Currently the cost is a *measured* \$0**, not an estimate. `run_escalation`
-  (`sec10k/escalation.py`) is instrumented to sum real per-call token usage
-  (input/output tokens + call count) per filing; with the deferred stub no call is made, so the
-  **per-filing token ledger in `eval/report.md` reads 0 calls / 0 tokens across the set**
-  ("escalation not exercised") — measured, not assumed, and nothing is silently skipped (the
-  candidate set is still recorded per filing). The instrumentation populates the same columns
-  the moment a real client is wired; a mock-client unit test
-  (`tests/test_escalation.py`) proves the ledger sums a synthetic usage payload correctly. The
-  ≈\$0.001–0.002 / filing above is therefore the projection-if-wired; the ledger is the
-  measured floor it sits on.
-- **The escalation tier is now genuinely functional, not decorative** (autoresearch round 1,
-  §7). It no longer only flags candidates and accounts cost: it **parses the model's line answer,
-  maps it back to a canonical char offset, and actually moves the boundary** — proven by an
-  independent inject-wrong → mock-correct → span-moves-to-gold (IoU ≥ 0.9) test, not a token
-  count. **The cost is still a measured \$0 because the real provider stays deliberately deferred
-  (cost discipline) — no real call fires, so the ledger reads 0 — but the capability behind it is
-  now real and tested, ready the moment a provider is wired.**
+- **Cost is now MEASURED on the real provider, with graceful fallback.** The escalation tier is
+  wired to the **GitHub Copilot SDK** (`sec10k/copilot_client.py`, §7). With a token configured, a
+  real run on `ko-fy2023` fired **3 calls = 39,365 input + 386 output tokens** (~13k input/call —
+  the Copilot CLI wraps each call in its agent harness, so input dwarfs the ~1k LIB prompt).
+  Copilot is **flat-rate quota**, so the marginal **\$ ≈ 0**; the bounded resource is **escalation
+  requests/quota + latency**, not \$/token. `run_escalation` sums real per-call usage into the
+  per-filing ledger (`escalation_calls / input_tokens / output_tokens / applied`).
+- **Token-less = a clean \$0 (graceful fallback).** With no token (CI, or a deploy without a
+  Copilot PAT) the tier records candidates only — **0 calls / 0 tokens, measured not assumed** —
+  and the offline suite stays network-free. So the cost is honestly **measured at both ends**: real
+  Copilot cost when configured, a true \$0 floor when not. The apply step (the model's line answer
+  → char offset → boundary moved) is proven by an independent inject-wrong → mock-correct →
+  span-moves-to-gold (IoU ≥ 0.9) test (`tests/test_escalation.py`), not a token count.
 
 ---
 
@@ -321,38 +318,40 @@ added three new named modes with concrete accessions (detail:
 
 ---
 
-## 7. The LLM escalation tier — functional, with the provider deferred by design
+## 7. The LLM escalation tier — a real Copilot LLM, graceful-fallback
 
-**Correction to an earlier framing.** This tier used to be described as a flag-and-account-only
-stub — it identified candidates and (after the token-ledger work) summed cost, but the *apply
-step was open*: `run_escalation` computed the model's answer and threw it away, so even a wired
-provider would have fixed no boundary. Autoresearch round 1 (probe d) **closed that loop**, so
-the honest description is now "functional, provider deferred", not "decorative".
+The escalation tier is a **real LLM**, wired through the **GitHub Copilot SDK**
+(`sec10k/copilot_client.py`), with graceful fallback to a recording-only stub when no token is
+configured. (Earlier framings called it a "deferred stub" / "decorative" — superseded.)
 
-What the tier does now (`sec10k/escalation.py`):
+1. **Real, but constrained — "index, don't generate."** On a low-confidence boundary,
+   `build_lib_prompt` shows the model numbered lines around the candidate (±2000-char window,
+   closed item set, **return a line *number* only — no prose**, deleting the invented-item /
+   bad-JSON class). `_line_ref_to_offset` maps the answer back to a canonical char offset and the
+   item's `char_range` is **moved** to the corrected start; a malformed / out-of-range / no-op
+   answer is **rejected** (the boundary never degrades). The apply mechanism is proven by an
+   independent test (`tests/test_escalation.py`: inject a wrong boundary → mock returns the correct
+   line → assert the span moves to the known-correct offset at IoU ≥ 0.9). A provider that returns
+   `None` (auth fails, SDK absent, parse/timeout error) degrades to recording-only, never a crash.
+2. **Graceful-fallback, "real-when-configured."** `escalation.default_llm_client()` returns the
+   real `CopilotLLMClient` when a Copilot token is in the environment (`COPILOT_GITHUB_TOKEN` /
+   `GH_TOKEN` / `GITHUB_TOKEN`), else the deferred (recording-only) stub. So a token-less
+   environment (CI, or a deploy without a Copilot PAT) records candidates only, the **offline suite
+   stays network-free**, and wiring the token flips the tier on with **no code change**.
+3. **Cost — MEASURED, not estimated (§3).** With the token set, a real run on `ko-fy2023` fired
+   **3 calls = 39,365 input + 386 output tokens** (~13k input/call — the Copilot CLI wraps each
+   call in its agent harness, so input dwarfs the ~1k LIB prompt itself). Copilot is **flat-rate
+   quota**, so the marginal **\$ ≈ 0**; the bounded resource is **requests/quota + latency**, not
+   \$/token. On a clean filing the calls are no-ops (`applied: 0` — the boundaries are already
+   correct, so the model confirms rather than moves). The LLM only ever touches the flagged
+   minority; the deterministic path clears the bar (§2) at \$0.
+4. **Nothing is silently skipped.** Every candidate is annotated; the summary carries
+   `escalation_candidates / provider / performed / calls / input_tokens / output_tokens / applied`
+   — the exact set of adjudicated boundaries and their measured cost is auditable per filing.
 
-1. **It closes the apply-loop — it actually moves the boundary.** `build_lib_prompt` shows the
-   model numbered lines around a candidate boundary (index-don't-generate, a ±2000-char window,
-   closed item set — no free text, deleting the invented-item / bad-JSON class). The answer is a
-   *line number*; `_line_ref_to_offset` maps it back to a canonical char offset using the same
-   window math, and the item's `char_range` is **updated** to the corrected start. A malformed /
-   out-of-range / no-op answer is **rejected** (the boundary never degrades). This is proven by
-   an **independent** test (`tests/test_escalation.py`): inject a deliberately-wrong boundary,
-   have a mock return the correct line, and assert the span **moves to the known-correct offset
-   at IoU ≥ 0.9** — a boundary-correction proof, *not* a token count.
-2. **The real provider stays deliberately deferred (`DeferredLLMClient` makes no call) — cost
-   discipline.** No real call fires, so the per-filing token ledger reads a **measured \$0 / 0
-   tokens** (§3). The capability is real and tested; the *spend* is zero because the deterministic
-   path already clears the bar (§2) and the LLM is reserved for the flagged minority. Wiring a
-   provider (planned: GitHub Copilot SDK, flat-rate quota) flips it on with no code change.
-3. **Nothing is silently skipped.** Every candidate (low-confidence boundary + extraction-failure
-   item) is annotated in provenance; the summary carries `escalation_candidates`,
-   `escalation_provider`, `escalation_performed`, the token ledger, and `escalation_applied`. The
-   exact set of boundaries the tier would (and, when wired, does) adjudicate is auditable.
-
-**Net:** the tier is no longer a hole to defend — it is a *functional, tested* index-don't-generate
-boundary-corrector whose only deferred part is the paid provider, kept off for cost discipline and
-turned on by configuration. Detail: `research/round-1-findings.md` (iteration 4).
+**Net:** a real, constrained, measured Copilot boundary-corrector that degrades cleanly to
+recording-only with no token — cost discipline **by configuration**, not by faking the call.
+Apply-loop detail: `research/round-1-findings.md` (iteration 4).
 
 ---
 
@@ -475,7 +474,7 @@ its headline goal and is **being closed out**:
 ## Reproduce
 
 ```bash
-python -m pytest -q                 # 73 unit tests incl. mutation battery, escalation token ledger, Signal D
+python -m pytest -q                 # 77 unit tests incl. mutation battery, token ledger, Signal D, Copilot fallback
 SEC_EDGAR_USER_AGENT="Name email" python eval/run_eval.py   # regenerates eval/report.md + report.json
 ```
 Numbers in this doc are from that report (`eval/report.md`) and the per-filing summaries; the
