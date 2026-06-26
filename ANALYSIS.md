@@ -318,11 +318,25 @@ added three new named modes with concrete accessions (detail:
 
 ---
 
-## 7. The LLM escalation tier — a real Copilot LLM, graceful-fallback
+## 7. The LLM escalation tier — a real Copilot LLM, available but DEFAULT-OFF (measured: no gain)
 
 The escalation tier is a **real LLM**, wired through the **GitHub Copilot SDK**
-(`sec10k/copilot_client.py`), with graceful fallback to a recording-only stub when no token is
-configured. (Earlier framings called it a "deferred stub" / "decorative" — superseded.)
+(`sec10k/copilot_client.py`), with graceful fallback to a recording-only stub. It is **default-OFF**
+and kept as an honest opt-in, because we **measured it** and it earns no independent-signal gain.
+
+> **Measured verdict (the headline for this tier).** LLM-on vs LLM-off on the 21-filing eval set,
+> scored against the FROZEN human gold (model `claude-opus-4.8`): **all 5 boundary-gold filings
+> ΔIoU = 0.000** (including the hard m2i token-per-line and msft-fy1995 legacy SGML), **all Signal-D
+> gold ΔmatchRate = 0.000** (the apply-loop nudges a present item's start — it never changes a
+> status, so it is structurally incapable of moving Signal D, and it never *recovers* a missing
+> item). The trigger is **over-broad**: 21/21 filings trigger, **106 opus-4.8 calls fired → 2
+> boundary moves**, both on non-gold filings (unverifiable). A mechanism one-shot confirms the real
+> model + apply-loop *work* (they fix a deliberately-wrong boundary) — they simply never need to on
+> the gold, where the deterministic path is already right. So the tier is **default-OFF**
+> (`SEC10K_LLM_ESCALATION` opt-in; a token alone does not enable it); the deterministic path stays
+> the shipped, \$0, reproducible primary. Not a claimed win, not deleted — an honest graceful
+> fallback. (Full measurement + the `llm_touched` footprint tag: the measurement branch's
+> `eval/llm_measure.py` + `research/llm-measurement-findings.md`.)
 
 1. **Real, but constrained — "index, don't generate."** On a low-confidence boundary,
    `build_lib_prompt` shows the model numbered lines around the candidate (±2000-char window,
@@ -333,11 +347,12 @@ configured. (Earlier framings called it a "deferred stub" / "decorative" — sup
    independent test (`tests/test_escalation.py`: inject a wrong boundary → mock returns the correct
    line → assert the span moves to the known-correct offset at IoU ≥ 0.9). A provider that returns
    `None` (auth fails, SDK absent, parse/timeout error) degrades to recording-only, never a crash.
-2. **Graceful-fallback, "real-when-configured."** `escalation.default_llm_client()` returns the
-   real `CopilotLLMClient` when a Copilot token is in the environment (`COPILOT_GITHUB_TOKEN` /
-   `GH_TOKEN` / `GITHUB_TOKEN`), else the deferred (recording-only) stub. So a token-less
-   environment (CI, or a deploy without a Copilot PAT) records candidates only, the **offline suite
-   stays network-free**, and wiring the token flips the tier on with **no code change**.
+2. **Graceful-fallback, DEFAULT-OFF.** `escalation.default_llm_client()` returns the real
+   `CopilotLLMClient` only when the operator **explicitly enables the tier**
+   (`SEC10K_LLM_ESCALATION=1`) **and** a Copilot token is present — otherwise the deferred
+   (recording-only) stub. **A token alone does not turn it on**, so the default extract path stays
+   deterministic (\$0) even on a token-configured server, the **offline suite stays network-free**,
+   and the measured no-gain result above is why the default is off rather than on.
 3. **Cost — MEASURED, not estimated (§3).** With the token set, a real run on `ko-fy2023` fired
    **3 calls = 39,365 input + 386 output tokens** (~13k input/call — the Copilot CLI wraps each
    call in its agent harness, so input dwarfs the ~1k LIB prompt itself). Copilot is **flat-rate

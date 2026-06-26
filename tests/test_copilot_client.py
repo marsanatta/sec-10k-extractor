@@ -12,8 +12,17 @@ def test_default_client_is_deferred_without_token(monkeypatch):
     assert default_llm_client().name == "deferred"
 
 
-def test_default_client_selects_copilot_with_token_and_threads_model(monkeypatch):
+def test_default_off_with_token_but_not_enabled(monkeypatch):
+    """DEFAULT OFF: a token alone must NOT turn the tier on -- the operator must explicitly enable
+    it. Without SEC10K_LLM_ESCALATION the default extract path stays deterministic ($0)."""
     monkeypatch.setenv("GH_TOKEN", "selection-test-token-not-real")
+    monkeypatch.delenv("SEC10K_LLM_ESCALATION", raising=False)
+    assert default_llm_client().name == "deferred"
+
+
+def test_default_client_selects_copilot_when_enabled_and_threads_model(monkeypatch):
+    monkeypatch.setenv("GH_TOKEN", "selection-test-token-not-real")
+    monkeypatch.setenv("SEC10K_LLM_ESCALATION", "1")  # explicit operator opt-in
     captured: dict = {}
 
     class _StubCopilot:  # stand-in: no SDK import, no network -- selection only

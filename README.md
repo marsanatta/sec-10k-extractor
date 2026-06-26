@@ -9,9 +9,11 @@ it fails.
 canonical text — never LLM free-text — so every item round-trips back to the source bytes exactly.
 A deterministic regex/anchor tier segments ~100% of the common case at **\$0 inference**; a
 **validation layer** attaches calibrated confidence + provenance to every item and is the real
-product (no existing segmenter emits confidence); an LLM tier is reserved for the
-low-confidence-boundary minority — a real GitHub Copilot LLM, with graceful fallback to
-recording-only (no token → no call → \$0) for cost discipline.
+product (no existing segmenter emits confidence); an LLM tier (a real GitHub Copilot LLM) is
+**available but default-OFF** — we measured it and it gave **no independent-signal gain on our
+gold** (boundary IoU and classification unchanged on every gold filing), so the deterministic path
+stays the shipped, \$0, reproducible primary and the default extract path never calls the LLM. The
+tier is kept as an honest opt-in graceful-fallback, not a claimed win (see `ANALYSIS.md` §3).
 
 Full numbers, tradeoffs, and the verification story are in **[`ANALYSIS.md`](ANALYSIS.md)**.
 
@@ -90,9 +92,11 @@ never silently dropped**.
   by locating item heads back in our canonical (never copying foreign offsets). An
   **index-don't-generate LLM escalation** tier (windowed, closed item set, returns a line number that
   is mapped back to a char offset and *applied* to move the boundary) runs on a **real GitHub
-  Copilot LLM** (`sec10k/copilot_client.py`) when a token is configured, with **graceful fallback**
-  to recording-only (no token → no call → \$0) — so cost is measured both ways (real Copilot when
-  wired, a true \$0 floor when not) and the offline suite stays network-free.
+  Copilot LLM** (`sec10k/copilot_client.py`) — but it is **default-OFF** (`SEC10K_LLM_ESCALATION`
+  opt-in; a token alone does not enable it). We **measured** it against the frozen gold and it moved
+  **zero** boundaries on all 5 boundary-gold filings (ΔIoU 0.000; Signal D unchanged by
+  construction), firing 106 opus-4.8 calls for 2 unverifiable moves — so it is kept as an honest
+  opt-in graceful-fallback, never the default. The offline suite stays network-free (\$0 floor).
 - **The validation layer is the product.** Every item carries calibrated confidence + provenance;
   a filing is allowed to be wrong **only if it says so** (`needs_review`). The headline metric is the
   silent-failure rate, not accuracy.
@@ -141,9 +145,10 @@ Every one of these is **flagged** (`needs_review`); the measured silent-failure 
 
 ## Cost, scalability, correctness
 
-See [`ANALYSIS.md`](ANALYSIS.md): §3 (per-filing cost — deterministic tier \$0; the real Copilot
-escalation measured at ~13k input tokens/call, flat-rate so marginal \$≈0, graceful \$0 fallback
-with no token), §4 (scalability — O(n)
+See [`ANALYSIS.md`](ANALYSIS.md): §3 (per-filing cost — deterministic tier \$0; the default extract
+path is \$0 because the LLM tier is **default-off** and **measured to add no independent-signal gain
+on our gold**; when an operator opts in, the real Copilot escalation is ~13k input tokens/call,
+flat-rate so marginal \$≈0), §4 (scalability — O(n)
 stateless per filing, cache by accession, EDGAR rate limit is the real cap), §5 (the verification
 tower), §6 (failure modes), §9 (the autoresearch close-out).
 
