@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { extract, extractDemo, extractText, fetchDemos } from "./api";
 import { EvalView } from "./components/EvalView";
 import { FailureInspector } from "./components/FailureInspector";
+import { Glossary } from "./components/Glossary";
+import { HowItWorks } from "./components/HowItWorks";
+import { InfoTip } from "./components/InfoTip";
 import { InputBar } from "./components/InputBar";
 import { ItemDetail } from "./components/ItemDetail";
 import { ItemNavigator } from "./components/ItemNavigator";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { SummaryPanel } from "./components/SummaryPanel";
 import type { DemoEntry, ExtractRequest, ExtractionResult, Item } from "./types";
 
 type Tab = "inspect" | "eval";
 
 export default function App() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("inspect");
   const [demos, setDemos] = useState<DemoEntry[]>([]);
   const [result, setResult] = useState<ExtractionResult | null>(null);
@@ -63,8 +69,17 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          SEC 10-K Item Extractor
-          <small>index-don't-generate · calibrated confidence</small>
+          {t("app.title")}
+          <small>
+            {t("app.taglineIndex")}
+            <InfoTip term="indexDontGenerate" /> · {t("app.taglineConfidence")}
+            <InfoTip term="calibratedConfidence" />
+          </small>
+        </div>
+        <div className="topbar-actions">
+          <HowItWorks />
+          <Glossary />
+          <LanguageSwitcher />
         </div>
         <div className="tabs">
           <button
@@ -72,11 +87,13 @@ export default function App() {
             aria-pressed={tab === "inspect"}
             onClick={() => setTab("inspect")}
           >
-            Inspect
+            {t("tabs.inspect")}
           </button>
+          <InfoTip term="tabInspect" />
           <button className="tab" aria-pressed={tab === "eval"} onClick={() => setTab("eval")}>
-            Eval / still-hard
+            {t("tabs.eval")}
           </button>
+          <InfoTip term="tabEval" />
         </div>
       </header>
 
@@ -98,9 +115,10 @@ export default function App() {
 
           {result && (
             <p className="meta-line">
-              <strong>{result.meta.company || "(unknown filer)"}</strong> · {result.meta.form} ·
-              FY{result.meta.fiscal_year ?? "?"} · filed {result.meta.filing_date || "?"} ·{" "}
-              <span className="mono">{result.meta.accession}</span> · era{" "}
+              <strong>{result.meta.company || t("meta.unknownFiler")}</strong> · {result.meta.form}{" "}
+              · {t("meta.fy")}
+              {result.meta.fiscal_year ?? "?"} · {t("meta.filed")} {result.meta.filing_date || "?"}{" "}
+              · <span className="mono">{result.meta.accession}</span> · {t("meta.era")}{" "}
               {result.meta.format_era}
             </p>
           )}
@@ -115,7 +133,7 @@ export default function App() {
               {selected ? (
                 <ItemDetail item={selected} canonicalText={result.canonical_text} />
               ) : (
-                <div className="panel empty">Select an item to inspect.</div>
+                <div className="panel empty">{t("empty.selectItem")}</div>
               )}
               <div>
                 <SummaryPanel summary={result.summary} />
@@ -124,12 +142,7 @@ export default function App() {
               </div>
             </div>
           ) : (
-            !loading && (
-              <div className="empty">
-                Pick a curated demo, or enter a ticker + fiscal year or an EDGAR accession, then
-                Extract. Results are cached by accession.
-              </div>
-            )
+            !loading && <div className="empty">{t("empty.start")}</div>
           )}
         </>
       )}

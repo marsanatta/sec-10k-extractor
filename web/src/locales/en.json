@@ -1,0 +1,261 @@
+{
+  "app": {
+    "title": "SEC 10-K Item Extractor",
+    "taglineIndex": "index-don't-generate",
+    "taglineConfidence": "calibrated confidence"
+  },
+  "lang": {
+    "toEnglish": "EN",
+    "toChinese": "繁中",
+    "ariaSwitch": "Switch language"
+  },
+  "tabs": {
+    "inspect": "Inspect",
+    "eval": "Eval / still-hard"
+  },
+  "howItWorks": {
+    "toggle": "How this works",
+    "ariaRegion": "How this works",
+    "intro": "This tool reads one SEC 10-K filing and locates each numbered Item inside it.",
+    "step1Title": "1 · You give a filing",
+    "step1Body": "Pick a curated demo, or look up a company by ticker + year, or paste raw filing text.",
+    "step2Title": "2 · It indexes the Items",
+    "step2Body": "Each Item's text is a character range pointing into the original document — the source is never rewritten.",
+    "step3Title": "3 · Every Item gets evidence",
+    "step3Body": "A confidence band plus the checks it passed or failed, so you can audit the result instead of trusting it blindly.",
+    "step4Title": "4 · The summary flags risk",
+    "step4Body": "Coverage, missing-Item classification, and a \"needs review\" verdict surface anything that may be wrong."
+  },
+  "input": {
+    "demoTitle": "Curated demo",
+    "demoNote": "no token",
+    "demoPlaceholder": "Pick an example…",
+    "customTitle": "Look up or submit a filing",
+    "customNote": "needs access token",
+    "tokenLabel": "Access token",
+    "tokenRequired": "(required)",
+    "tokenPlaceholder": "shared by the operator",
+    "modeTicker": "Ticker",
+    "modeAccession": "Accession",
+    "modeText": "Paste / upload",
+    "tickerPlaceholder": "Ticker (AAPL)",
+    "fiscalYearPlaceholder": "Fiscal year (2024)",
+    "accessionPlaceholder": "0000320193-24-000123",
+    "textPlaceholder": "Paste filing text — or copy a result's canonical text, delete/reorder an Item, and resubmit to watch the validator react…",
+    "uploadButton": "Upload .txt / .htm",
+    "fileTooLarge": "File too large (max 24 MB).",
+    "fileReadError": "Could not read the file.",
+    "extract": "Extract",
+    "extracting": "Extracting…",
+    "needTokenHint": "Enter the access token above to run this lookup.",
+    "elapsed": "{{seconds}}s — fetching + segmenting (a large filing can take up to ~2 min)"
+  },
+  "empty": {
+    "start": "Pick a curated demo, or enter a ticker + fiscal year or an EDGAR accession, then Extract. Results are cached by accession.",
+    "selectItem": "Select an item to inspect."
+  },
+  "meta": {
+    "unknownFiler": "(unknown filer)",
+    "fy": "FY",
+    "filed": "filed",
+    "era": "era"
+  },
+  "navigator": {
+    "title": "Items",
+    "part": "Part {{part}}"
+  },
+  "summary": {
+    "title": "Filing summary",
+    "needsReview": "Needs review",
+    "noFlags": "No review flags",
+    "coverage": "Coverage",
+    "present": "Present",
+    "absent": "Legitimately absent",
+    "failures": "Extraction failures",
+    "lowMedConf": "Low / medium conf.",
+    "item8Oracle": "Item 8 XBRL oracle",
+    "item8Found": "{{found}}/{{checked}} found",
+    "item8Na": "n/a",
+    "item8MarkersPresent": "markers present",
+    "item8MarkersAbsent": "markers absent",
+    "boundaryDisagreements": "Boundary disagreements",
+    "none": "none",
+    "formatEra": "Format era",
+    "escalationHead": "Escalation (LLM tier)",
+    "provider": "Provider",
+    "performed": "Performed",
+    "performedYes": "yes",
+    "performedNo": "no — {{provider}} stub (deferred)",
+    "candidates": "Candidates",
+    "calls": "Calls",
+    "callsNone": "0 — not exercised (deferred)",
+    "tokens": "Tokens (in / out)",
+    "tokensNone": "0 / 0 — measured, no LLM call",
+    "driverStructural": "structural invariants broken",
+    "driverRoundTrip": "round-trip reconstruction failed",
+    "driverCoverage": "coverage implausibly low ({{percent}}%)",
+    "driverFailures": "{{count}} expected item(s) not found",
+    "driverLowConf": "{{count}} low-confidence item(s)",
+    "driverItem8": "Item 8 financial markers absent",
+    "driverBoundary": "boundary disagreement on {{items}}"
+  },
+  "detail": {
+    "itemKey": "Item {{item}}",
+    "chars": "chars {{start}}–{{end}}",
+    "provenance": "Provenance",
+    "noChecks": "no checks recorded",
+    "boundaryViewer": "Boundary viewer (source span highlighted)",
+    "extractedText": "Extracted text",
+    "emptyText": "(empty)",
+    "absentExplain": "This item is legitimately absent for this filing (template/DEI says optional, reserved, or incorporated by reference).",
+    "failureExplain": "This item was expected but not found — a flagged extraction failure, not a silent drop.",
+    "noSourceSpan": "No source span for this item (not present in the document)."
+  },
+  "boundary": {
+    "ariaLabel": "Source text with item boundary highlighted",
+    "earlierOmitted": "…[earlier text omitted]…",
+    "laterOmitted": "…[later text omitted]…",
+    "highlightElided": "…[{{count}} highlighted chars elided]…"
+  },
+  "failures": {
+    "title": "Missing items",
+    "failuresHead": "Extraction failures ({{count}})",
+    "noFailures": "None — every expected item was found.",
+    "absentHead": "Legitimately absent ({{count}})",
+    "absentFallback": "absent"
+  },
+  "status": {
+    "present": "Present",
+    "legitimately_absent": "Legitimately absent",
+    "extraction_failure": "Extraction failure"
+  },
+  "band": {
+    "high": "High confidence",
+    "medium": "Medium confidence",
+    "low": "Low confidence",
+    "unscored": "Unscored"
+  },
+  "glossary": {
+    "title": "Glossary",
+    "ariaOpen": "Open glossary",
+    "intro": "Plain definitions for every term in this app. Domain terms (Item, XBRL, accession…) are kept as-is."
+  },
+  "g": {
+    "indexDontGenerate": {
+      "t": "index-don't-generate",
+      "d": "Each Item's text is a byte range pointing into the original filing, not text a model rewrote. What you see is the source, reproducible character-for-character."
+    },
+    "calibratedConfidence": {
+      "t": "calibrated confidence",
+      "d": "A score where Items marked, say, 90% are correct about 90% of the time — backed by a statistical guarantee, not a raw model hunch."
+    },
+    "tabInspect": {
+      "t": "Inspect",
+      "d": "Run the extractor on one filing and examine every Item, its confidence, and the checks behind it."
+    },
+    "tabEval": {
+      "t": "Eval / still-hard",
+      "d": "The aggregate quality report across many filings, plus the cases that remain difficult. It grades the output, not any single run."
+    },
+    "curatedDemo": {
+      "t": "Curated demo",
+      "d": "Pre-selected example filings you can run with no token, to see the app work end-to-end."
+    },
+    "accessToken": {
+      "t": "Access token",
+      "d": "A shared key the operator gives you. Required to look up or submit your own filings — it gates the EDGAR-fetching backend."
+    },
+    "ticker": {
+      "t": "Ticker",
+      "d": "The stock symbol (e.g. AAPL). Combined with a fiscal year, it looks up that company's 10-K on EDGAR."
+    },
+    "accession": {
+      "t": "Accession number",
+      "d": "EDGAR's unique ID for one specific filing (e.g. 0000320193-24-000123). Use it to fetch an exact document."
+    },
+    "pasteUpload": {
+      "t": "Paste / upload",
+      "d": "Feed raw filing text directly — e.g. delete or reorder an Item and resubmit to watch the validator react."
+    },
+    "formatEra": {
+      "t": "Format era",
+      "d": "Which filing technology the document uses: SGML (older plain-text filings), HTML, or iXBRL (inline-tagged data). Extraction handles all three; the era says which rules applied."
+    },
+    "coverage": {
+      "t": "Coverage",
+      "d": "The share of the filing's characters assigned to a located Item. Low coverage means part of the document went unaccounted for — a sign segmentation missed something."
+    },
+    "present": {
+      "t": "Present",
+      "d": "The Item was found and its text located in the source."
+    },
+    "absent": {
+      "t": "Legitimately absent",
+      "d": "The Item is expected to be missing for this filing — reserved, optional for a smaller company, or incorporated by reference. Not an error."
+    },
+    "failure": {
+      "t": "Extraction failure",
+      "d": "The Item was expected but could not be located. It is flagged, never silently dropped."
+    },
+    "confHigh": {
+      "t": "High confidence",
+      "d": "Multiple checks agree; safe to trust with minimal review."
+    },
+    "confMedium": {
+      "t": "Medium confidence",
+      "d": "Mostly consistent, but one signal is weak; a quick look is wise."
+    },
+    "confLow": {
+      "t": "Low confidence",
+      "d": "Checks disagree or evidence is thin; review before relying on it."
+    },
+    "confUnscored": {
+      "t": "Unscored",
+      "d": "No confidence was computed — e.g. the Item is absent, so there is nothing to score."
+    },
+    "provenance": {
+      "t": "Provenance",
+      "d": "Where this Item's answer came from: which extractors produced it and which validation checks it passed or failed. Lets you audit a result instead of trusting it blindly."
+    },
+    "checks": {
+      "t": "Checks (passed / failed)",
+      "d": "Independent validations run on the Item. A passed check is evidence for; a failed check (e.g. boundary_xcheck) is evidence against, and pulls the Item toward needing review."
+    },
+    "boundaryDisagreement": {
+      "t": "Boundary disagreement",
+      "d": "Two independent methods disagree on where an Item starts or ends. A wrong boundary on an otherwise-present Item is the main silent-failure mode, so it is flagged red."
+    },
+    "charRange": {
+      "t": "char range",
+      "d": "The start and end character positions of this Item in the canonical text. The boundary viewer highlights that exact span."
+    },
+    "boundaryViewer": {
+      "t": "Boundary viewer",
+      "d": "Shows the canonical source text with this Item's char range highlighted, so you can see exactly what was captured and where it begins and ends."
+    },
+    "needsReview": {
+      "t": "Needs review",
+      "d": "At least one check failed or a value looks implausible, so a human should look. The drivers list the specific reasons."
+    },
+    "item8Xbrl": {
+      "t": "Item 8 XBRL oracle",
+      "d": "An independent check: Item 8 (financial statements) is cross-verified against the filing's structured XBRL data. \"Oracle\" means a ground-truth source independent of our own extractor."
+    },
+    "roundTrip": {
+      "t": "Round-trip reconstruction",
+      "d": "Reassembling every Item's char range and checking it rebuilds the original document exactly. It proves the Items cover the source with no gaps or overlaps — it does not prove the labels are right."
+    },
+    "structural": {
+      "t": "Structural invariants",
+      "d": "Basic rules every valid result must satisfy — ranges ordered, non-overlapping, within bounds. A broken invariant is a definite bug, not a judgment call."
+    },
+    "escalation": {
+      "t": "Escalation (LLM tier)",
+      "d": "The last resort. Only flagged or low-confidence boundaries are sent to an LLM, which may only pick an Item ID and a line reference — it cannot rewrite text. The common case never reaches it."
+    },
+    "escalationTokens": {
+      "t": "Escalation tokens / calls",
+      "d": "How much the LLM tier ran: number of calls and input/output tokens. Zero means the layered extractor resolved everything without paying for an LLM."
+    }
+  }
+}

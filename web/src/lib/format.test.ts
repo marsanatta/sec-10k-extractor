@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Item } from "../types";
-import {
-  bandLabel,
-  groupByPart,
-  itemColor,
-  sliceAroundRange,
-  statusLabel,
-} from "./format";
+import { groupByPart, itemColor, sliceAroundRange } from "./format";
 
 function makeItem(overrides: Partial<Item> = {}): Item {
   return {
@@ -53,17 +47,6 @@ describe("itemColor", () => {
 
   it("extraction_failure -> red", () => {
     expect(itemColor(makeItem({ status: "extraction_failure" }))).toBe("red");
-  });
-});
-
-describe("bandLabel / statusLabel", () => {
-  it("maps bands", () => {
-    expect(bandLabel("high")).toMatch(/High/);
-    expect(bandLabel("unscored")).toMatch(/Unscored/);
-  });
-  it("maps statuses", () => {
-    expect(statusLabel("extraction_failure")).toMatch(/failure/i);
-    expect(statusLabel("legitimately_absent")).toMatch(/absent/i);
   });
 });
 

@@ -1,0 +1,261 @@
+{
+  "app": {
+    "title": "SEC 10-K Item Extractor",
+    "taglineIndex": "index-don't-generate",
+    "taglineConfidence": "calibrated confidence"
+  },
+  "lang": {
+    "toEnglish": "EN",
+    "toChinese": "繁中",
+    "ariaSwitch": "切換語言"
+  },
+  "tabs": {
+    "inspect": "Inspect",
+    "eval": "Eval / still-hard"
+  },
+  "howItWorks": {
+    "toggle": "運作方式",
+    "ariaRegion": "運作方式",
+    "intro": "這個工具會讀取一份 SEC 10-K filing，並在裡面定位每一個編號的 Item。",
+    "step1Title": "1 · 你提供一份 filing",
+    "step1Body": "挑一個 curated demo、用 ticker + 年度查公司，或直接貼上 filing 原始文字。",
+    "step2Title": "2 · 系統索引出各個 Item",
+    "step2Body": "每個 Item 的內文是指向原始文件的 character range（字元範圍）— 原文絕不被改寫。",
+    "step3Title": "3 · 每個 Item 都附證據",
+    "step3Body": "一個 confidence band，加上它通過或未通過的 checks，讓你能稽核結果，而不是盲目相信。",
+    "step4Title": "4 · Summary 標出風險",
+    "step4Body": "Coverage、缺漏 Item 的分類，以及「needs review」判定，會把可能有問題的地方標出來。"
+  },
+  "input": {
+    "demoTitle": "Curated demo",
+    "demoNote": "免 token",
+    "demoPlaceholder": "挑一個範例…",
+    "customTitle": "查詢或提交一份 filing",
+    "customNote": "需要 access token",
+    "tokenLabel": "Access token",
+    "tokenRequired": "（必填）",
+    "tokenPlaceholder": "由 operator 提供",
+    "modeTicker": "Ticker",
+    "modeAccession": "Accession",
+    "modeText": "貼上 / 上傳",
+    "tickerPlaceholder": "Ticker (AAPL)",
+    "fiscalYearPlaceholder": "Fiscal year (2024)",
+    "accessionPlaceholder": "0000320193-24-000123",
+    "textPlaceholder": "貼上 filing 文字 — 或複製某次結果的 canonical text，刪除／調換某個 Item 再送出，看 validator 如何反應…",
+    "uploadButton": "上傳 .txt / .htm",
+    "fileTooLarge": "檔案太大（上限 24 MB）。",
+    "fileReadError": "無法讀取檔案。",
+    "extract": "Extract",
+    "extracting": "Extract 中…",
+    "needTokenHint": "請先在上方輸入 access token 才能執行查詢。",
+    "elapsed": "{{seconds}}s — 抓取 + segmenting 中（大型 filing 可能需要約 2 分鐘）"
+  },
+  "empty": {
+    "start": "挑一個 curated demo，或輸入 ticker + fiscal year 或 EDGAR accession，再按 Extract。結果會依 accession 快取。",
+    "selectItem": "選一個 item 來檢視。"
+  },
+  "meta": {
+    "unknownFiler": "（未知 filer）",
+    "fy": "FY",
+    "filed": "申報",
+    "era": "era"
+  },
+  "navigator": {
+    "title": "Items",
+    "part": "Part {{part}}"
+  },
+  "summary": {
+    "title": "Filing 摘要",
+    "needsReview": "需人工檢視",
+    "noFlags": "無 review flag",
+    "coverage": "Coverage",
+    "present": "Present（找到）",
+    "absent": "Legitimately absent（合理缺漏）",
+    "failures": "Extraction failures",
+    "lowMedConf": "Low / medium confidence",
+    "item8Oracle": "Item 8 XBRL oracle",
+    "item8Found": "{{found}}/{{checked}} 找到",
+    "item8Na": "n/a",
+    "item8MarkersPresent": "有 markers",
+    "item8MarkersAbsent": "無 markers",
+    "boundaryDisagreements": "Boundary disagreements",
+    "none": "無",
+    "formatEra": "Format era",
+    "escalationHead": "Escalation (LLM tier)",
+    "provider": "Provider",
+    "performed": "是否執行",
+    "performedYes": "是",
+    "performedNo": "否 — {{provider}} stub（延後）",
+    "candidates": "Candidates",
+    "calls": "Calls",
+    "callsNone": "0 — 未啟用（延後）",
+    "tokens": "Tokens (in / out)",
+    "tokensNone": "0 / 0 — 已量測，無 LLM 呼叫",
+    "driverStructural": "structural invariants 被破壞",
+    "driverRoundTrip": "round-trip reconstruction 失敗",
+    "driverCoverage": "coverage 低到不合理（{{percent}}%）",
+    "driverFailures": "{{count}} 個預期的 item 未找到",
+    "driverLowConf": "{{count}} 個 low-confidence item",
+    "driverItem8": "Item 8 財務 markers 缺失",
+    "driverBoundary": "{{items}} 有 boundary disagreement"
+  },
+  "detail": {
+    "itemKey": "Item {{item}}",
+    "chars": "chars {{start}}–{{end}}",
+    "provenance": "Provenance",
+    "noChecks": "無 checks 紀錄",
+    "boundaryViewer": "Boundary viewer（已高亮 source span）",
+    "extractedText": "擷取出的文字",
+    "emptyText": "（空）",
+    "absentExplain": "此 item 在這份 filing 中屬於合理缺漏（template/DEI 標示為 optional、reserved，或 incorporated by reference）。",
+    "failureExplain": "此 item 預期要有但未找到 — 這是被標記的 extraction failure，不是默默丟棄。",
+    "noSourceSpan": "此 item 沒有 source span（未出現在文件中）。"
+  },
+  "boundary": {
+    "ariaLabel": "已高亮 item 邊界的原始文字",
+    "earlierOmitted": "…[前面文字省略]…",
+    "laterOmitted": "…[後面文字省略]…",
+    "highlightElided": "…[省略 {{count}} 個高亮字元]…"
+  },
+  "failures": {
+    "title": "缺漏的 items",
+    "failuresHead": "Extraction failures（{{count}}）",
+    "noFailures": "無 — 每個預期的 item 都找到了。",
+    "absentHead": "Legitimately absent（{{count}}）",
+    "absentFallback": "缺漏"
+  },
+  "status": {
+    "present": "找到",
+    "legitimately_absent": "合理缺漏",
+    "extraction_failure": "抽取失敗"
+  },
+  "band": {
+    "high": "高 confidence",
+    "medium": "中 confidence",
+    "low": "低 confidence",
+    "unscored": "未評分"
+  },
+  "glossary": {
+    "title": "Glossary（術語說明）",
+    "ariaOpen": "開啟 glossary",
+    "intro": "本 app 每個術語的白話定義。專有名詞（Item、XBRL、accession…）維持英文原樣。"
+  },
+  "g": {
+    "indexDontGenerate": {
+      "t": "index-don't-generate（只索引不生成）",
+      "d": "每個 Item 的內文是指向原始 filing 的 byte range，而不是模型重寫的文字。你看到的就是原文，能逐字還原。"
+    },
+    "calibratedConfidence": {
+      "t": "calibrated confidence（校準後信心值）",
+      "d": "一種分數：被標為 90% 的 Item，大約有 90% 真的正確。這個數字有統計保證背書，不是模型的直覺。"
+    },
+    "tabInspect": {
+      "t": "Inspect（檢視）",
+      "d": "對單一 filing 跑抽取，逐一檢查每個 Item、它的 confidence，以及背後的 checks。"
+    },
+    "tabEval": {
+      "t": "Eval / still-hard（評估 / 仍困難）",
+      "d": "跨多份 filing 的整體品質報告，以及目前仍然困難的案例。它評估的是輸出結果，而不是單次執行。"
+    },
+    "curatedDemo": {
+      "t": "Curated demo（精選範例）",
+      "d": "預先挑好的範例 filing，不需 token 就能跑，用來快速看 app 怎麼端到端運作。"
+    },
+    "accessToken": {
+      "t": "Access token（存取金鑰）",
+      "d": "operator 給你的共用金鑰。查詢或提交你自己的 filing 時需要 — 它把關後端的 EDGAR 抓取。"
+    },
+    "ticker": {
+      "t": "Ticker（股票代號）",
+      "d": "股票代號（例如 AAPL）。搭配 fiscal year，就能在 EDGAR 上查出該公司的 10-K。"
+    },
+    "accession": {
+      "t": "Accession number（申報編號）",
+      "d": "EDGAR 給每一份特定 filing 的唯一 ID（例如 0000320193-24-000123）。用它抓取精確的文件。"
+    },
+    "pasteUpload": {
+      "t": "Paste / upload（貼上 / 上傳）",
+      "d": "直接餵入原始 filing 文字 — 例如刪除或調換某個 Item 再送出，觀察 validator 如何反應。"
+    },
+    "formatEra": {
+      "t": "Format era（格式年代）",
+      "d": "這份文件用的 filing 技術：SGML（較舊的純文字 filing）、HTML，或 iXBRL（內嵌標記資料）。抽取必須處理這三種；era 告訴你套用了哪一組規則。"
+    },
+    "coverage": {
+      "t": "Coverage（涵蓋率）",
+      "d": "整份 filing 的字元中，有多少比例被歸入某個定位到的 Item。偏低代表有部分內文沒被歸類，可能是 segmentation 漏掉了東西。"
+    },
+    "present": {
+      "t": "Present（找到）",
+      "d": "此 Item 有找到，且在原文中定位到它的內文。"
+    },
+    "absent": {
+      "t": "Legitimately absent（合理缺漏）",
+      "d": "這份 filing 本來就預期沒有此 Item — 標記為 reserved、小型公司可省略，或以 incorporated by reference 帶過。不是錯誤。"
+    },
+    "failure": {
+      "t": "Extraction failure（抽取失敗）",
+      "d": "預期要有此 Item，但無法定位。系統會標記出來，不會默默丟掉。"
+    },
+    "confHigh": {
+      "t": "High confidence（高信心）",
+      "d": "多項 checks 一致；幾乎不用人工就能信任。"
+    },
+    "confMedium": {
+      "t": "Medium confidence（中信心）",
+      "d": "大致一致，但有一個 signal 偏弱；快速看一眼比較保險。"
+    },
+    "confLow": {
+      "t": "Low confidence（低信心）",
+      "d": "checks 互相矛盾或證據薄弱；依賴它之前先人工檢視。"
+    },
+    "confUnscored": {
+      "t": "Unscored（未評分）",
+      "d": "沒有算出 confidence — 例如此 Item 缺漏，沒有東西可評分。"
+    },
+    "provenance": {
+      "t": "Provenance（來源紀錄）",
+      "d": "這個 Item 的答案從何而來：由哪些 extractors 產生、通過或未通過哪些驗證 checks。讓你能稽核結果，而不是盲目相信。"
+    },
+    "checks": {
+      "t": "Checks（檢查：通過 / 未通過）",
+      "d": "對 Item 跑的獨立驗證。通過的 check 是正面證據；未通過的 check（例如 boundary_xcheck）是反面證據，會把 Item 推向需要 review。"
+    },
+    "boundaryDisagreement": {
+      "t": "Boundary disagreement（邊界分歧）",
+      "d": "兩個獨立方法對某 Item 的起訖位置判斷不一致。即使 Item 有抓到，邊界抓錯是最主要的 silent failure，所以會標紅。"
+    },
+    "charRange": {
+      "t": "char range（字元範圍）",
+      "d": "此 Item 在 canonical text 中的起訖字元位置。Boundary viewer 會把這段範圍高亮出來。"
+    },
+    "boundaryViewer": {
+      "t": "Boundary viewer（邊界檢視器）",
+      "d": "顯示 canonical 原始文字，並把此 Item 的 char range 高亮，讓你看到實際擷取到什麼、從哪裡開始到哪裡結束。"
+    },
+    "needsReview": {
+      "t": "Needs review（需人工檢視）",
+      "d": "至少有一項 check 未通過，或某數值看起來不合理，建議人工確認。下方的 drivers 列出具體原因。"
+    },
+    "item8Xbrl": {
+      "t": "Item 8 XBRL oracle",
+      "d": "一項獨立檢查：Item 8（財務報表）會跟 filing 內的結構化 XBRL 資料互相對照。Oracle 指的是獨立於我們抽取器之外的真實來源。"
+    },
+    "roundTrip": {
+      "t": "Round-trip reconstruction（往返重建）",
+      "d": "把每個 Item 的 char range 重新拼起來，檢查能否完全重建原始文件。它能證明 Items 完整覆蓋原文、沒有缺口或重疊 — 但不能證明標籤正確。"
+    },
+    "structural": {
+      "t": "Structural invariants（結構不變量）",
+      "d": "任何有效結果都必須滿足的基本規則 — 範圍有序、不重疊、不超出邊界。違反就是確定的 bug，不是模糊判斷。"
+    },
+    "escalation": {
+      "t": "Escalation（LLM tier，升級層）",
+      "d": "最後手段。只有被標記或低信心的邊界會送進 LLM，而且它只能挑選 Item ID 和行號 — 不能重寫文字。常見情況根本不會用到它。"
+    },
+    "escalationTokens": {
+      "t": "Escalation tokens / calls",
+      "d": "LLM tier 用了多少：呼叫次數與 input／output tokens。為 0 代表分層抽取器不靠 LLM 就解決了一切。"
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { sliceAroundRange } from "../lib/format";
 import type { Item } from "../types";
 
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function BoundaryViewer({ canonicalText, item }: Props) {
+  const { t } = useTranslation();
   const markRef = useRef<HTMLElement>(null);
   const slice = sliceAroundRange(canonicalText, item.char_range);
 
@@ -16,26 +18,28 @@ export function BoundaryViewer({ canonicalText, item }: Props) {
   }, [item.item_id]);
 
   if (!item.char_range) {
-    return (
-      <div className="empty">
-        No source span for this item (not present in the document).
-      </div>
-    );
+    return <div className="empty">{t("detail.noSourceSpan")}</div>;
   }
 
   return (
-    <div className="boundary" aria-label="Source text with item boundary highlighted">
-      {slice.truncatedHead && <span className="truncation">…[earlier text omitted]…{"\n"}</span>}
+    <div className="boundary" aria-label={t("boundary.ariaLabel")}>
+      {slice.truncatedHead && (
+        <span className="truncation">{t("boundary.earlierOmitted")}{"\n"}</span>
+      )}
       <span>{slice.before}</span>
       <mark ref={markRef}>{slice.highlight}</mark>
       {slice.highlightOmitted > 0 && (
         <>
-          <span className="truncation">…[{slice.highlightOmitted.toLocaleString()} highlighted chars elided]…</span>
+          <span className="truncation">
+            {t("boundary.highlightElided", { count: slice.highlightOmitted.toLocaleString() })}
+          </span>
           <mark>{slice.highlightTail}</mark>
         </>
       )}
       <span>{slice.after}</span>
-      {slice.truncatedTail && <span className="truncation">{"\n"}…[later text omitted]…</span>}
+      {slice.truncatedTail && (
+        <span className="truncation">{"\n"}{t("boundary.laterOmitted")}</span>
+      )}
     </div>
   );
 }

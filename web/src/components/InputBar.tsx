@@ -1,7 +1,22 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { GlossaryKey } from "../i18n";
 import type { DemoEntry, ExtractRequest } from "../types";
+import { InfoTip } from "./InfoTip";
 
 type Mode = "ticker" | "accession" | "text";
+
+const MODE_LABEL = {
+  ticker: "input.modeTicker",
+  accession: "input.modeAccession",
+  text: "input.modeText",
+} as const;
+
+const MODE_TERM: Record<Mode, GlossaryKey> = {
+  ticker: "ticker",
+  accession: "accession",
+  text: "pasteUpload",
+};
 
 interface Props {
   demos: DemoEntry[];
@@ -24,6 +39,7 @@ export function InputBar({
   token,
   onToken,
 }: Props) {
+  const { t } = useTranslation();
   const [demo, setDemo] = useState("");
   const [mode, setMode] = useState<Mode>("ticker");
   const [ticker, setTicker] = useState("");
@@ -62,12 +78,12 @@ export function InputBar({
   function loadFile(file: File | undefined) {
     if (!file) return;
     if (file.size > 24_000_000) {
-      setFileError("File too large (max 24 MB).");
+      setFileError(t("input.fileTooLarge"));
       return;
     }
     setFileError("");
     const reader = new FileReader();
-    reader.onerror = () => setFileError("Could not read the file.");
+    reader.onerror = () => setFileError(t("input.fileReadError"));
     reader.onload = () => {
       setText(String(reader.result ?? ""));
       setMode("text");
@@ -79,7 +95,9 @@ export function InputBar({
     <div className="inputbar">
       <div className="lookup-group demo-group">
         <span className="group-title">
-          Curated demo <small>· no token</small>
+          {t("input.demoTitle")}
+          <InfoTip term="curatedDemo" />
+          <small>· {t("input.demoNote")}</small>
         </span>
         <select
           value={demo}
@@ -89,7 +107,7 @@ export function InputBar({
             if (e.target.value) pickDemo(e.target.value);
           }}
         >
-          <option value="">Pick an example…</option>
+          <option value="">{t("input.demoPlaceholder")}</option>
           {demos.map((d) => (
             <option key={d.id} value={d.id}>
               {d.label} — {d.note}
@@ -100,15 +118,22 @@ export function InputBar({
 
       <div className={`lookup-group custom-group${hasInput && !hasToken ? " needs-token" : ""}`}>
         <span className="group-title">
-          Look up or submit a filing <small>· needs access token</small>
+          {t("input.customTitle")}
+          <small>· {t("input.customNote")}</small>
         </span>
 
         <div className="field token-field">
-          <label htmlFor="token">Access token {hasToken ? "" : "(required)"}</label>
+          <span className="field-label-row">
+            <label htmlFor="token">
+              {t("input.tokenLabel")}
+              {hasToken ? "" : ` ${t("input.tokenRequired")}`}
+            </label>
+            <InfoTip term="accessToken" />
+          </span>
           <input
             id="token"
             type="password"
-            placeholder="shared by the operator"
+            placeholder={t("input.tokenPlaceholder")}
             value={token}
             disabled={loading}
             autoComplete="off"
@@ -118,30 +143,32 @@ export function InputBar({
 
         <div className="mode-switch" role="tablist">
           {(["ticker", "accession", "text"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              role="tab"
-              aria-selected={mode === m}
-              className={`mode-tab${mode === m ? " active" : ""}`}
-              disabled={loading}
-              onClick={() => setMode(m)}
-            >
-              {m === "ticker" ? "Ticker" : m === "accession" ? "Accession" : "Paste / upload"}
-            </button>
+            <Fragment key={m}>
+              <button
+                role="tab"
+                aria-selected={mode === m}
+                className={`mode-tab${mode === m ? " active" : ""}`}
+                disabled={loading}
+                onClick={() => setMode(m)}
+              >
+                {t(MODE_LABEL[m])}
+              </button>
+              <InfoTip term={MODE_TERM[m]} />
+            </Fragment>
           ))}
         </div>
 
         {mode === "ticker" && (
           <div className="mode-fields">
             <input
-              placeholder="Ticker (AAPL)"
+              placeholder={t("input.tickerPlaceholder")}
               value={ticker}
               disabled={loading}
               onChange={(e) => setTicker(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submit()}
             />
             <input
-              placeholder="Fiscal year (2024)"
+              placeholder={t("input.fiscalYearPlaceholder")}
               inputMode="numeric"
               value={fiscalYear}
               disabled={loading}
@@ -153,7 +180,7 @@ export function InputBar({
         {mode === "accession" && (
           <div className="mode-fields">
             <input
-              placeholder="0000320193-24-000123"
+              placeholder={t("input.accessionPlaceholder")}
               value={accession}
               disabled={loading}
               onChange={(e) => setAccession(e.target.value)}
@@ -164,14 +191,14 @@ export function InputBar({
         {mode === "text" && (
           <div className="mode-fields text-mode">
             <textarea
-              placeholder="Paste filing text — or copy a result's canonical text, delete/reorder an Item, and resubmit to watch the validator react…"
+              placeholder={t("input.textPlaceholder")}
               value={text}
               disabled={loading}
               rows={4}
               onChange={(e) => setText(e.target.value)}
             />
             <label className="file-btn">
-              Upload .txt / .htm
+              {t("input.uploadButton")}
               <input
                 type="file"
                 accept=".txt,.htm,.html,.sgml"
@@ -185,17 +212,15 @@ export function InputBar({
         )}
 
         <button className="btn-primary" disabled={!canSubmit} onClick={submit}>
-          {loading ? "Extracting…" : "Extract"}
+          {loading ? t("input.extracting") : t("input.extract")}
         </button>
-        {hasInput && !hasToken && (
-          <span className="hint">Enter the access token above to run this lookup.</span>
-        )}
+        {hasInput && !hasToken && <span className="hint">{t("input.needTokenHint")}</span>}
       </div>
 
       {loading && (
         <span className="elapsed">
           <span className="spinner" aria-hidden="true" />
-          {elapsed}s — fetching + segmenting (a large filing can take up to ~2 min)
+          {t("input.elapsed", { seconds: elapsed })}
         </span>
       )}
     </div>

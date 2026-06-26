@@ -1,4 +1,4 @@
-import type { Band, Item, Status } from "../types";
+import type { Item } from "../types";
 
 export type StatusColor = "green" | "amber" | "red" | "muted";
 
@@ -15,30 +15,6 @@ export function itemColor(item: Item): StatusColor {
   if (item.confidence.band === "medium") return "amber";
   if (item.confidence.band === "high") return "green";
   return "muted";
-}
-
-export function bandLabel(band: Band): string {
-  switch (band) {
-    case "high":
-      return "High confidence";
-    case "medium":
-      return "Medium confidence";
-    case "low":
-      return "Low confidence";
-    default:
-      return "Unscored";
-  }
-}
-
-export function statusLabel(status: Status): string {
-  switch (status) {
-    case "present":
-      return "Present";
-    case "legitimately_absent":
-      return "Legitimately absent";
-    case "extraction_failure":
-      return "Extraction failure";
-  }
 }
 
 const PART_ORDER = ["I", "II", "III", "IV"];

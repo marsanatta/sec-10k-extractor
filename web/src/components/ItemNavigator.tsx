@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { groupByPart, itemColor } from "../lib/format";
 import type { Item } from "../types";
 
@@ -8,13 +9,14 @@ interface Props {
 }
 
 export function ItemNavigator({ items, selectedId, onSelect }: Props) {
+  const { t } = useTranslation();
   const groups = groupByPart(items);
   return (
-    <nav className="panel" aria-label="Item navigator">
-      <h2>Items</h2>
+    <nav className="panel" aria-label={t("navigator.title")}>
+      <h2>{t("navigator.title")}</h2>
       {groups.map((group) => (
         <div className="nav-part" key={group.part}>
-          <p className="nav-part-title">Part {group.part}</p>
+          <p className="nav-part-title">{t("navigator.part", { part: group.part })}</p>
           {group.items.map((item) => (
             <button
               key={item.item_id}
