@@ -58,6 +58,42 @@ Re-measured on the merged main (same commit as this worktree's base; eval run mi
 reference read-located), guard green (G1 **72 green network-free**; G4 char-gold 5; G6 scorer
 added-not-loosened; G7 the reference is PROPOSED, frozen nothing; regex/fallback untouched).
 
+### Re-proposed after audit feedback (two rule corrections — still PROPOSED, not frozen)
+
+The first proposal had two errors the auditor caught; both fixed and re-proposed:
+- **Presence = HEADING-EXISTS, not content-substance.** A headed `Item X` section is **present**
+  even if its content is "None." / "Not applicable" / "incorporated by reference to the proxy" —
+  the registrant addressed the item in place. **Legitimately-absent** = no `Item X` heading in the
+  filing **at all**. ("None" is an answer, not a missing section.)
+- **Dropped the `incorporated-by-reference` category** (taxonomy mismatch). Production `Status` has
+  only 3 values and no "incorporated"; a headed see-proxy Part III item is found by the segmenter →
+  production `present`, so a separate gold category manufactured false mismatches. Folded into the
+  **2-truth-category** scheme (present / legitimately-absent); `_GOLD_CAT` updated to drop the key.
+
+Labels were **reconciled against measured production output** (header-occurrence counts + status):
+where production is right (headed item → present) the gold agrees; where production is **wrong** the
+gold says legitimately-absent and Signal D reports the mismatch. **Cells changed from proposal 1**
+were all on the **full-10-K controls** (the amendments were already correct): apple 1B/4/6/9B/9C/16
+and 10–14 → present; msft-2023 the same (1C stays legitimately-absent, no heading); msft-1996 10–13
+→ present. **The two amendments are unchanged.**
+
+**Measured Signal D vs the re-proposed gold (current, form-blind):**
+
+| filing | form | Signal D | mismatches |
+|---|---|---|---|
+| apple-fy2024 | 10-K | **23/23** | none (clean control) |
+| msft-fy2023 | 10-K | **22/23** | 1C (production flags a no-heading, pre-effective-date item as failure — a real error, constant) |
+| msft-fy1996 | 10-K | **20/23** | 7A/9A/15 (pre-2001 era items production wrongly expects — real errors, constant) |
+| chemed-amend-fy2024 | 10-K/A | **13/23** | 10 form-blind `extraction_failure`s on no-heading out-of-scope items |
+| scwo-fy2025-amend | 10-K/A | **12/23** | 11 form-blind `extraction_failure`s |
+
+The form-aware fix (probe #2, **post-freeze**) would lift the two amendments to **23/23** (the
+form-blind failures become `legitimately_absent` → match) **while the full-10-K controls stay
+fixed** (23/23, 22/23, 20/23 — their mismatches are real era-errors the fix does not touch). The
+re-proposed gold also independently **catches real production errors** (1C date boundary, pre-2001
+7A/9A/15) — evidence it is a ruler reading truth, not a copy of production. **Control 3a still
+fires** (72 offline tests green network-free).
+
 > **PAUSE — HUMAN-AUDIT CHECKPOINT (G7).** The proposed labels are **regression-anchors only, not
 > trusted truth**, until the user audits and freezes them. **Signal D will gate the form-aware fix
 > (probe #2) ONLY against the user-frozen reference — never against these agent-proposed labels.**

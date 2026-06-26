@@ -122,11 +122,16 @@ def scattered_item_check(result: ExtractionResult, item_key: str, tail_probe: st
 
 # --- Signal D (round 2): classification-correctness vs a HUMAN-AUDITED per-form-type reference ---
 # Production status -> {present, ok-absent, failure}; human gold label -> {present, ok-absent}.
-# A human reference never says "failure": "failure" is a production *error* (claimed-expected but
-# not found). "ok-absent" collapses legitimately-absent AND incorporated-by-reference (both mean
-# "correctly NOT a body-text extraction failure"). A match = production category == gold category.
-# This is decorrelated from needs_review: it compares production classification, item by item, to
-# independent ground truth read from the filing -- not to any production flag.
+# The gold uses the OBJECTIVE heading-exists rule: an item whose "Item X" heading physically exists
+# in the filing body (substantive text OR "None."/"Not applicable" OR a "see proxy" incorporated-
+# by-reference section the segmenter finds) is PRESENT; an item with NO heading at all (genuinely
+# omitted, template-allowed) is LEGITIMATELY-ABSENT. There is deliberately NO separate
+# "incorporated" category: a headed "incorporated by reference" item is present (production calls
+# it present too -- the segmenter finds the heading), so giving it its own gold category would
+# manufacture false present-vs-absent mismatches. "ok-absent" = the gold's legitimately-absent;
+# "failure" is a production error (claimed-expected but not found). A match = production category
+# == gold category. Decorrelated from needs_review: it compares production classification, item by
+# item, to ground truth read from the filing -- not to any production flag.
 _PROD_CAT = {
     Status.PRESENT: "present",
     Status.LEGITIMATELY_ABSENT: "ok-absent",
@@ -135,17 +140,17 @@ _PROD_CAT = {
 _GOLD_CAT = {
     "present": "present",
     "legitimately-absent": "ok-absent",
-    "incorporated-by-reference": "ok-absent",
 }
 
 
 def classification_match_rate(result: ExtractionResult, gold_labels: dict[str, str]) -> dict:
     """Signal D: fraction of items whose PRODUCTION status category matches the HUMAN-audited
-    category in gold_labels (item_key -> present | legitimately-absent | incorporated-by-reference).
-    The loop cannot move this by editing the classifier toward a target -- only by making
-    classification match the independent reference. A gold 'ok-absent' that production calls
-    'failure' (the form-blind bug) is a mismatch; a gold 'present' that production calls
-    'ok-absent' (an over-broad rule falsely excusing a real item) is also a mismatch."""
+    category in gold_labels (item_key -> present | legitimately-absent, per the heading-exists
+    rule). The loop cannot move this by editing the classifier toward a target -- only by making
+    classification match the independent reference. A gold 'ok-absent' (no heading) that production
+    calls 'failure' (the form-blind bug) is a mismatch; a gold 'present' (heading exists) that
+    production calls 'ok-absent' (an over-broad rule falsely excusing a headed item) is also a
+    mismatch."""
     by_key = {it.item: it.status for it in result.items}
     matched, total, mismatches = 0, 0, []
     for k, label in gold_labels.items():
