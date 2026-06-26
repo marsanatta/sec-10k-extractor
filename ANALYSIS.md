@@ -465,8 +465,10 @@ its headline goal and is **being closed out**:
   declared-deferred, not run.** Round 1 already grew the eval 16→21 and mapped the failure tail to
   the **named common-mode ceiling** (§6 FM-2; only a decorrelated non-header/CRF extractor recovers
   it, out of scope). More iteration is not where the remaining grade-capping value is.
-- **What remains is delivery, not iteration:** a **persistent public deployment** and the **root
-  `README`**. Those — not another loop round — are the next work.
+- **What remains is delivery, not iteration.** The public frontend is served by the dockerized
+  app behind a **Cloudflare quick tunnel** (`docker compose up` → a `trycloudflare.com` URL; see
+  the root `README`), so no separate persistent-hosting build is needed. The one remaining
+  deliverable was the **root `README`** (now written) — not another loop round.
 
 ---
 
