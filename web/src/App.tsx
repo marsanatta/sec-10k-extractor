@@ -3,13 +3,12 @@ import { useTranslation } from "react-i18next";
 import { extract, extractDemo, extractText, fetchDemos } from "./api";
 import { EvalView } from "./components/EvalView";
 import { FailureInspector } from "./components/FailureInspector";
-import { Glossary } from "./components/Glossary";
-import { HowItWorks } from "./components/HowItWorks";
 import { InfoTip } from "./components/InfoTip";
 import { InputBar } from "./components/InputBar";
 import { ItemDetail } from "./components/ItemDetail";
 import { ItemNavigator } from "./components/ItemNavigator";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
+import { Onboarding } from "./components/Onboarding";
 import { SummaryPanel } from "./components/SummaryPanel";
 import type { DemoEntry, ExtractRequest, ExtractionResult, Item } from "./types";
 
@@ -70,18 +69,17 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           {t("app.title")}
-          <small>
+          <small data-tour="tagline">
             {t("app.taglineIndex")}
             <InfoTip term="indexDontGenerate" /> · {t("app.taglineConfidence")}
             <InfoTip term="calibratedConfidence" />
           </small>
         </div>
         <div className="topbar-actions">
-          <HowItWorks />
-          <Glossary />
+          <Onboarding />
           <LanguageSwitcher />
         </div>
-        <div className="tabs">
+        <div className="tabs" data-tour="tabs">
           <button
             className="tab"
             aria-pressed={tab === "inspect"}

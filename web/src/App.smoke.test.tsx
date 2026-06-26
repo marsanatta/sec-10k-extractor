@@ -24,8 +24,7 @@ it("renders the app shell at runtime with zh-Hant default and resolved keys", as
 
   expect(html).toContain("SEC 10-K Item Extractor");
   // zh-Hant default copy renders (not raw keys)
-  expect(html).toContain("運作方式");
-  expect(html).toContain("Glossary");
+  expect(html).toContain("重看導覽");
   // no unresolved i18n keys leaked into the DOM
-  expect(html).not.toMatch(/howItWorks\.toggle|summary\.title|g\.\w+\.[td]/);
+  expect(html).not.toMatch(/onboarding\.\w+|summary\.title|g\.\w+\.[td]/);
 });

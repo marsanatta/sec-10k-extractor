@@ -93,7 +93,7 @@ export function InputBar({
 
   return (
     <div className="inputbar">
-      <div className="lookup-group demo-group">
+      <div className="lookup-group demo-group" data-tour="demo">
         <span className="group-title">
           {t("input.demoTitle")}
           <InfoTip term="curatedDemo" />
@@ -116,7 +116,10 @@ export function InputBar({
         </select>
       </div>
 
-      <div className={`lookup-group custom-group${hasInput && !hasToken ? " needs-token" : ""}`}>
+      <div
+        className={`lookup-group custom-group${hasInput && !hasToken ? " needs-token" : ""}`}
+        data-tour="lookup"
+      >
         <span className="group-title">
           {t("input.customTitle")}
           <small>· {t("input.customNote")}</small>

@@ -13,18 +13,24 @@
     "inspect": "Inspect",
     "eval": "Eval / still-hard"
   },
-  "howItWorks": {
-    "toggle": "How this works",
-    "ariaRegion": "How this works",
-    "intro": "This tool reads one SEC 10-K filing and locates each numbered Item inside it.",
-    "step1Title": "1 · You give a filing",
-    "step1Body": "Pick a curated demo, or look up a company by ticker + year, or paste raw filing text.",
-    "step2Title": "2 · It indexes the Items",
-    "step2Body": "Each Item's text is a character range pointing into the original document — the source is never rewritten.",
-    "step3Title": "3 · Every Item gets evidence",
-    "step3Body": "A confidence band plus the checks it passed or failed, so you can audit the result instead of trusting it blindly.",
-    "step4Title": "4 · The summary flags risk",
-    "step4Body": "Coverage, missing-Item classification, and a \"needs review\" verdict surface anything that may be wrong."
+  "onboarding": {
+    "replay": "Take the tour",
+    "progress": "{{current}} / {{total}}",
+    "next": "Next",
+    "back": "Back",
+    "done": "Done",
+    "welcomeTitle": "Welcome",
+    "welcomeBody": "This tool reads one SEC 10-K filing and locates every numbered Item inside it, with a confidence score and checks for each. Here is a 30-second tour.",
+    "taglineTitle": "What it does",
+    "taglineBody": "It indexes Items into the source bytes — it never rewrites text — and gives each one a calibrated confidence. Hover any ⓘ for a plain definition of a term.",
+    "demoTitle": "Fastest start: a curated demo",
+    "demoBody": "Pick a pre-selected filing here and run it with no token. The quickest way to see the app work end-to-end.",
+    "lookupTitle": "Or look up your own filing",
+    "lookupBody": "Enter a ticker + fiscal year, an EDGAR accession, or paste raw filing text. This needs an access token from the operator.",
+    "tabsTitle": "Two views",
+    "tabsBody": "Inspect examines one filing item-by-item. Eval / still-hard is the aggregate quality report across many filings.",
+    "langTitle": "Language",
+    "langBody": "Switch between English and 繁體中文 anytime; your choice is remembered."
   },
   "input": {
     "demoTitle": "Curated demo",
@@ -134,11 +140,6 @@
     "medium": "Medium confidence",
     "low": "Low confidence",
     "unscored": "Unscored"
-  },
-  "glossary": {
-    "title": "Glossary",
-    "ariaOpen": "Open glossary",
-    "intro": "Plain definitions for every term in this app. Domain terms (Item, XBRL, accession…) are kept as-is."
   },
   "g": {
     "indexDontGenerate": {

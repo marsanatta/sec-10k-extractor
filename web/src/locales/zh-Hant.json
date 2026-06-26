@@ -13,18 +13,24 @@
     "inspect": "Inspect",
     "eval": "Eval / still-hard"
   },
-  "howItWorks": {
-    "toggle": "運作方式",
-    "ariaRegion": "運作方式",
-    "intro": "這個工具會讀取一份 SEC 10-K filing，並在裡面定位每一個編號的 Item。",
-    "step1Title": "1 · 你提供一份 filing",
-    "step1Body": "挑一個 curated demo、用 ticker + 年度查公司，或直接貼上 filing 原始文字。",
-    "step2Title": "2 · 系統索引出各個 Item",
-    "step2Body": "每個 Item 的內文是指向原始文件的 character range（字元範圍）— 原文絕不被改寫。",
-    "step3Title": "3 · 每個 Item 都附證據",
-    "step3Body": "一個 confidence band，加上它通過或未通過的 checks，讓你能稽核結果，而不是盲目相信。",
-    "step4Title": "4 · Summary 標出風險",
-    "step4Body": "Coverage、缺漏 Item 的分類，以及「needs review」判定，會把可能有問題的地方標出來。"
+  "onboarding": {
+    "replay": "重看導覽",
+    "progress": "{{current}} / {{total}}",
+    "next": "下一步",
+    "back": "上一步",
+    "done": "完成",
+    "welcomeTitle": "歡迎",
+    "welcomeBody": "這個工具會讀取一份 SEC 10-K filing，定位裡面每一個編號的 Item，並為每個 Item 附上 confidence 分數與 checks。這裡有個 30 秒的導覽。",
+    "taglineTitle": "它在做什麼",
+    "taglineBody": "它把 Item 索引到原始位元組（byte）— 從不改寫文字 — 並給每個 Item 一個 calibrated confidence。把游標移到任何 ⓘ，可看到該術語的白話定義。",
+    "demoTitle": "最快上手：curated demo",
+    "demoBody": "在這裡挑一份預選的 filing，不需 token 就能跑。這是端到端看 app 運作最快的方式。",
+    "lookupTitle": "或查詢你自己的 filing",
+    "lookupBody": "輸入 ticker + fiscal year、EDGAR accession，或貼上 filing 原始文字。這需要 operator 提供的 access token。",
+    "tabsTitle": "兩種檢視",
+    "tabsBody": "Inspect 逐一檢查單一 filing 的每個 Item。Eval / still-hard 則是跨多份 filing 的整體品質報告。",
+    "langTitle": "語言",
+    "langBody": "隨時切換 English 與繁體中文；你的選擇會被記住。"
   },
   "input": {
     "demoTitle": "Curated demo",
@@ -134,11 +140,6 @@
     "medium": "中 confidence",
     "low": "低 confidence",
     "unscored": "未評分"
-  },
-  "glossary": {
-    "title": "Glossary（術語說明）",
-    "ariaOpen": "開啟 glossary",
-    "intro": "本 app 每個術語的白話定義。專有名詞（Item、XBRL、accession…）維持英文原樣。"
   },
   "g": {
     "indexDontGenerate": {

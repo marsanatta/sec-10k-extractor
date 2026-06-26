@@ -11,7 +11,7 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <div className="lang-switch" role="group" aria-label={t("lang.ariaSwitch")}>
+    <div className="lang-switch" role="group" aria-label={t("lang.ariaSwitch")} data-tour="lang">
       <button
         type="button"
         className={`lang-btn${current === "en" ? " active" : ""}`}
