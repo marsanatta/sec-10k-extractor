@@ -76,7 +76,7 @@ export default function App() {
           </small>
         </div>
         <div className="topbar-actions">
-          <Onboarding hasResult={result != null} />
+          <Onboarding hasResult={result != null} onLoadExample={() => runDemo("msft-fy1995")} />
           <LanguageSwitcher />
         </div>
         <div className="tabs" data-tour="tabs">

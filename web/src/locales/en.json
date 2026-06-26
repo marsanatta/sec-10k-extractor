@@ -31,6 +31,8 @@
     "tabsBody": "Inspect examines one filing item-by-item. Eval / still-hard is the aggregate quality report across many filings.",
     "langTitle": "Language",
     "langBody": "Switch between English and 繁體中文 anytime; your choice is remembered.",
+    "loadExampleTitle": "Now let's read a real report",
+    "loadExampleBody": "Click Next and I'll load a sample filing (Microsoft, 1995), then walk you through how to read its result.",
     "metaTitle": "The filing header",
     "metaBody": "Company, form type, fiscal year, accession, and the format era of the document you just loaded.",
     "navTitle": "Items at a glance",

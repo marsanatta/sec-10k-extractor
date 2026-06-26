@@ -31,6 +31,8 @@
     "tabsBody": "Inspect 逐一檢查單一 filing 的每個 Item。Eval / still-hard 則是跨多份 filing 的整體品質報告。",
     "langTitle": "語言",
     "langBody": "隨時切換 English 與繁體中文；你的選擇會被記住。",
+    "loadExampleTitle": "接著來讀一份真實報告",
+    "loadExampleBody": "按「下一步」，我會載入一份範例 filing（Microsoft，1995），再帶你看怎麼讀它的結果。",
     "metaTitle": "Filing 表頭",
     "metaBody": "你剛載入的文件的公司、form 類型、fiscal year、accession，以及 format era。",
     "navTitle": "一眼看完所有 Items",

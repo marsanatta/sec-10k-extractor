@@ -2,8 +2,7 @@ import { driver, type Config, type DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
 import type { TFunction } from "i18next";
 
-const INPUT_KEY = "sec10k_onboarded_v1";
-const REPORT_KEY = "sec10k_report_tour_v1";
+const TOUR_KEY = "sec10k_tour_v1";
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 function hasCookie(key: string): boolean {
@@ -14,10 +13,8 @@ function setCookie(key: string): void {
   document.cookie = `${key}=1; max-age=${ONE_YEAR}; path=/; SameSite=Lax`;
 }
 
-export const hasSeenInputTour = () => hasCookie(INPUT_KEY);
-export const markInputTourSeen = () => setCookie(INPUT_KEY);
-export const hasSeenReportTour = () => hasCookie(REPORT_KEY);
-export const markReportTourSeen = () => setCookie(REPORT_KEY);
+export const hasSeenTour = () => hasCookie(TOUR_KEY);
+export const markTourSeen = () => setCookie(TOUR_KEY);
 
 const INPUT_STEPS = [
   { key: "welcome", element: undefined },
@@ -38,14 +35,11 @@ const REPORT_STEPS = [
   { key: "failures", element: '[data-tour="failures"]' },
 ] as const;
 
-type StepKey =
-  | (typeof INPUT_STEPS)[number]["key"]
-  | (typeof REPORT_STEPS)[number]["key"];
+const REPORT_ANCHOR = '[data-tour="meta"]';
 
-function toSteps(
-  table: readonly { key: StepKey; element?: string }[],
-  t: TFunction,
-): DriveStep[] {
+type StepKey = (typeof INPUT_STEPS)[number]["key"] | (typeof REPORT_STEPS)[number]["key"];
+
+function toSteps(table: readonly { key: StepKey; element?: string }[], t: TFunction): DriveStep[] {
   return table.map((s) => ({
     element: s.element,
     popover: {
@@ -56,9 +50,34 @@ function toSteps(
 }
 
 let active: ReturnType<typeof driver> | null = null;
+let awaitingResult = false;
 
-function run(steps: DriveStep[], t: TFunction): void {
+function bridgeStep(t: TFunction, onLoadExample: () => void): DriveStep {
+  return {
+    element: undefined,
+    popover: {
+      title: t("onboarding.loadExampleTitle"),
+      description: t("onboarding.loadExampleBody"),
+      onNextClick: () => {
+        if (!active) return;
+        // A report is already on screen (replay, or user re-entered this step) -> just continue.
+        if (document.querySelector(REPORT_ANCHOR)) {
+          active.moveNext();
+          return;
+        }
+        onLoadExample();
+        awaitingResult = true; // resumed by resumeAfterLoad() once the result renders
+      },
+    },
+  };
+}
+
+export function startTour(t: TFunction, hasResult: boolean, onLoadExample: () => void): void {
   active?.destroy();
+  awaitingResult = false;
+  const steps = hasResult
+    ? [...toSteps(INPUT_STEPS, t), ...toSteps(REPORT_STEPS, t)]
+    : [...toSteps(INPUT_STEPS, t), bridgeStep(t, onLoadExample), ...toSteps(REPORT_STEPS, t)];
   const config: Config = {
     showProgress: true,
     allowClose: true,
@@ -70,21 +89,17 @@ function run(steps: DriveStep[], t: TFunction): void {
     steps,
     onDestroyed: () => {
       active = null;
+      awaitingResult = false;
     },
   };
   active = driver(config);
   active.drive();
 }
 
-export function startInputTour(t: TFunction): void {
-  run(toSteps(INPUT_STEPS, t), t);
-}
-
-export function startReportTour(t: TFunction): void {
-  run(toSteps(REPORT_STEPS, t), t);
-}
-
-export function startFullTour(t: TFunction, hasResult: boolean): void {
-  const table = hasResult ? [...INPUT_STEPS, ...REPORT_STEPS] : INPUT_STEPS;
-  run(toSteps(table, t), t);
+// Called when an extraction result has rendered; advances a tour paused on the bridge step.
+export function resumeAfterLoad(): void {
+  if (active && awaitingResult) {
+    awaitingResult = false;
+    active.moveNext();
+  }
 }

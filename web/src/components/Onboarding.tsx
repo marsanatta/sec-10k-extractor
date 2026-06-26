@@ -1,42 +1,38 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  hasSeenInputTour,
-  hasSeenReportTour,
-  markInputTourSeen,
-  markReportTourSeen,
-  startFullTour,
-  startInputTour,
-  startReportTour,
-} from "../onboarding";
+import { hasSeenTour, markTourSeen, resumeAfterLoad, startTour } from "../onboarding";
 
 interface Props {
   hasResult: boolean;
+  onLoadExample: () => void;
 }
 
-export function Onboarding({ hasResult }: Props) {
+export function Onboarding({ hasResult, onLoadExample }: Props) {
   const { t } = useTranslation();
+  const autoStarted = useRef(false);
 
   useEffect(() => {
-    if (hasSeenInputTour()) return;
+    if (autoStarted.current || hasSeenTour()) return;
+    autoStarted.current = true;
     const id = requestAnimationFrame(() => {
-      startInputTour(t);
-      markInputTourSeen();
+      startTour(t, hasResult, onLoadExample);
+      markTourSeen();
     });
     return () => cancelAnimationFrame(id);
-  }, [t]);
+  }, [t, hasResult, onLoadExample]);
 
   useEffect(() => {
-    if (!hasResult || hasSeenReportTour()) return;
-    const id = requestAnimationFrame(() => {
-      startReportTour(t);
-      markReportTourSeen();
-    });
+    if (!hasResult) return;
+    const id = requestAnimationFrame(() => resumeAfterLoad());
     return () => cancelAnimationFrame(id);
-  }, [hasResult, t]);
+  }, [hasResult]);
 
   return (
-    <button type="button" className="tour-replay" onClick={() => startFullTour(t, hasResult)}>
+    <button
+      type="button"
+      className="tour-replay"
+      onClick={() => startTour(t, hasResult, onLoadExample)}
+    >
       {t("onboarding.replay")}
     </button>
   );
