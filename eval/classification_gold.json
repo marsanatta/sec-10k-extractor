@@ -1,0 +1,73 @@
+{
+  "_note": "Signal D classification-correctness reference (autoresearch round 2, RE-PROPOSED). TWO categories only: present | legitimately-absent. RULE (objective, heading-exists): an item is 'present' iff its 'Item X' heading physically EXISTS in the filing body -- regardless of content (substantive text, 'None.', 'Not applicable', or a 'see proxy' incorporated-by-reference section the segmenter finds). It is 'legitimately-absent' iff there is NO 'Item X' heading at all (genuinely omitted, template-allowed: optional / N/A / not-yet-effective). 'None.' is an answer, not a missing section -> present. There is NO 'incorporated-by-reference' category (a headed see-proxy item is present). Labels are read-located from each filing's raw structure AND reconciled against what production actually outputs (header-occurrence counts + production status); where production is right (headed item -> present) the gold agrees; where production is wrong (a no-heading item it flags as extraction_failure) the gold says legitimately-absent and Signal D reports the mismatch. This file is HUMAN-ONLY (guard G7): the autoloop may PROPOSE but may not freeze or edit it.",
+  "_audit_status": "FROZEN -- human-audited 2026-06-26 (Asia/Taipei). The per-filing present-sets were confirmed verbatim by the auditor under the heading-exists rule (chemed={5,15}; scwo={10-14,15}; apple=all 23; msft-2023=all except 1C; msft-1996={1-14}); all other items legitimately-absent. This is now trusted truth and the only reference Signal D may gate against. HUMAN-ONLY (G7): the autoloop may not edit it.",
+  "filings": {
+    "apple-fy2024": {
+      "form": "10-K",
+      "provenance": "read-located + production-reconciled: every Item 1-16 has a body heading (production = present for all; header occ=2 each = TOC + body). All present under heading-exists.",
+      "notable": [],
+      "labels": {
+        "1": "present", "1A": "present", "1B": "present", "1C": "present",
+        "2": "present", "3": "present", "4": "present", "5": "present", "6": "present",
+        "7": "present", "7A": "present", "8": "present", "9": "present", "9A": "present",
+        "9B": "present", "9C": "present", "10": "present", "11": "present", "12": "present",
+        "13": "present", "14": "present", "15": "present", "16": "present"
+      }
+    },
+    "msft-fy2023": {
+      "form": "10-K",
+      "provenance": "read-located + production-reconciled: all items headed EXCEPT Item 1C (header occ=0; FY ended June 2023, before the 1C effective date -> no heading -> legitimately-absent). Production wrongly flags 1C as extraction_failure (template keys on fy>=2023, not the FY-end date) -> Signal D mismatch (a real, out-of-scope-for-round-2 production error).",
+      "notable": ["1C"],
+      "labels": {
+        "1": "present", "1A": "present", "1B": "present", "1C": "legitimately-absent",
+        "2": "present", "3": "present", "4": "present", "5": "present", "6": "present",
+        "7": "present", "7A": "present", "8": "present", "9": "present", "9A": "present",
+        "9B": "present", "9C": "present", "10": "present", "11": "present", "12": "present",
+        "13": "present", "14": "present", "15": "present", "16": "present"
+      }
+    },
+    "msft-fy1996": {
+      "form": "10-K",
+      "provenance": "read-located + production-reconciled: SGML 1996 has body headings for Items 1-14 (present). Items 1A/1B/1C/7A/9A/9B/9C/15/16 have NO heading (occ=0; pre-modern items did not exist in 1996) -> legitimately-absent. Production wrongly flags 7A/9A/15 as extraction_failure (template expects modern items) -> Signal D mismatch (real era-template error, out of round-2 scope).",
+      "notable": ["7A", "9A", "15"],
+      "labels": {
+        "1": "present", "1A": "legitimately-absent", "1B": "legitimately-absent",
+        "1C": "legitimately-absent", "2": "present", "3": "present", "4": "present",
+        "5": "present", "6": "present", "7": "present", "7A": "legitimately-absent",
+        "8": "present", "9": "present", "9A": "legitimately-absent", "9B": "legitimately-absent",
+        "9C": "legitimately-absent", "10": "present", "11": "present", "12": "present",
+        "13": "present", "14": "present", "15": "legitimately-absent", "16": "legitimately-absent"
+      }
+    },
+    "chemed-amend-fy2024": {
+      "form": "10-K/A",
+      "provenance": "read-located + production-reconciled: this 10-K/A contains ONLY body headings for Item 5 and Item 15 (occ=1 each). Every other item has NO heading (occ=0) -> legitimately-absent (out of the amendment's scope). Production form-blindly flags 10 of them (1,1A,1C,2,3,7,7A,8,9,9A) as extraction_failure -> Signal D mismatch = the form-blind bug the form-aware fix must correct.",
+      "notable": ["1", "1A", "1C", "2", "3", "7", "7A", "8", "9", "9A"],
+      "labels": {
+        "1": "legitimately-absent", "1A": "legitimately-absent", "1B": "legitimately-absent",
+        "1C": "legitimately-absent", "2": "legitimately-absent", "3": "legitimately-absent",
+        "4": "legitimately-absent", "5": "present", "6": "legitimately-absent",
+        "7": "legitimately-absent", "7A": "legitimately-absent", "8": "legitimately-absent",
+        "9": "legitimately-absent", "9A": "legitimately-absent", "9B": "legitimately-absent",
+        "9C": "legitimately-absent", "10": "legitimately-absent", "11": "legitimately-absent",
+        "12": "legitimately-absent", "13": "legitimately-absent", "14": "legitimately-absent",
+        "15": "present", "16": "legitimately-absent"
+      }
+    },
+    "scwo-fy2025-amend": {
+      "form": "10-K/A",
+      "provenance": "read-located + production-reconciled: this 10-K/A has body headings for Part III Items 10-14 and Item 15 (occ>=1, present) -- the amendment supplies Part III the original incorporated. Part I and Part II items 5-9 have NO heading (occ=0) -> legitimately-absent. Production form-blindly flags 11 of them (1,1A,1C,2,3,5,7,7A,8,9,9A) as extraction_failure -> Signal D mismatch = the form-blind bug.",
+      "notable": ["1", "1A", "1C", "2", "3", "5", "7", "7A", "8", "9", "9A"],
+      "labels": {
+        "1": "legitimately-absent", "1A": "legitimately-absent", "1B": "legitimately-absent",
+        "1C": "legitimately-absent", "2": "legitimately-absent", "3": "legitimately-absent",
+        "4": "legitimately-absent", "5": "legitimately-absent", "6": "legitimately-absent",
+        "7": "legitimately-absent", "7A": "legitimately-absent", "8": "legitimately-absent",
+        "9": "legitimately-absent", "9A": "legitimately-absent", "9B": "legitimately-absent",
+        "9C": "legitimately-absent",
+        "10": "present", "11": "present", "12": "present", "13": "present", "14": "present",
+        "15": "present", "16": "legitimately-absent"
+      }
+    }
+  }
+}
