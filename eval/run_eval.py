@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on 
 
 from sec10k.evalkit import (
     boundary_scores,
+    classification_match_rate,
     fmt_rate,
     is_silent_failure,
     label_free_signals,
@@ -23,6 +24,12 @@ HERE = Path(__file__).parent
 MANIFEST = HERE / "eval_set.json"
 GOLD_FILE = HERE / "boundary_gold.json"
 GOLD = json.loads(GOLD_FILE.read_text()) if GOLD_FILE.exists() else {}
+# Signal D reference: the HUMAN-AUDITED, FROZEN per-form-type classification gold. Read-only here:
+# run_eval REPORTS the match rate; it never edits/auto-freezes the gold, never gates, and never
+# feeds back into needs_review or any production decision.
+CLASS_GOLD_FILE = HERE / "classification_gold.json"
+CLASS_GOLD = (json.loads(CLASS_GOLD_FILE.read_text()).get("filings", {})
+             if CLASS_GOLD_FILE.exists() else {})
 
 _BIG = ("1", "1A", "7", "8")
 
@@ -55,6 +62,7 @@ def _run_one(entry: dict) -> dict:
     exp = entry.get("expected_present", [])
     s = result.summary
     g = GOLD.get(entry["id"])
+    cg = CLASS_GOLD.get(entry["id"])
     recall = presence_scores(result, exp)["recall"]
     return {
         "id": entry["id"],
@@ -78,6 +86,7 @@ def _run_one(entry: dict) -> dict:
         "signals": label_free_signals(result),
         "silent_failure": is_silent_failure(result, exp),
         "boundary": boundary_scores(result, g["items"]) if g else None,
+        "classification": classification_match_rate(result, cg["labels"]) if cg else None,
         "escalation": {k: s.get(k) for k in (
             "escalation_candidates", "escalation_performed", "escalation_provider",
             "escalation_calls", "escalation_input_tokens", "escalation_output_tokens")},
@@ -211,8 +220,36 @@ def _render_md(agg: dict, rows: list[dict], run_date: str) -> str:
                        "**RED (tail dropped)**" if inside is False else "n/a (absent)")
             lines.append(f"| {r['id']} | {r['tail_probe_item']} | {r['tail_probe']} | {inside} | {verdict} |")
 
+    lines += _render_signal_d(rows)
     lines += _render_token_ledger(rows)
     return "\n".join(lines) + "\n"
+
+
+def _render_signal_d(rows: list[dict]) -> list[str]:
+    """Signal D -- classification-correctness (REPORTED, non-gating). Per-item production status
+    category vs the FROZEN, human-audited per-form-type reference (eval/classification_gold.json,
+    heading-exists rule). This is a REPORTED number ONLY: it gates nothing, never feeds back into
+    needs_review or any production decision, and never edits/auto-freezes the gold. Mismatches
+    where production disagrees with the human truth (e.g. the 1C / 7A / 9A / 15 era-errors) are the
+    evidence the reference is an INDEPENDENT ruler, not a production mirror -- if a filing here ever
+    reads N/N (100%) where it carries known production errors, suspect the gold was corrupted."""
+    cr = [r for r in rows if "error" not in r and r.get("classification")]
+    if not cr:
+        return []
+    lines = [
+        "", "## Signal D -- classification-correctness (REPORTED, non-gating)", "",
+        "Per-item production status vs the FROZEN human-audited reference",
+        "`eval/classification_gold.json` (heading-exists rule). Reported only -- it gates nothing,",
+        "never feeds `needs_review`, never regenerates the gold. Mismatches = where production",
+        "disagrees with the human truth (proof the reference is an independent ruler).", "",
+        "| filing | form | Signal D | mismatched cells |", "|---|---|---|---|",
+    ]
+    for r in cr:
+        c = r["classification"]
+        form = CLASS_GOLD.get(r["id"], {}).get("form", "")
+        mism = ", ".join(m["item"] for m in c["mismatches"]) or "none"
+        lines.append(f"| {r['id']} | {form} | {c['matched']}/{c['total']} | {mism} |")
+    return lines
 
 
 def _render_token_ledger(rows: list[dict]) -> list[str]:

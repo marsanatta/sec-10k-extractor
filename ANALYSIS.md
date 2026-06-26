@@ -239,6 +239,20 @@ cheap→expensive. Each is named by its real file + test.
      **1993–2020 only** (no modern filings). So it is a **cross-check, not gold**: it is NOT
      auto-frozen, the **5 human-audited char-exact filings stay the floor**, and it runs
      on-demand, never the CI gate.
+7. **Signal D — independent classification-correctness (human-audited gold, NEW in round 2).**
+   A second human-audited reference (`eval/classification_gold.json`, **frozen** 2026-06-26) labels,
+   per filing and per item, the **true** status under an objective **heading-exists** rule (a
+   headed `Item X` section — substantive, "None.", "Not applicable", or "see proxy" — is *present*;
+   no heading at all is *legitimately-absent*). `evalkit.classification_match_rate` scores
+   production's status category against it, **per form type**. It is **independent of the
+   production classifier** (read-located from each filing's raw structure, not from
+   `expectation()`/`needs_review`), it can **refute** (a deliberately-wrong classification lowers
+   it — a mutation guard in `tests/test_classification.py`), and it **catches real production
+   errors it does not copy**: msft-2023 `1C` (date-boundary) and msft-1996 `7A/9A/15` (pre-2001
+   era) stay mismatched (20/23, never 1.0 — a standing independence guard). It is **human-only**:
+   the loop may never freeze/edit it. **REPORTED, non-gating** — surfaced per filing in
+   `eval/report.md`, it feeds no production decision. This is the ruler that **earned the
+   form-aware fix** (§8 #1); detail in `research/round-2-findings.md`.
 
 The headline metric is therefore **abstention/needs_review-gated**: the system is allowed to
 be wrong only if it says so. Silent-failure 0/20 (the post-round-1 set; ge-2023 transient drop)
@@ -353,8 +367,8 @@ filings (§5.3). They are listed here so the cut-lines are visible, not hidden.
 
 **Ranked candidate fixes (highest-ROI first):**
 
-1. **Form-type-aware expected-item template — highest ROI, not done.** `template.expectation()`
-   keys only on `fiscal_year` + `smaller_reporting`; it is **form-blind** — it never reads
+1. **Form-type-aware expected-item template — DONE (earned in round 2 against Signal D).**
+   `template.expectation()` keyed only on `fiscal_year` + `smaller_reporting`; it was **form-blind** — it never read
    `raw.form`, even though `RawFiling.form` is populated. So a Part-III-only **10-K/A** is judged
    as a broken full 10-K and emits a flood of false `extraction_failure`s — *flagged*
    (`needs_review`) but for the **wrong reason**. The sweep found amendment selection to be the
@@ -374,9 +388,21 @@ filings (§5.3). They are listed here so the cut-lines are visible, not hidden.
    change "pass" is exactly the Goodhart move the guard (G6) forbids. The fix is correct and is
    **recommended for a future round whose signal set includes a classification-correctness metric**
    (amendment false-`extraction_failure` rate, with full-10-K classification held fixed as the
-   decorrelated control). Detail: `research/round-1-findings.md` (iteration 2). Out of scope here:
-   a multi-file change (template + pipeline + validate) that needs that dedicated signal to be
-   measurable rather than gamed.
+   decorrelated control). Detail: `research/round-1-findings.md` (iteration 2).
+
+   **Round 2 built that signal and EARNED the fix.** First it constructed **Signal D** — the
+   independent classification-correctness ruler (§5.7): a human-audited, **frozen** per-form-type
+   reference (`eval/classification_gold.json`, heading-exists rule), decorrelated from
+   `needs_review`, that can **refute** (a deliberately-wrong classification lowers it) and that
+   **independently catches real production errors it does not copy** (msft-2023 `1C`, msft-1996
+   `7A/9A/15`). *Then* it re-applied the form-aware fix and kept it **only because it moved that
+   independent ruler**: amendment classification against the frozen reference rose **13→23/23 and
+   12→23/23**, the **full-10-K controls stayed byte-identical**, **Signal A geometry was unchanged**
+   (we again refused to make coverage form-aware — G6), and **silent-failure stayed 0** (the
+   amendments remain `needs_review`-flagged via coverage / low-confidence / the boundary
+   cross-check, so removing the false-failure flood created no silent miss — G5). The fix is now
+   **merged**. Detail: `research/round-2-findings.md`. *This is the anti-Goodhart loop working
+   end-to-end: a correct fix is kept only once an independent ruler — not a proxy — can see it.*
 
 2. **Run-merge for run-fragmentation lead-item drop (BAC/SCHW) — scoped down, not done.** Tracing
    the BAC lead-item drop (§6) shows the real mechanism is **run-fragmentation**, not "a structure
@@ -421,10 +447,33 @@ half the modern lead-drops are really the common-mode ceiling.
 
 ---
 
+## 9. Autoresearch — headline reached, closed out
+
+The eval-driven Modify→Verify→Keep/Discard loop (`research/round-{1,2}-findings.md`) has reached
+its headline goal and is **being closed out**:
+
+- **The deferred fix is earned and merged.** Round 1 honestly *discarded* the form-aware template
+  fix — correct, but its benefit landed only on a forbidden proxy, so no independent signal could
+  see it. Round 2 first **built the independent ruler (Signal D, §5.7)** — human-audited, frozen,
+  able to refute, and independently catching real production errors (`1C`, `7A/9A/15`) — and *then*
+  kept the fix because it moved **that** ruler (amendments 13→23/23, 12→23/23) while the full-10-K
+  controls, Signal A geometry, and silent-failure all held (G5/G6/G7). The anti-Goodhart loop
+  worked end-to-end.
+- **Signal D is now a standing independent ruler**, reported per filing in `eval/report.md`
+  (non-gating) with a permanent independence guard (it must stay < 1.0 on msft-1996).
+- **Secondary probes #3 (more stratified eval growth) and #4 (more failure-mode discovery) are
+  declared-deferred, not run.** Round 1 already grew the eval 16→21 and mapped the failure tail to
+  the **named common-mode ceiling** (§6 FM-2; only a decorrelated non-header/CRF extractor recovers
+  it, out of scope). More iteration is not where the remaining grade-capping value is.
+- **What remains is delivery, not iteration:** a **persistent public deployment** and the **root
+  `README`**. Those — not another loop round — are the next work.
+
+---
+
 ## Reproduce
 
 ```bash
-python -m pytest -q                 # 67 unit tests incl. the mutation battery + escalation token ledger
+python -m pytest -q                 # 73 unit tests incl. mutation battery, escalation token ledger, Signal D
 SEC_EDGAR_USER_AGENT="Name email" python eval/run_eval.py   # regenerates eval/report.md + report.json
 ```
 Numbers in this doc are from that report (`eval/report.md`) and the per-filing summaries; the
