@@ -56,6 +56,7 @@ def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None,
     profile = FilerProfile(
         fiscal_year=meta.fiscal_year if raw else fiscal_year,
         smaller_reporting=meta.smaller_reporting if raw else smaller_reporting,
+        form=meta.form,
     )
     xbrl_facts = fetch_xbrl_facts(meta.cik, meta.fiscal_year) if raw is not None else {}
     boundary = boundary_signal(spans, canonical, second_text or {})

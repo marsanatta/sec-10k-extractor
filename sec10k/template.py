@@ -14,10 +14,19 @@ MAYBE_INCORPORATED = "maybe_incorporated"  # Part III items, usually incorporate
 class FilerProfile:
     fiscal_year: int | None
     smaller_reporting: bool | None = None  # None = unknown
+    form: str | None = None  # e.g. "10-K" or "10-K/A"
+
+
+# Part I + Part II item keys. A 10-K/A amendment may amend only specific items/Parts, so the
+# items it does NOT cover are legitimately absent (heading not present), not extraction failures.
+_PART_I_II = {"1", "1A", "1B", "1C", "2", "3", "4", "5", "6", "7", "7A", "8", "9", "9A", "9B", "9C"}
 
 
 def expectation(item_key: str, profile: FilerProfile) -> str:
     fy = profile.fiscal_year
+    if (profile.form and profile.form.strip().upper().endswith("/A")
+            and item_key in _PART_I_II):
+        return OPTIONAL  # amendment: a Part I-II item it does not amend is legitimately absent
     if item_key == "1C":  # Cybersecurity: first appears in FY2023 reports
         return EXPECTED if (fy is not None and fy >= 2023) else NOT_YET
     if item_key == "1A":  # Risk Factors became a required item for FY2005+

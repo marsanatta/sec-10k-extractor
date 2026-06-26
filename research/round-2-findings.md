@@ -103,4 +103,45 @@ fires** (72 offline tests green network-free).
 
 ---
 
-_(probe #2 form-aware fix, #3 eval growth, #4 discovery — deferred until the reference is frozen.)_
+## Iteration 2 — probe #2: re-attempt the form-aware `expectation()` fix → **KEEP** (legitimately earned against the frozen independent signal)
+
+Reference **frozen by human audit 2026-06-26** (labels confirmed verbatim). Re-applied the
+round-1 form-aware fix (thread `raw.form`; `/A` → Part I-II `OPTIONAL`; `template.py` + `pipeline.py`
+only — not the segmenter/invariants/scorer).
+
+**Measured against the frozen Signal D + the geometry control:**
+
+| filing | role | Signal D before → after | Signal A (`struct_ok` / cov) |
+|---|---|---|---|
+| chemed-amend-fy2024 | AMENDMENT | **13/23 → 23/23** | True / 0.311 — **unchanged** |
+| scwo-fy2025-amend | AMENDMENT | **12/23 → 23/23** | True / 0.885 — **unchanged** |
+| apple-fy2024 | control | 23/23 → **23/23** | unchanged |
+| msft-fy2023 | control | 22/23 → **22/23** (1C still mismatched) | unchanged |
+| msft-fy1996 | control | 20/23 → **20/23** (7A/9A/15 still mismatched) | unchanged |
+
+**All four KEEP criteria met (measured, not assumed):**
+1. **Signal D rises on the amendment cells against the FROZEN reference** — chemed 13→23, scwo
+   12→23 (the form-blind `extraction_failure`s become `legitimately_absent`, matching the
+   heading-exists truth).
+2. **Full-10-K controls byte-unchanged** — 23/23, 22/23, 20/23 identical; the control mismatches
+   (1C, 7A/9A/15) are real era-errors the form-aware fix correctly does *not* touch.
+3. **Signal A (UPPER BOUND, not accuracy) unchanged** — `struct_ok=True` everywhere, coverage
+   identical (chemed stays 0.311). **I did NOT make coverage form-aware to manufacture an A gain
+   (G6 honoured).**
+4. **Guard G1–G7 green** — G1 offline **72 green network-free**; G4 char-gold 5; **G5 silent-failure
+   still 0** (verified: both amendments stay `needs_review=True` for *better* reasons — chemed by
+   coverage-implausible + low-confidence, scwo by the boundary cross-check on items 10/12/13 — so
+   removing the false `extraction_failure` flood did NOT create a silent failure); G6 no
+   invariant/scorer loosened; G7 the reference is frozen and was not edited to pass; G2/G3
+   regex/fallback untouched.
+
+**Decision: KEEP.** This is **round-1's discard resolved correctly**: round 1 discarded this
+verified-correct fix because no independent signal could see it. Round 2 first *built* the
+independent, human-audited Signal D — which can **refute** (control 3a) and which **independently
+catches real production errors** (1C, 7A/9A/15) — and only then earned the fix, because that signal
+moved on the amendments while the controls, the geometry, and the silent-failure guard all held.
+Not a proxy; a ruler.
+
+---
+
+_(probe #3 stratified eval growth, #4 failure-mode discovery — next, then STOP + report.)_
