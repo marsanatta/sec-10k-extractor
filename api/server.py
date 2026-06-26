@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from api.security import TokenAuthMiddleware
 from sec10k import pipeline
 from sec10k.ingest import RawFiling
+from sec10k.llm_models import DEFAULT_MODEL, FALLBACK_MODELS
 from sec10k.normalize import to_canonical
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -46,20 +47,49 @@ DEMO_FILINGS = [
 
 _cache: dict[str, dict] = {}
 _pool = ThreadPoolExecutor(max_workers=4)
+_models_cache: list[dict] | None = None
 
 app = FastAPI(title="SEC 10-K Extractor")
 app.add_middleware(TokenAuthMiddleware)
+
+
+def _models() -> list[dict]:
+    """Live Copilot model list (cached per process), falling back to the static snapshot when no
+    token / SDK is available so the picker and validation work in the $0 path."""
+    global _models_cache
+    if _models_cache is None:
+        try:
+            from sec10k.copilot_client import list_models_sync
+
+            _models_cache = list_models_sync()
+        except Exception:
+            _models_cache = FALLBACK_MODELS
+    return _models_cache
+
+
+def _model_error(model: str | None) -> JSONResponse | None:
+    if model and model not in {m["id"] for m in _models()}:
+        return JSONResponse(status_code=400, content={"error": f"Unknown model: {model}"})
+    return None
 
 
 class ExtractRequest(BaseModel):
     ticker: str | None = None
     fiscal_year: int | None = None
     accession: str | None = None
+    model: str | None = None
 
 
 @app.get("/api/demo")
 def demo() -> list[dict]:
     return DEMO_FILINGS
+
+
+@app.get("/api/models")
+def models() -> dict:
+    """The escalation-tier model picker's options + the default. Live list when a Copilot token is
+    configured, else the static fallback. Open (no token gate) -- it leaks no filing data."""
+    return {"models": _models(), "default": DEFAULT_MODEL}
 
 
 @app.get("/health")
@@ -74,7 +104,7 @@ def eval_report() -> dict:
     return {"markdown": EVAL_REPORT.read_text(encoding="utf-8")}
 
 
-def _run_extraction(ticker, fiscal_year, accession) -> JSONResponse:
+def _run_extraction(ticker, fiscal_year, accession, model=None) -> JSONResponse:
     if not os.environ.get("SEC_EDGAR_USER_AGENT", "").strip():
         return JSONResponse(
             status_code=500,
@@ -86,13 +116,18 @@ def _run_extraction(ticker, fiscal_year, accession) -> JSONResponse:
             status_code=400,
             content={"error": "Provide an accession, or a ticker (with optional fiscal_year)."},
         )
+    if (err := _model_error(model)) is not None:
+        return err
 
-    cache_key = accession or f"{ticker}:{fiscal_year}"
+    # The model can move escalated boundaries, so it is part of the cache identity.
+    suffix = f"|{model or DEFAULT_MODEL}"
+    cache_key = (accession or f"{ticker}:{fiscal_year}") + suffix
     if cache_key in _cache:
         return JSONResponse(content=_cache[cache_key])
 
     future = _pool.submit(
         pipeline.extract, ticker_or_cik=ticker, fiscal_year=fiscal_year, accession=accession,
+        llm_model=model,
     )
     try:
         result = future.result(timeout=EXTRACT_TIMEOUT_S)
@@ -109,13 +144,13 @@ def _run_extraction(ticker, fiscal_year, accession) -> JSONResponse:
     real_accession = payload["meta"]["accession"]
     _cache[cache_key] = payload
     if real_accession:
-        _cache[real_accession] = payload
+        _cache[real_accession + suffix] = payload
     return JSONResponse(content=payload)
 
 
 @app.post("/api/extract")
 def extract(req: ExtractRequest) -> JSONResponse:
-    return _run_extraction(req.ticker, req.fiscal_year, req.accession)
+    return _run_extraction(req.ticker, req.fiscal_year, req.accession, req.model)
 
 
 @app.get("/api/demo-result/{demo_id}")
@@ -131,6 +166,7 @@ def demo_result(demo_id: str) -> JSONResponse:
 
 class ExtractTextRequest(BaseModel):
     text: str
+    model: str | None = None
 
 
 def _canonical_from_upload(raw_text: str) -> tuple[str, str]:
@@ -162,8 +198,10 @@ def extract_text(req: ExtractTextRequest) -> JSONResponse:
             status_code=413,
             content={"error": f"Text too large (> {MAX_UPLOAD_CHARS:,} chars)."},
         )
+    if (err := _model_error(req.model)) is not None:
+        return err
     canonical, era = _canonical_from_upload(text)
-    future = _pool.submit(pipeline.extract_from_text, canonical, era)
+    future = _pool.submit(pipeline.extract_from_text, canonical, era, llm_model=req.model)
     try:
         result = future.result(timeout=EXTRACT_TIMEOUT_S)
     except FutureTimeout:

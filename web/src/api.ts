@@ -1,4 +1,4 @@
-import type { DemoEntry, ExtractRequest, ExtractionResult } from "./types";
+import type { DemoEntry, ExtractRequest, ExtractionResult, ModelInfo } from "./types";
 
 async function asJson<T>(resp: Response): Promise<T> {
   const body = await resp.json().catch(() => null);
@@ -21,6 +21,10 @@ export async function fetchEval(): Promise<string> {
   return body.markdown;
 }
 
+export async function fetchModels(): Promise<{ models: ModelInfo[]; default: string }> {
+  return asJson<{ models: ModelInfo[]; default: string }>(await fetch("/api/models"));
+}
+
 export async function extractDemo(id: string): Promise<ExtractionResult> {
   return asJson<ExtractionResult>(await fetch(`/api/demo-result/${encodeURIComponent(id)}`));
 }
@@ -40,11 +44,15 @@ export async function extract(req: ExtractRequest, token?: string): Promise<Extr
   return asJson<ExtractionResult>(resp);
 }
 
-export async function extractText(text: string, token?: string): Promise<ExtractionResult> {
+export async function extractText(
+  text: string,
+  token?: string,
+  model?: string,
+): Promise<ExtractionResult> {
   const resp = await fetch("/api/extract-text", {
     method: "POST",
     headers: authHeaders(token),
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, model }),
   });
   return asJson<ExtractionResult>(resp);
 }

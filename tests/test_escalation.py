@@ -61,6 +61,8 @@ def test_deferred_ledger_is_zero_not_exercised():
     assert s["escalation_input_tokens"] == 0
     assert s["escalation_output_tokens"] == 0
     assert s["escalation_applied"] == 0  # deferred stub applies no correction (byte-identical)
+    assert s["llm_touched"] is False     # observability: no real call fired
+    assert s["escalation_items_moved"] == []
 
 
 def test_mock_client_token_ledger_is_summed():
@@ -121,6 +123,8 @@ def test_escalation_apply_moves_boundary_to_correct_offset():
 
     out = run_escalation(result, canonical, _LineMock(line_no))
     assert out["escalation_applied"] >= 1
+    assert out["llm_touched"] is True                    # observability: a real call fired+applied
+    assert it.item in out["escalation_items_moved"]      # and this item is recorded as moved
     assert it.char_range[0] == true_start                # boundary moved back to the correct start
     assert _iou(it.char_range, (true_start, end)) >= 0.9  # proven against the independent reference
 

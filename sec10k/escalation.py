@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Protocol
 
 from sec10k.items import CANONICAL_BY_KEY
 from sec10k.schema import Band, ExtractionResult, Status
+
+_TOKEN_VARS = ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")
+# Default OFF. The deterministic regex path is the shipped, $0, reproducible primary; the LLM tier
+# is an explicit operator opt-in. Measured (research/llm-measurement-findings.md): no independent-
+# signal gain on our gold, so it stays an available graceful-fallback, never on by default.
+_ENABLE_VAR = "SEC10K_LLM_ESCALATION"
+
+
+def llm_escalation_enabled() -> bool:
+    return os.environ.get(_ENABLE_VAR, "").strip().lower() in ("1", "true", "yes", "on")
 
 
 @dataclass(frozen=True)
@@ -27,14 +38,35 @@ class LLMClient(Protocol):
 
 
 class DeferredLLMClient:
-    """Placeholder used until a real provider (the GitHub Copilot SDK) is wired. It makes
-    no call: escalation triggers still fire and are recorded as deferred, so the pipeline
-    is fully functional without the LLM tier (the plan's P3 cut-line)."""
+    """The graceful-fallback / recording-only provider. Makes no call: escalation triggers still
+    fire and are recorded, so the pipeline is fully functional (and the offline suite stays
+    network-free) when no Copilot token is configured."""
 
     name = "deferred"
 
     def adjudicate(self, prompt: str) -> Adjudication | None:
         return None
+
+
+def default_llm_client(model: str | None = None) -> LLMClient:
+    """Pick the escalation provider: the REAL GitHub Copilot client when a token is configured in
+    the environment, else the deferred (recording-only) stub. This is the graceful-fallback
+    "real-when-configured" contract -- a token-less environment (CI, or a deploy without a Copilot
+    PAT) gets the stub, so the tier degrades cleanly and the offline suite never makes a network
+    call. Import is lazy so the SDK is only required when a token is actually present. `model`
+    selects the Copilot model (UI-configurable); None falls back to the configured default.
+
+    DEFAULT OFF: the real client is used only when the operator explicitly enables the tier
+    (`SEC10K_LLM_ESCALATION`) AND a token is present. Token presence alone does NOT turn it on, so
+    the default extract path stays deterministic ($0) even on a token-configured server."""
+    if llm_escalation_enabled() and any(os.environ.get(v) for v in _TOKEN_VARS):
+        try:
+            from sec10k.copilot_client import CopilotLLMClient
+
+            return CopilotLLMClient(model=model)
+        except Exception:
+            return DeferredLLMClient()
+    return DeferredLLMClient()
 
 
 def escalation_candidates(result: ExtractionResult) -> list[str]:
@@ -86,7 +118,7 @@ def _line_ref_to_offset(
 
 
 def run_escalation(
-    result: ExtractionResult, canonical: str, client: LLMClient | None
+    result: ExtractionResult, canonical: str, client: LLMClient | None, model: str | None = None
 ) -> dict:
     """Identify escalation candidates and, when a real client is wired, adjudicate each present
     low-confidence boundary, sum the real token cost, AND apply the model's line answer to move
@@ -94,11 +126,12 @@ def run_escalation(
     call is made (calls/tokens/applied stay 0); every candidate is annotated so nothing is
     silently skipped."""
     candidates = escalation_candidates(result)
-    client = client or DeferredLLMClient()
+    client = client or default_llm_client(model)
     deferred = getattr(client, "name", "") == "deferred"
     note = "escalation_deferred" if deferred else "escalated"
     by_key = {it.item: it for it in result.items}
     calls = input_tokens = output_tokens = applied = 0
+    moved: list[str] = []
     for key in candidates:
         it = by_key.get(key)
         if it is None:
@@ -122,6 +155,7 @@ def run_escalation(
             if "escalation_applied" not in it.provenance.checks_passed:
                 it.provenance.checks_passed.append("escalation_applied")
             applied += 1
+            moved.append(key)
     return {
         "escalation_candidates": candidates,
         "escalation_provider": getattr(client, "name", "unknown"),
@@ -130,4 +164,8 @@ def run_escalation(
         "escalation_input_tokens": input_tokens,
         "escalation_output_tokens": output_tokens,
         "escalation_applied": applied,
+        "escalation_items_moved": moved,
+        # Observability for the failure census: did a REAL escalation call actually fire on this
+        # filing (deferred/no-candidate filings stay False), so llm-touched records are separable.
+        "llm_touched": calls > 0,
     }

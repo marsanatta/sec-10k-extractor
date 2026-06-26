@@ -85,4 +85,10 @@ export interface ExtractRequest {
   ticker?: string;
   fiscal_year?: number;
   accession?: string;
+  model?: string;
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
 }

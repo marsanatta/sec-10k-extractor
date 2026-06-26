@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { extract, extractDemo, extractText, fetchDemos } from "./api";
+import { extract, extractDemo, extractText, fetchDemos, fetchModels } from "./api";
 import { EvalView } from "./components/EvalView";
 import { FailureInspector } from "./components/FailureInspector";
 import { InfoTip } from "./components/InfoTip";
@@ -10,7 +10,7 @@ import { ItemNavigator } from "./components/ItemNavigator";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { Onboarding } from "./components/Onboarding";
 import { SummaryPanel } from "./components/SummaryPanel";
-import type { DemoEntry, ExtractRequest, ExtractionResult, Item } from "./types";
+import type { DemoEntry, ExtractRequest, ExtractionResult, Item, ModelInfo } from "./types";
 
 type Tab = "inspect" | "eval";
 
@@ -18,6 +18,8 @@ export default function App() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("inspect");
   const [demos, setDemos] = useState<DemoEntry[]>([]);
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [defaultModel, setDefaultModel] = useState("");
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [selected, setSelected] = useState<Item | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,6 +36,12 @@ export default function App() {
     fetchDemos()
       .then(setDemos)
       .catch((e: Error) => setError(e.message));
+    fetchModels()
+      .then((r) => {
+        setModels(r.models);
+        setDefaultModel(r.default);
+      })
+      .catch(() => undefined);
   }, []);
 
   async function run(fetcher: () => Promise<ExtractionResult>) {
@@ -62,7 +70,7 @@ export default function App() {
 
   const runExtract = (req: ExtractRequest) => run(() => extract(req, token));
   const runDemo = (id: string) => run(() => extractDemo(id));
-  const runText = (text: string) => run(() => extractText(text, token));
+  const runText = (text: string, model?: string) => run(() => extractText(text, token, model));
 
   return (
     <div className="app">
@@ -101,6 +109,8 @@ export default function App() {
         <>
           <InputBar
             demos={demos}
+            models={models}
+            defaultModel={defaultModel}
             loading={loading}
             elapsed={elapsed}
             onSubmit={runExtract}
