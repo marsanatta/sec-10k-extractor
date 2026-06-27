@@ -51,15 +51,18 @@ added to `eval/boundary_gold.json` with items {1:[8664,27960], 1A:[27960,73380],
 `extract()` scores 4/4 IoU=1.0; non-vacuous — without A4 the lead is absent (would be 3/4). This is the
 A4 RED→GREEN anchor, same discipline as usb-fy2010 for A3.
 
-## Deferred / blocked clusters (honest)
+## Resolved / deferred clusters (honest)
 
-- **ABS / Regulation-AB trusts (~15) — classification, not segmentation; BLOCKED on human gold.**
-  Confirmed: these are asset-backed 10-Ks (Item 1112/1114/1117… the Reg-AB "Item 1100" series; standard
-  Item 1 Business is legitimately-absent for a passive trust). The right fix is form/filer-aware
-  classification (legitimately-absent vs extraction-failure), gated on the INDEPENDENT Signal D
-  (`classification_gold`) — which is **human-only and cannot be auto-frozen** (anti-Goodhart). So this
-  fix is earnable ONLY against a human-audited ABS classification entry — a hard blocker for auto mode.
-  Already flagged `needs_review` (not silent).
+- **ABS / Regulation-AB trusts (~15) — RESOLVED in round 8 (it was SEGMENTATION, not classification).**
+  The round-7 email mis-framed this as classification. Tracing Santander showed the relaxed pass DOES
+  recover all the separator-less `Item N  Title` one-liners — but the tolerant split DROPPED the
+  out-of-order `Item 1B` (ABS shells list 1B after Items 2/3), so relax was not a strict superset and
+  A3's dominance guard correctly rejected it. Fix (`round-8`): the tolerant split now drops an order-dip
+  only when its key RECURS (a duplicate -> true cross-reference); a UNIQUE out-of-order key is a real
+  mis-ordered header and is kept. G9 gate clean (identical=1731, recovery=6, collateral=0): Santander
+  6→21 items, plus TWO round-5 'both' 7A-drops recovered as a free Probe-2 win; char-gold all IoU 1.0.
+  **No human gold needed** — a clean G9-gated segmentation fix, the shared-split change round 5 had
+  deferred as too risky (the gate made it safe to attempt).
 - **`empty` (7) + other operating `lead_item_1_missing` (QPAGOS, Clean Energy, …) — EDGAR-blocked.**
   These sweep2 filings are not in the local cache; investigating them needs fresh EDGAR fetches, and
   EDGAR began returning **403 (rate-limited)** after the 883-sweep + investigation volume (eng-debug'd:

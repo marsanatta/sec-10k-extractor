@@ -77,13 +77,18 @@ def _split_runs(headers):
 
 
 def _split_runs_tolerant(headers):
-    """Like _split_runs but tolerates a SINGLE out-of-order intruder -- a line-start in-prose
+    """Like _split_runs but tolerates an out-of-order intruder -- a line-start in-prose
     cross-reference the relaxed recogniser admits ("Item 10 Executive Officers" inside Item 1's
-    prose). Used ONLY on the empty-cluster fallback pass. An order dip is an intruder vs a genuine
-    restart (TOC -> body) by a one-element LOOKAHEAD: a dip is an intruder iff the NEXT hit resumes
-    at/above the run's last order. Two dip shapes: (b) the current hit is the dip -> skip it;
-    (a) the previous hit was the spike -> replace it with the current hit."""
+    prose). An order dip is an intruder vs a genuine restart (TOC -> body) by a one-element LOOKAHEAD:
+    a dip is an intruder iff the NEXT hit resumes at/above the run's last order. Two dip shapes:
+    (b) the current hit is the dip; (a) the previous hit was the spike -> replace it. For (b) the dip
+    is dropped ONLY if its key RECURS in the headers (a duplicate -> a true cross-reference); a UNIQUE
+    out-of-order key is a real but mis-ordered header (e.g. ABS shells list Item 1B after 2/3) and is
+    KEPT (tiling is by position, so a run need not stay strictly monotonic)."""
     runs, cur = [], []
+    kc: dict = {}
+    for h in headers:
+        kc[h[0]] = kc.get(h[0], 0) + 1
     i, n = 0, len(headers)
     while i < n:
         hdr = headers[i]
@@ -92,7 +97,11 @@ def _split_runs_tolerant(headers):
             run_last = CANONICAL_ORDER[cur[-1][0]]
             nxt = CANONICAL_ORDER[headers[i + 1][0]] if i + 1 < n else -1
             prev = CANONICAL_ORDER[cur[-2][0]] if len(cur) >= 2 else -1
-            if nxt >= run_last:        # (b) current is a lone dip; next resumes -> skip current
+            if nxt >= run_last:        # (b) a lone dip whose next hit resumes
+                if kc[hdr[0]] > 1:     # the dip's key recurs -> an in-prose cross-reference -> drop
+                    i += 1
+                    continue
+                cur.append(hdr)        # a unique out-of-order key is a real mis-ordered header -> keep
                 i += 1
                 continue
             if order >= prev:          # (a) cur[-1] was the spike -> drop it, keep current
