@@ -29,12 +29,16 @@ _XREF = (r"[ \t]+(?:under|of|in|as|at|to|on|by|for|with|from|herein|hereof|heret
          r"above|below|set\s+forth|described|referred|incorporated)\b")
 _HEADER_RE_LOOSE = re.compile(
     r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)(?!" + _XREF + r")(?:\s*[" + _SEP + r"]|\s+(?=[A-Z]))")
-# A4 (round 7): the PLURAL combined lead header "Items 1 and 2. Business and Properties" (the oil/gas
-# house-style where the business IS the properties). The singular _HEADER_RE needs "Item"+gap+digit,
-# so the trailing 's' of "Items 1" breaks the match and BOTH items are dropped (lead_item_1_missing).
-# This recovers the LEAD item number from such a combined header.
+# A4 (round 7, broadened round 9): the PLURAL combined lead header where the business IS the
+# properties -- the singular _HEADER_RE needs "Item"+gap+digit, so the trailing 's' of "Items 1"
+# breaks the match and the combined items drop (lead_item_1_missing). Round-9 sweep3 surfaced real
+# house-style VARIANTS the first cut missed: "Items 1. and 2." (separator after the lead number),
+# "ITEMS\n1 AND 2." (newline between ITEMS and the number), "Items 1., 1A. & 2." (a longer list with
+# "&"/commas). Match plural "Items" + the lead number, with a lookahead requiring a list connector
+# (and / & / , / a following digit) so a genuine list is recovered but prose ("Items of the plan")
+# and a singular "Item 1" are rejected. The captured group 1 is the LEAD item to recover.
 _COMBINED_RE = re.compile(
-    r"(?im)^[ \t>]*items[ \t]+(\d{1,2}[A-C]?)[ \t]+and[ \t]+\d{1,2}[A-C]?\s*[" + _SEP + "]")
+    r"(?im)^[ \t>]*items" + _GAP + r"(\d{1,2}[A-C]?)(?=[.\s,&)-]*(?:and\b|&|,|\d))")
 
 
 def _find_headers(text: str, header_re: "re.Pattern" = _HEADER_RE) -> list[tuple[str, int, int]]:

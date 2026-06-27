@@ -16,6 +16,7 @@ Run: SEC_EDGAR_USER_AGENT="Name email" python eval/collect_sweep2.py [out_file]
 from __future__ import annotations
 
 import json
+import os
 import random
 import sys
 import time
@@ -28,7 +29,7 @@ import edgar
 from sec10k.config import get_user_agent
 
 HERE = Path(__file__).resolve().parent
-SEED = 20260627
+SEED = int(os.environ.get("SWEEP_SEED", "20260627"))
 
 # (stratum, form, [filing-year range inclusive], target N) -- N over-samples the hard/thin cells.
 STRATA = [
@@ -42,9 +43,10 @@ STRATA = [
 
 
 def _existing() -> set[str]:
+    """All accessions in any prior pinned sweep list (sweep_accessions.txt, sweep2_accessions.txt, ...)
+    so a fresh round draws genuinely held-out filings -- never re-measuring an already-pinned one."""
     accs = set()
-    p = HERE / "sweep_accessions.txt"
-    if p.exists():
+    for p in HERE.glob("sweep*_accessions.txt"):
         for ln in p.read_text(encoding="utf-8").splitlines():
             if ln.strip():
                 accs.add(json.loads(ln)["accession"])
@@ -69,14 +71,25 @@ def _pool(form: str, y0: int, y1: int) -> list[dict]:
 
 def main(argv: list[str]) -> int:
     out_file = Path(argv[1]) if len(argv) > 1 else HERE / "sweep2_accessions.txt"
+    # SWEEP_ONLY_STRATUM runs ONE stratum in a fresh process and APPENDS -- the orchestrator loops the
+    # strata so each gets a clean process. (edgartools accumulates ~25 years of index tables in memory;
+    # past ~470MB a later stratum's get_filings hangs. Per-stratum processes bound that and never hang.)
+    only = os.environ.get("SWEEP_ONLY_STRATUM")
+    strata = [s for s in STRATA if s[0] == only] if only else STRATA
+    append = bool(only) and out_file.exists()
     edgar.set_identity(get_user_agent())
     edgar.configure_http(timeout=60)
     rng = random.Random(SEED)
     existing = _existing()
-    print(f"excluding {len(existing)} existing accessions", file=sys.stderr)
+    if append:  # also exclude accessions already written by earlier strata this run
+        for ln in out_file.read_text(encoding="utf-8").splitlines():
+            if ln.strip():
+                existing.add(json.loads(ln)["accession"])
+    print(f"excluding {len(existing)} existing" + (f" [only={only}]" if only else ""),
+          file=sys.stderr, flush=True)
 
     picked, seen = [], set()
-    for name, form, (y0, y1), n in STRATA:
+    for name, form, (y0, y1), n in strata:
         t0 = time.monotonic()
         pool = [r for r in _pool(form, y0, y1)
                 if r["accession"] not in existing and r["accession"] not in seen]
@@ -89,14 +102,12 @@ def main(argv: list[str]) -> int:
                       "stratum_sampled": len(take)})
             picked.append(r)
         print(f"  {name:14s} {form:7s} {y0}-{y1}: pop={raw_pop} sampled={len(take)} "
-              f"({time.monotonic()-t0:.0f}s)", file=sys.stderr)
+              f"({time.monotonic()-t0:.0f}s)", file=sys.stderr, flush=True)
 
-    out_file.write_text("\n".join(json.dumps(r) for r in picked) + "\n", encoding="utf-8")
-    print(f"\nwrote {len(picked)} pinned accessions -> {out_file}", file=sys.stderr)
-    # stratum summary
-    from collections import Counter
-    c = Counter(r["stratum"] for r in picked)
-    print("strata:", dict(c), file=sys.stderr)
+    with out_file.open("a" if append else "w", encoding="utf-8") as fh:
+        fh.write("\n".join(json.dumps(r) for r in picked) + "\n")
+    print(f"wrote {len(picked)} -> {out_file}" + (" [append]" if append else ""),
+          file=sys.stderr, flush=True)
     return 0
 
 
