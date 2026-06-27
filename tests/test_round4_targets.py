@@ -64,11 +64,11 @@ _CROSSREF_INTRUDER = (
 )
 
 
-@pytest.mark.xfail(strict=True, reason="round-4 A2 target: in-prose cross-ref severs the run, Item 1 lost until _split_runs hardened")
 def test_a2_inprose_crossref_does_not_drop_item_1():
-    # An "Item 8." cross-reference inside a short Item-1 prose advances the canonical-order counter;
-    # the real body Item 1A (lower order) then severs the run and _pick_body_run picks the larger
-    # downstream run (1A,7,8), dropping Item 1. A2 must keep "1".
+    # KEPT (round-4 A2): an "Item 8." cross-reference inside a short Item-1 prose advances the
+    # canonical-order counter and the strict pass drops Item 1. Because Item 1 is missing, segment()
+    # retries the strict hits with the intruder-tolerant split (keeping it only if Item 1 is recovered
+    # without losing coverage), so Item 1 is restored. Clean filings (Item 1 present) never retry.
     assert "1" in _keys(_CROSSREF_INTRUDER)
 
 
