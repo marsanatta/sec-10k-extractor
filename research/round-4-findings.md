@@ -118,12 +118,37 @@ recovered Item 1. XOM 19→22 (Item 1 back), DUK 9→19 (Item 1 back). GIS char-
 [1.0,1.0,1.0,1.0]; offline suite green; A2 RED target flipped to a normal passing test.
 
 → **A2 KEPT.** The "hard, coupled" run-selection problem fell to the same conditional-fallback shape
-as A1 — recovering 72 lead-missing / partial-coverage filings with provably zero collateral.
+as A1 — recovering 72 lead-missing / partial-coverage filings with zero collateral across the cached
+population (scope caveat below).
+
+## Independent review (vici-10k-reviewer) — held up under from-scratch attack, with scoped caveats
+
+A fresh-context adversarial verifier re-derived every claim from code + cached canonicals + the frozen
+gold (no trust in our `diff`): full-population re-segmentation of the 1,735 cached, the strict-pass
+reachability trace, and a recomputed GIS char-gold IoU. It **could not falsify any zero-collateral
+claim** — 0 boundary-shifts, 0 degradations, 0 collateral; GIS IoU byte-exact 1.0; and it judged the
+A2 `_coverage` retry guard a legitimate per-filing degradation check, **not** a forbidden keep-proxy
+(it sits behind `"1" not in spans`, so it cannot touch clean filings). Two honest scope limits it
+surfaced — neither a refutation, both stated here rather than over-claimed:
+
+- **"Zero collateral" is scoped to the 1,735 CACHED canonicals, not the full 1,845 sweep.** ~110 large
+  filings exceeded the sweep timeout and are uncached, so G9 did not re-segment them. By construction
+  A1/A2 only fire when the strict pass is empty (A1) or strict-Item-1 is absent (A2), so a giant with a
+  normal strict segmentation is structurally untouched — but that is a design argument, **not empirically
+  swept** for those 110.
+- **The GIS char-gold rests on the human-audit checkpoint.** Byte-matching production is also what an
+  auto-frozen gold would do, so the reviewer cannot independently distinguish "human read it from the
+  filing" from "copied from output". The separator-less, unambiguous GIS headers make the risk low, but
+  this independence is asserted by the audit, not re-provable from code. Likewise the 5 non-GIS char-gold
+  "unchanged" is a strict-pass-byte-identical code argument, not a direct re-segmentation (they are not
+  in the cache). XOM 19→22 / DUK 9→19 are uncached giants — the direction is from the combined diff, the
+  exact counts are not independently re-derived.
 
 ## Disposition (Step A so far)
 - **A1 KEPT** + **A2 KEPT** (`sec10k/segment.py`). Empty cluster + lead-missing/partial-coverage
-  recovered cleanly (38 + 72 filings), provably zero collateral via the two-pass / conditional-retry
-  shape. Three early over-widening attempts were discarded by G9 first.
+  recovered cleanly (38 + 72 filings), zero collateral across the 1,735 cached canonicals via the
+  two-pass / conditional-retry shape (110 uncached giants untouched by construction — see caveat above).
+  Three early over-widening attempts were discarded by G9 first.
 - **The guards did their job:** G9 + the structural-pass demotion discarded **three** over-widening
   attempts that a label-free metric would have rewarded, before the clean two-pass passed. No degrading
   fix shipped. This is the methodology working end-to-end.
