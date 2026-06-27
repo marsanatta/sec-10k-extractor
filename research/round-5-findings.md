@@ -113,7 +113,11 @@ cluster / Item-1-missing filings have no competing cross-refs); A3's broader app
 - The 18 relocation cases + the `both` cluster (32 filings: relax net-helps but drops 7A) are LEFT for a
   later **Probe 2** (fix the 7A-drop / restart-vs-intruder ambiguity in `_split_runs_tolerant`) — separate,
   riskier, gated the same way. The 1 enumeration residual + a header-line filter belong there too.
-- Pending for the gate: human-audit a sample of the 39 + lock 1–2 char-gold anchors (then RED→GREEN eval
-  evidence, as GIS did for A1). First clean candidate: `0000950123-11-019888` (77k chars, old=15 keys,
-  gains Part III 11/12/13/14/15).
+- **char-gold anchor LOCKED:** `usb-fy2010` (U. S. Bancorp FY2010, accession `0000950123-11-019888`),
+  all 20 items human-audited (START/END straddle read from the filing), added to `eval/boundary_gold.json`.
+  Verified: fresh `to_canonical(fetch_10k)` is byte-identical to the cached canonical (offsets valid for
+  the eval scorer); full-pipeline `extract()` scores 20/20 IoU=1.0 against it; and it is a genuine
+  RED→GREEN anchor — the pre-A3 baseline scores **14/20 (0.70)** (it misses 11–15 AND over-extends Item 10
+  to EOF), A3 scores **20/20 (1.0)**. This is the first A3 RED→GREEN evidence on an independent,
+  human-certified reference.
 - Nothing pushed. Working branch `round5/a-full-relaxation`.
