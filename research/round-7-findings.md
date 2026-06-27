@@ -44,10 +44,12 @@ lead A2 already recovers — eng-debug'd and fixed).
 All 20 land on a literal `ITEMS 1 AND 2. BUSINESS AND PROPERTIES` header (snippet-confirmed, zero
 false positives). Offline suite **96 passed / 1 skipped**, network-free.
 
-**char-gold candidate for the human to bless (RED→GREEN anchor):** `0000797468-21-000009` (Occidental
-FY2020). A4 recovers Item 1 = `[8664, 27960]`; START straddle `…Part I\n\n || ITEMS 1 AND 2. BUSINESS
-AND PROPERTIES…`, END straddle `…Item 1A.\n\n || ITEM 1A. RISK FACTORS…` — byte-clean. Pending the
-human audit + the fresh==cache offset verification (same discipline as usb-fy2010 for A3).
+**char-gold anchor LOCKED (human-audited):** `oxy-fy2020` (Occidental FY2020, `0000797468-21-000009`),
+added to `eval/boundary_gold.json` with items {1:[8664,27960], 1A:[27960,73380], 7:[86334,248611],
+8:[260374,555045]}. Item 1 is the combined Business+Properties section (Item 2 folded). Verified: fresh
+`to_canonical(fetch_10k)` byte-identical to cache (offsets valid for the eval scorer); full-pipeline
+`extract()` scores 4/4 IoU=1.0; non-vacuous — without A4 the lead is absent (would be 3/4). This is the
+A4 RED→GREEN anchor, same discipline as usb-fy2010 for A3.
 
 ## Deferred / blocked clusters (honest)
 
