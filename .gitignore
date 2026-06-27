@@ -49,6 +49,7 @@ Thumbs.db
 # eval regenerable artifacts (report.md is kept as committed evidence)
 eval/run.log
 eval/report.json
+# structural sweep + measure: large generated artifacts (committed .md is the durable record)
 eval/sweep_report.json
 eval/sweep_fail_tail.json
 eval/llm_measure_results.json
