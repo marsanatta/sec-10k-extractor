@@ -83,6 +83,22 @@ def test_a2_clean_case_unaffected_today():
     assert _keys(clean) == ["1", "1A", "7", "8"]
 
 
+# --- A3: relaxed recogniser denylist (reject in-prose cross-refs, keep real edge headers) --------
+
+def test_a3_loose_regex_rejects_inprose_crossref_keeps_real_headers():
+    # KEPT (round-5 A3 + regex fix): the relaxed recogniser must reject SAME-LINE in-prose
+    # cross-references ("Item 8 of this Report", "Item 1 under the caption") -- the (?i) flag once
+    # defeated the uppercase guard, so A3 admitted them as headers. The same-line denylist restores
+    # the guard WITHOUT dropping real edge headers that are also followed by a lowercase token:
+    # combined ("Item 7 and 7A") and title-less ("Item 2\n\nAt ...", body on the next line).
+    from sec10k.segment import _HEADER_RE_LOOSE as LOOSE
+    assert LOOSE.match("Item 8 of this Report.") is None
+    assert LOOSE.match("Item 1 under the caption Risk Factors") is None
+    assert LOOSE.match("ITEM 1  Business")                       # separator-less title
+    assert LOOSE.match("Item 7 and 7A   Management's Discussion")  # combined header
+    assert LOOSE.match("Item 2\n\nAt February 1, 2008, we operated")  # title-less, newline-led body
+
+
 # --- B5: harness predicate false-fail (COST "ITEM 1--BUSINESS", header_not_self_headed n=2) ------
 
 def test_b5_starts_with_header_accepts_double_hyphen():
