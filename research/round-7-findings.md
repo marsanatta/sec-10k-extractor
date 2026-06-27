@@ -63,10 +63,20 @@ A4 RED→GREEN anchor, same discipline as usb-fy2010 for A3.
   6→21 items, plus TWO round-5 'both' 7A-drops recovered as a free Probe-2 win; char-gold all IoU 1.0.
   **No human gold needed** — a clean G9-gated segmentation fix, the shared-split change round 5 had
   deferred as too risky (the gate made it safe to attempt).
-- **`empty` (7) + other operating `lead_item_1_missing` (QPAGOS, Clean Energy, …) — EDGAR-blocked.**
-  These sweep2 filings are not in the local cache; investigating them needs fresh EDGAR fetches, and
-  EDGAR began returning **403 (rate-limited)** after the 883-sweep + investigation volume (eng-debug'd:
-  transient backoff, not a code bug). Deferred until the limit clears.
+## Tail re-check (the 42 first-sweep failures re-run with A4 + round-8 + the harness fix)
+
+`eval/sweep2_tail_accessions.txt` re-segments the 42 gross failures with the current code: **7/42 now
+pass** (was 0/42) — the 4 oil/gas combined-items (A4) and 3 Santander-type ABS (round-8). This lifts
+the population structural-pass from 602/644 (93.5%) to ~609/644 (≈94.6%). Two harness/finding notes:
+- **Harness fix (round-8):** A4 recovered Item 1 on Phillips 66 / Permian / Adams / Kinder Morgan, but
+  the sweep's `_starts_with_header` predicate still flagged them `header:1` because it required the
+  singular "item N" and so rejected the plural "ITEMS 1 AND 2." header A4 anchors on. Fixed (B5-style,
+  REPORTED-only) so the structural-pass no longer undercounts the A4 recoveries.
+- **The remaining 35 are CRF-territory or heterogeneous one-offs — no clean cluster left.** A SECOND ABS
+  sub-type (BMW / Ally / SMART / Carvana / Hartford / DTE / PSE&G) lists its items in a *running prose
+  paragraph* with "(a)/(b)" markers — `(a) Item 1. Business. (b) Item 1A. Risk Factors.` — NOT line-start
+  headers, so no line-anchored regex can find them (CRF-territory, same ceiling as FM-4). The rest are
+  scattered small-caps / old SGML / structured-product coverage — heterogeneous, not a fixable cluster.
 
 ## Disposition
 - **A4 KEPT** (`sec10k/segment.py`), G9 zero-collateral, suite green; char-gold pending human bless.
