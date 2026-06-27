@@ -210,5 +210,28 @@
     77053
    ]
   }
+ },
+ "oxy-fy2020": {
+  "accession": "0000797468-21-000009",
+  "source": "human-audited (read from filing; round-7 A4 combined 'Items 1 and 2' lead -- Item 1 span is the combined Business+Properties section, Item 2 folded; the singular regex misses the plural 'Items' header)",
+  "audited": "2026-06-27",
+  "items": {
+   "1": [
+    8664,
+    27960
+   ],
+   "1A": [
+    27960,
+    73380
+   ],
+   "7": [
+    86334,
+    248611
+   ],
+   "8": [
+    260374,
+    555045
+   ]
+  }
  }
 }
