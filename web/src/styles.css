@@ -462,6 +462,11 @@ a:focus-visible,
   color: var(--red);
 }
 
+.chip.tagtip {
+  position: relative;
+  cursor: help;
+}
+
 .subhead {
   font-size: 11px;
   text-transform: uppercase;

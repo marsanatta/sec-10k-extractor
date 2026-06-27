@@ -159,6 +159,40 @@
     "low": "Low confidence",
     "unscored": "Unscored"
   },
+  "prov": {
+    "content": {
+      "t": "Content heuristic",
+      "d": "The item's text passed a content sanity check — a plausible, non-trivial body, not an empty stub."
+    },
+    "title_match": {
+      "t": "Title match",
+      "d": "The extracted heading matches the canonical SEC item title (e.g. Item 1 → 'Business')."
+    },
+    "xbrl_item8": {
+      "t": "XBRL Item 8 oracle",
+      "d": "Independent oracle: the filing's XBRL-tagged financial facts (from EDGAR companyfacts) fall inside this span, confirming the Item 8 boundary."
+    },
+    "boundary_xcheck": {
+      "t": "Dual-extractor boundary",
+      "d": "Cross-check between the regex tier and the independent edgartools extractor on this boundary. A ✕ means they disagree — flagged for review."
+    },
+    "escalation_applied": {
+      "t": "LLM boundary applied",
+      "d": "The escalation LLM returned a line number and the boundary was moved to it (index-don't-generate — the model never writes text)."
+    },
+    "escalated": {
+      "t": "Escalated to LLM",
+      "d": "This low-confidence boundary was sent to the escalation LLM for adjudication."
+    },
+    "escalation_deferred": {
+      "t": "Escalation deferred",
+      "d": "Qualified for LLM escalation, but the LLM tier is off ($0 default) — the candidate was recorded only, not called."
+    },
+    "expected_but_not_found": {
+      "t": "Expected but not found",
+      "d": "The filing template says this item should be present, but the extractor did not locate it — a flagged extraction failure, never a silent drop."
+    }
+  },
   "g": {
     "indexDontGenerate": {
       "t": "index-don't-generate",

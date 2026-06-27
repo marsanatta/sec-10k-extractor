@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { itemColor } from "../lib/format";
 import type { Item } from "../types";
@@ -7,6 +8,34 @@ import { InfoTip } from "./InfoTip";
 interface Props {
   item: Item;
   canonicalText: string;
+}
+
+/** A provenance check tag (e.g. "boundary_xcheck") with a hover tooltip that educates what it
+ *  means. Falls back to the raw tag for any tag without an i18n entry, so a new production tag
+ *  never crashes or shows blank. */
+function ProvenanceChip({ tag, ok }: { tag: string; ok: boolean }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const label = t(`prov.${tag}.t`, { defaultValue: tag });
+  const desc = t(`prov.${tag}.d`, { defaultValue: "" });
+  return (
+    <span
+      className={`chip ${ok ? "pass" : "fail"} tagtip`}
+      tabIndex={0}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      {ok ? "✓" : "✕"} {tag}
+      {open && desc && (
+        <span role="tooltip" className="infotip-bubble">
+          <strong>{label}</strong>
+          <span>{desc}</span>
+        </span>
+      )}
+    </span>
+  );
 }
 
 export function ItemDetail({ item, canonicalText }: Props) {
@@ -65,14 +94,10 @@ export function ItemDetail({ item, canonicalText }: Props) {
       </p>
       <div className="chips" data-tour="provenance">
         {item.provenance.checks_passed.map((c) => (
-          <span className="chip pass" key={`p-${c}`}>
-            ✓ {c}
-          </span>
+          <ProvenanceChip key={`p-${c}`} tag={c} ok={true} />
         ))}
         {item.provenance.checks_failed.map((c) => (
-          <span className="chip fail" key={`f-${c}`}>
-            ✕ {c}
-          </span>
+          <ProvenanceChip key={`f-${c}`} tag={c} ok={false} />
         ))}
         {item.provenance.checks_passed.length === 0 &&
           item.provenance.checks_failed.length === 0 && (
