@@ -42,6 +42,17 @@ def test_pipeline_records_deferred_escalation():
     assert "8" in s["escalation_candidates"]  # expected-but-missing item is a candidate
 
 
+def test_pipeline_llm_enabled_false_overrides_env(monkeypatch):
+    """A per-request llm_enabled=False is authoritative over the env: even with a token and
+    SEC10K_LLM_ESCALATION=1 set, the pipeline stays on the deferred ($0) stub. conftest scrubs
+    these vars per-test, so set them explicitly here."""
+    monkeypatch.setenv("GH_TOKEN", "selection-test-token-not-real")
+    monkeypatch.setenv("SEC10K_LLM_ESCALATION", "1")
+    s = extract_from_text(DOC, fiscal_year=2024, llm_enabled=False).summary
+    assert s["escalation_provider"] == "deferred"
+    assert s["escalation_performed"] is False
+
+
 def test_deferred_escalation_annotates_candidates():
     result = extract_from_text(DOC, fiscal_year=2024)
     by_key = {it.item: it for it in result.items}

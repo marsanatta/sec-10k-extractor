@@ -57,6 +57,8 @@
     "tokenLabel": "Access token",
     "tokenRequired": "(required)",
     "tokenPlaceholder": "shared by the operator",
+    "escalateLabel": "LLM escalation",
+    "escalateOffNote": "Off — regex only, $0. Turn on to adjudicate low-confidence boundaries with an LLM.",
     "modelLabel": "Escalation model",
     "modelNote": "Used only for low-confidence boundaries; clean filings never call the LLM ($0). The model actually used shows in the summary's escalation provider.",
     "modeTicker": "Ticker",

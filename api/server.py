@@ -78,6 +78,7 @@ class ExtractRequest(BaseModel):
     fiscal_year: int | None = None
     accession: str | None = None
     model: str | None = None
+    escalate: bool = False
 
 
 @app.get("/api/demo")
@@ -104,7 +105,7 @@ def eval_report() -> dict:
     return {"markdown": EVAL_REPORT.read_text(encoding="utf-8")}
 
 
-def _run_extraction(ticker, fiscal_year, accession, model=None) -> JSONResponse:
+def _run_extraction(ticker, fiscal_year, accession, model=None, escalate: bool = False) -> JSONResponse:
     if not os.environ.get("SEC_EDGAR_USER_AGENT", "").strip():
         return JSONResponse(
             status_code=500,
@@ -119,15 +120,16 @@ def _run_extraction(ticker, fiscal_year, accession, model=None) -> JSONResponse:
     if (err := _model_error(model)) is not None:
         return err
 
-    # The model can move escalated boundaries, so it is part of the cache identity.
-    suffix = f"|{model or DEFAULT_MODEL}"
+    # The escalation tier (and its model) can move boundaries, so it is part of the cache identity.
+    # Off-requests share one entry; on-requests key by model.
+    suffix = f"|on:{model or DEFAULT_MODEL}" if escalate else "|off"
     cache_key = (accession or f"{ticker}:{fiscal_year}") + suffix
     if cache_key in _cache:
         return JSONResponse(content=_cache[cache_key])
 
     future = _pool.submit(
         pipeline.extract, ticker_or_cik=ticker, fiscal_year=fiscal_year, accession=accession,
-        llm_model=model,
+        llm_model=model, llm_enabled=escalate,
     )
     try:
         result = future.result(timeout=EXTRACT_TIMEOUT_S)
@@ -150,7 +152,7 @@ def _run_extraction(ticker, fiscal_year, accession, model=None) -> JSONResponse:
 
 @app.post("/api/extract")
 def extract(req: ExtractRequest) -> JSONResponse:
-    return _run_extraction(req.ticker, req.fiscal_year, req.accession, req.model)
+    return _run_extraction(req.ticker, req.fiscal_year, req.accession, req.model, req.escalate)
 
 
 @app.get("/api/demo-result/{demo_id}")
@@ -167,6 +169,7 @@ def demo_result(demo_id: str) -> JSONResponse:
 class ExtractTextRequest(BaseModel):
     text: str
     model: str | None = None
+    escalate: bool = False
 
 
 def _canonical_from_upload(raw_text: str) -> tuple[str, str]:
@@ -201,7 +204,9 @@ def extract_text(req: ExtractTextRequest) -> JSONResponse:
     if (err := _model_error(req.model)) is not None:
         return err
     canonical, era = _canonical_from_upload(text)
-    future = _pool.submit(pipeline.extract_from_text, canonical, era, llm_model=req.model)
+    future = _pool.submit(
+        pipeline.extract_from_text, canonical, era, llm_model=req.model, llm_enabled=req.escalate
+    )
     try:
         result = future.result(timeout=EXTRACT_TIMEOUT_S)
     except FutureTimeout:

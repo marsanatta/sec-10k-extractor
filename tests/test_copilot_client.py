@@ -40,6 +40,33 @@ def test_default_client_selects_copilot_when_enabled_and_threads_model(monkeypat
     assert captured["model"] == "claude-opus-4.8"  # the UI-selected model reaches the client
 
 
+def test_explicit_enabled_true_selects_copilot_ignoring_env(monkeypatch):
+    """The per-request enable flag is authoritative: an explicit enabled=True selects the real
+    client even with SEC10K_LLM_ESCALATION absent from the env (the UI toggle, not env, drives it)."""
+    monkeypatch.setenv("GH_TOKEN", "selection-test-token-not-real")
+    monkeypatch.delenv("SEC10K_LLM_ESCALATION", raising=False)
+
+    class _StubCopilot:
+        def __init__(self, model=None):
+            self.name = f"copilot:{model or 'default'}"
+
+        def adjudicate(self, prompt: str):
+            return None
+
+    monkeypatch.setattr(cc, "CopilotLLMClient", _StubCopilot)
+    client = default_llm_client("claude-opus-4.8", enabled=True)
+    assert client.name.startswith("copilot")
+    assert not isinstance(client, DeferredLLMClient)
+
+
+def test_explicit_enabled_false_is_deferred_even_with_token_and_env(monkeypatch):
+    """The UI 'off' is authoritative over the env: enabled=False stays deferred even when BOTH a
+    token and SEC10K_LLM_ESCALATION=1 are present."""
+    monkeypatch.setenv("GH_TOKEN", "selection-test-token-not-real")
+    monkeypatch.setenv("SEC10K_LLM_ESCALATION", "1")
+    assert default_llm_client("x", enabled=False).name == "deferred"
+
+
 def test_copilot_client_swallows_errors_returns_none(monkeypatch):
     """A wired-but-failing provider must degrade to None (recording-only), never crash escalation."""
     c = cc.CopilotLLMClient(model="x")

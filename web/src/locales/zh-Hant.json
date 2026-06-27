@@ -57,6 +57,8 @@
     "tokenLabel": "Access token",
     "tokenRequired": "（必填）",
     "tokenPlaceholder": "由 operator 提供",
+    "escalateLabel": "LLM escalation",
+    "escalateOffNote": "關閉 — 只用 regex，$0。開啟後會用 LLM 來裁定低信心的 boundary。",
     "modelLabel": "Escalation model",
     "modelNote": "只用於低信心的 boundary；乾淨的 filing 不會呼叫 LLM（$0）。實際使用的 model 會顯示在 summary 的 escalation provider。",
     "modeTicker": "Ticker",

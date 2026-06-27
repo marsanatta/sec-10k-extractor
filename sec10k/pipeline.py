@@ -14,19 +14,19 @@ from sec10k.template import FilerProfile
 from sec10k.validate import assess
 
 
-def extract(ticker_or_cik=None, fiscal_year=None, accession=None, llm_client=None, llm_model=None) -> ExtractionResult:
+def extract(ticker_or_cik=None, fiscal_year=None, accession=None, llm_client=None, llm_model=None, llm_enabled=None) -> ExtractionResult:
     raw = fetch_10k(ticker_or_cik, fiscal_year, accession)
     canonical, era = to_canonical(raw)
     second = edgartools_item_texts(raw.accession)
-    return _build_result(canonical, era, raw, llm_client=llm_client, second_text=second, llm_model=llm_model)
+    return _build_result(canonical, era, raw, llm_client=llm_client, second_text=second, llm_model=llm_model, llm_enabled=llm_enabled)
 
 
 def extract_from_text(
     canonical_text: str, era: str = "html", fiscal_year=None, smaller_reporting=None,
-    llm_client=None, second_text=None, llm_model=None,
+    llm_client=None, second_text=None, llm_model=None, llm_enabled=None,
 ) -> ExtractionResult:
     """Run the pipeline on already-normalised text (no network). Used by tests."""
-    return _build_result(canonical_text, era, None, fiscal_year, smaller_reporting, llm_client, second_text, llm_model)
+    return _build_result(canonical_text, era, None, fiscal_year, smaller_reporting, llm_client, second_text, llm_model, llm_enabled)
 
 
 def _present_items(canonical: str, second_text: dict | None = None):
@@ -50,7 +50,7 @@ def _present_items(canonical: str, second_text: dict | None = None):
     return items, spans
 
 
-def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None, llm_client=None, second_text=None, llm_model=None):
+def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None, llm_client=None, second_text=None, llm_model=None, llm_enabled=None):
     meta = _build_meta(raw, era)
     present, spans = _present_items(canonical, second_text)
     profile = FilerProfile(
@@ -68,7 +68,7 @@ def _build_result(canonical, era, raw, fiscal_year=None, smaller_reporting=None,
         meta=meta, items=items, canonical_text_len=len(canonical), summary=summary,
         canonical_text=canonical,
     )
-    summary.update(run_escalation(result, canonical, llm_client, llm_model))
+    summary.update(run_escalation(result, canonical, llm_client, llm_model, llm_enabled))
     return result
 
 

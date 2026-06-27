@@ -86,6 +86,7 @@ export interface ExtractRequest {
   fiscal_year?: number;
   accession?: string;
   model?: string;
+  escalate?: boolean;
 }
 
 export interface ModelInfo {
