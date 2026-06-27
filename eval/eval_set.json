@@ -614,7 +614,7 @@
    "expect_red": true,
    "pathologies": [
     "coverage_very_low",
-    "crossref_index",
+    "crossref_index_table",
     "html_2009_2018"
    ],
    "expected_present": [
@@ -623,7 +623,7 @@
     "7",
     "8"
    ],
-   "note": "Round-4 PINNED RED anchor (coverage_very_low = cross-reference index, KNOWN class). NOT an A-fix target -> EXPECTED TO STAY RED. HUMAN AUDIT NEEDED: the body has NO 'Item N.' headings at all; items appear only in a 'FORM 10-K CROSS-REFERENCE INDEX' mapping to pages. expected_present (and present-vs-absent interpretation) is AMBIGUOUS -- confirm the interpretation before relying on this anchor."
+   "note": "Round-4 PINNED RED anchor (cross-reference-INDEX-TABLE class: body has NO 'Item N' headings; items located only via an end-of-doc 'FORM 10-K CROSS-REFERENCE INDEX' mapping item->page). HUMAN-AUDITED: the items ARE PRESENT (interpretation A) -> this is a REAL extraction miss, not legitimate absence. NOT an A1/A2/A3 target this round (header-anchored tiers structurally cannot find headingless body items); EXPECTED TO STAY RED until the index-table handler is built (plan: research/todo-exploration-crossref-index-handling.md). ~1% of the 1656 sweep, concentrated in GE/MCD/HON/INTC."
   }
  ]
 }
