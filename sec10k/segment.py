@@ -15,11 +15,18 @@ from sec10k.items import CANONICAL_BY_KEY, CANONICAL_ORDER
 _SEP = re.escape("." + ":" + ")" + "-" + chr(0x2013) + chr(0x2014))
 _GAP = r"(?:[ \t]+|[ \t]*\n[ \t]*)"
 _HEADER_RE = re.compile(r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)\s*[" + _SEP + "]")
+# A1 (round 4): a RELAXED recogniser used ONLY as a fallback when the strict pass finds nothing (the
+# OXY/GIS separator-less "empty" cluster). After the number it also accepts a separator-LESS title:
+# whitespace then a Title-Case/UPPER word ("ITEM 1 Business", "ITEM 7\n\nMANAGEMENT"). `(?=[A-Z])`
+# rejects lowercase continuations ("Item 5 of the plan"). Confining it to the empty-fallback pass
+# means clean filings (non-empty under the strict pass) are never touched -> G9 zero-collateral.
+_HEADER_RE_LOOSE = re.compile(
+    r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)(?:\s*[" + _SEP + r"]|\s+(?=[A-Z]))")
 
 
-def _find_headers(text: str) -> list[tuple[str, int, int]]:
+def _find_headers(text: str, header_re: "re.Pattern" = _HEADER_RE) -> list[tuple[str, int, int]]:
     out = []
-    for m in _HEADER_RE.finditer(text):
+    for m in header_re.finditer(text):
         key = m.group(1).upper()
         if key in CANONICAL_BY_KEY:
             out.append((key, m.start(), m.end()))
@@ -38,6 +45,40 @@ def _split_runs(headers):
             runs.append(cur)
             cur = [(key, start, hend)]
         last = order
+    if cur:
+        runs.append(cur)
+    return runs
+
+
+def _split_runs_tolerant(headers):
+    """Like _split_runs but tolerates a SINGLE out-of-order intruder -- a line-start in-prose
+    cross-reference the relaxed recogniser admits ("Item 10 Executive Officers" inside Item 1's
+    prose). Used ONLY on the empty-cluster fallback pass. An order dip is an intruder vs a genuine
+    restart (TOC -> body) by a one-element LOOKAHEAD: a dip is an intruder iff the NEXT hit resumes
+    at/above the run's last order. Two dip shapes: (b) the current hit is the dip -> skip it;
+    (a) the previous hit was the spike -> replace it with the current hit."""
+    runs, cur = [], []
+    i, n = 0, len(headers)
+    while i < n:
+        hdr = headers[i]
+        order = CANONICAL_ORDER[hdr[0]]
+        if cur and order < CANONICAL_ORDER[cur[-1][0]]:
+            run_last = CANONICAL_ORDER[cur[-1][0]]
+            nxt = CANONICAL_ORDER[headers[i + 1][0]] if i + 1 < n else -1
+            prev = CANONICAL_ORDER[cur[-2][0]] if len(cur) >= 2 else -1
+            if nxt >= run_last:        # (b) current is a lone dip; next resumes -> skip current
+                i += 1
+                continue
+            if order >= prev:          # (a) cur[-1] was the spike -> drop it, keep current
+                cur[-1] = hdr
+                i += 1
+                continue
+            runs.append(cur)           # genuine restart
+            cur = [hdr]
+            i += 1
+            continue
+        cur.append(hdr)
+        i += 1
     if cur:
         runs.append(cur)
     return runs
@@ -63,16 +104,10 @@ def _pick_body_run(runs):
     return max(near, key=lambda r: r[0][1])
 
 
-def segment(canonical_text: str) -> list[tuple[str, int, int]]:
-    """Tier-1 anchor segmentation. Returns [(item_key, start, end)] whose spans tile the
-    document from the first body item to the end. Known P0 limits (all addressed by later
-    phases -- independent second extractor + validation layer): out-of-order items
-    (cross-reference indices), header-less legacy filings, headers with no trailing
-    separator, and a TOC whose entries out-span a terse body."""
-    headers = _find_headers(canonical_text)
+def _build_spans(canonical_text, headers, split_runs) -> list[tuple[str, int, int]]:
     if not headers:
         return []
-    run = _pick_body_run(_split_runs(headers))
+    run = _pick_body_run(split_runs(headers))
     seen, chosen = set(), []
     for key, start, _ in run:
         if key not in seen:
@@ -82,4 +117,22 @@ def segment(canonical_text: str) -> list[tuple[str, int, int]]:
     for i, (key, start) in enumerate(chosen):
         end = chosen[i + 1][1] if i + 1 < len(chosen) else len(canonical_text)
         spans.append((key, start, end))
+    return spans
+
+
+def segment(canonical_text: str) -> list[tuple[str, int, int]]:
+    """Tier-1 anchor segmentation. Returns [(item_key, start, end)] whose spans tile the document
+    from the first body item to the end.
+
+    TWO-PASS (round-4 A1): the STRICT pass (separator-required) runs first and is byte-identical to
+    before, so clean filings are unaffected. ONLY if it yields nothing does the RELAXED pass run --
+    the separator-less recogniser + intruder-tolerant run split, which recovers the OXY/GIS empty
+    cluster. Confining the relaxation to the empty fallback is what keeps it from over-widening clean
+    filings (the round-3 lesson + G9). Remaining P0 limits handled by later phases (independent
+    second extractor + validation layer): out-of-order cross-reference indices, header-less legacy
+    SGML, and a TOC whose entries out-span a terse body."""
+    spans = _build_spans(canonical_text, _find_headers(canonical_text, _HEADER_RE), _split_runs)
+    if not spans:
+        spans = _build_spans(
+            canonical_text, _find_headers(canonical_text, _HEADER_RE_LOOSE), _split_runs_tolerant)
     return spans

@@ -322,6 +322,17 @@ added three new named modes with concrete accessions (detail:
   layer **catches it** (coverage-implausible → `needs_review`, all 23 items low-confidence),
   so it is not a *silent* failure — but it is a real extraction failure, and it is **not
   char-goldable** by hand (no clean contiguous section bodies to mark). Boundary stays "−".
+- **FM-4 — cross-reference-INDEX-TABLE filings (GE / MCD / HON / INTC house-style).** The body
+  carries **no "Item N" headings at all**; every item is located only via an end-of-document
+  *"FORM 10-K CROSS-REFERENCE INDEX"* table mapping item → page range. Both header-anchored tiers
+  (regex **and** edgartools fallback) therefore find ~nothing (coverage <0.15) → **flagged
+  (`needs_review`), not silent.** **The items ARE present (human-audited on INTC FY2018) — a real
+  extraction miss, not legitimate absence.** Measured in the round-3 1,656-filing sweep at **~15–19
+  filings (~1%), concentrated in GE (×7) / MCD (×4) / HON (×4) / INTC** — filer house-style, **not
+  negligible**. NOT fixable by the header approach (there are no body headings to anchor on); a
+  handling plan — parse the index table (item→page) + page-break markers → coarse boundaries, or a
+  decorrelated CRF/structural extractor — is scoped in
+  `research/todo-exploration-crossref-index-handling.md` for a future round.
 - **SGML boundary coverage is thin (N=1).** msft-fy1995 now carries independent char-gold on
   items 1/2/7 (boundary 1.0, 3/3), so the SGML era is no longer unmeasured — but it rests on a
   single filing, and **Item 8 was deliberately left ungolded**: its financial statements sit

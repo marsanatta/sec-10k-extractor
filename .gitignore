@@ -56,3 +56,7 @@ eval/llm_measure_results.json
 
 # Agent scratch / RCA working files — never commit
 scratch/
+
+# G9 no-collateral-change cache (one-time canonical cache, regenerable)
+eval/.g9_cache/
+eval/g9_baseline.json

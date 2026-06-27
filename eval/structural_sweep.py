@@ -154,7 +154,7 @@ def _child(entry: dict, q) -> None:
                "error": f"CHILD:{type(exc).__name__}: {exc}"})
 
 
-def _run_pool(todo, workers, timeout, results, total, out_json):
+def _run_pool(todo, workers, timeout, results, total, out_json, child=_child):
     """Bounded process pool with a HARD-KILL per-filing timeout. Each filing runs in its own
     multiprocessing.Process; one exceeding `timeout` is terminate()d -- which actually KILLS the
     CPU-bound parse. (The earlier daemon-thread timeout could not: a slow 1M+ char `to_canonical`
@@ -169,7 +169,7 @@ def _run_pool(todo, workers, timeout, results, total, out_json):
         while todo and len(running) < workers:
             e = todo.pop()
             q = mp.Queue()
-            p = mp.Process(target=_child, args=(e, q), daemon=True)
+            p = mp.Process(target=child, args=(e, q), daemon=True)
             p.start()
             running[id(p)] = (p, e, q, time.monotonic())
         for k in list(running):
@@ -187,8 +187,13 @@ def _run_pool(todo, workers, timeout, results, total, out_json):
                 del running[k]
                 results[e["accession"]] = res
                 n += 1
-                tag = (f"ERR:{res['error'][:32]}" if "error" in res
-                       else ("PASS" if res["pass"] else f"FAIL:{res['reason']}"))
+                # generic tag: _run_pool is shared (sweep result has pass/reason; g9 child does not)
+                if "error" in res:
+                    tag = f"ERR:{res['error'][:32]}"
+                elif "pass" in res:
+                    tag = "PASS" if res["pass"] else f"FAIL:{res['reason']}"
+                else:
+                    tag = "OK"
                 print(f"[{n}/{total}] {e['accession']} ({e.get('company','?')}/{e.get('target_year','?')}) {tag}",
                       file=sys.stderr, flush=True)
                 if n % 10 == 0:

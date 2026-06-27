@@ -1,111 +1,651 @@
 {
-  "_note": "Self-built, ACCESSION-PINNED evaluation set (immutable + reproducible; sidesteps the 10-K/A selection bug). A covering set across era / filer type / structure pathology / sector -- NOT a random sample of EDGAR. expected_present is a CONSERVATIVE hand-labelled set of item keys we are confident the FULL filing contains; recall over it is the gold signal. expect_red=true marks a known failure we are tracking on purpose (let it go red, do not paper over). This batch fetches from EDGAR and is run ON DEMAND (python eval/run_eval.py); it is NOT part of the offline unit suite.",
-  "filings": [
-    {"id": "apple-fy2024", "accession": "0000320193-24-000123", "company": "Apple Inc.", "fiscal_year": 2024,
-     "sector": "technology", "filer_type": "large_accelerated", "structure": "clean", "expect_red": false,
-     "pathologies": ["ixbrl", "item6_reserved", "item1c", "part3_incorporated", "styled_span_headers"],
-     "expected_present": ["1", "1A", "1C", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"],
-     "note": "clean modern iXBRL"},
-    {"id": "ko-fy2023", "accession": "0000021344-24-000009", "company": "Coca-Cola Co.", "fiscal_year": 2023,
-     "sector": "consumer_staples", "filer_type": "large_accelerated", "structure": "clean", "expect_red": false,
-     "pathologies": ["clean", "large_accelerated"],
-     "expected_present": ["1", "1A", "1B", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"],
-     "note": "clean modern iXBRL"},
-    {"id": "msft-fy2023", "accession": "0000950170-23-035122", "company": "Microsoft Corp.", "fiscal_year": 2023,
-     "sector": "technology", "filer_type": "large_accelerated", "structure": "clean", "expect_red": false,
-     "pathologies": ["clean", "large_accelerated"],
-     "expected_present": ["1", "1A", "1B", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"],
-     "note": "clean modern iXBRL"},
-    {"id": "xom-fy2023", "accession": "0000034088-24-000018", "company": "Exxon Mobil Corp.", "fiscal_year": 2023,
-     "sector": "energy", "filer_type": "large_accelerated", "structure": "clean", "expect_red": false,
-     "pathologies": ["clean"],
-     "expected_present": ["1", "1A", "2", "3", "7", "7A", "8", "9A"],
-     "note": "energy, modern iXBRL"},
-    {"id": "unh-fy2024", "accession": "0000731766-25-000063", "company": "UnitedHealth Group Inc.", "fiscal_year": 2024,
-     "sector": "healthcare", "filer_type": "large_accelerated", "structure": "clean", "expect_red": false,
-     "pathologies": ["clean"],
-     "expected_present": ["1", "1A", "2", "3", "7", "7A", "8", "9A"],
-     "note": "healthcare, modern iXBRL"},
-    {"id": "so-fy2023", "accession": "0000092122-24-000009", "company": "Southern Co.", "fiscal_year": 2023,
-     "sector": "utility", "filer_type": "large_accelerated", "structure": "clean", "expect_red": false,
-     "pathologies": ["clean", "regulated_utility"],
-     "expected_present": ["1", "1A", "2", "3", "7", "7A", "8", "9A"],
-     "note": "regulated utility, modern iXBRL"},
-    {"id": "ge-fy2023", "accession": "0000040545-24-000027", "company": "General Electric Co.", "fiscal_year": 2023,
-     "sector": "industrial", "filer_type": "large_accelerated", "structure": "cross_reference_index", "expect_red": false,
-     "pathologies": ["large_filing", "cross_reference_index", "out_of_order"],
-     "expected_present": ["1", "1A", "2", "3", "5", "7", "7A", "8", "9", "9A", "15"],
-     "note": "cross-reference index; boundary ungoldable (see ANALYSIS)"},
-    {"id": "ge-fy2009", "accession": "0000040545-10-000010", "company": "General Electric Co.", "fiscal_year": 2009,
-     "sector": "industrial", "filer_type": "large_accelerated", "structure": "collapsed_body", "expect_red": false,
-     "pathologies": ["html_era_2008_2012", "collapsed_body", "fallback_rescued"],
-     "expected_present": ["1", "1A", "2", "7", "8"],
-     "note": "2008-2012 HTML era; regex collapses Item 8 -> edgartools fallback recovers (regression anchor)"},
-    {"id": "xom-fy2010", "accession": "0001193125-11-050134", "company": "Exxon Mobil Corp.", "fiscal_year": 2010,
-     "sector": "energy", "filer_type": "large_accelerated", "structure": "html_era", "expect_red": false,
-     "pathologies": ["html_era_2008_2012"],
-     "expected_present": ["1", "1A", "2", "3", "7", "7A", "8"],
-     "note": "2008-2012 HTML era, energy"},
-    {"id": "m2i-fy2023", "accession": "0001493152-24-014827", "company": "M2i Global Inc.", "fiscal_year": 2023,
-     "sector": "small_cap", "filer_type": "smaller_reporting", "structure": "token_per_line_headers", "expect_red": false,
-     "pathologies": ["smaller_reporting_company", "item7a_omitted", "two_year_financials"],
-     "expected_present": ["1", "1A", "2", "3", "5", "7", "8", "9", "9A"],
-     "note": "token-per-line 'Item\\n1.' headers"},
-    {"id": "scwo-fy2025", "accession": "0001654954-26-003094", "company": "374Water Inc.", "fiscal_year": 2025,
-     "sector": "clean_tech", "filer_type": "smaller_reporting", "structure": "token_per_line_headers", "expect_red": false,
-     "pathologies": ["smaller_reporting_company", "token_per_line_headers", "empty_pre_fix"],
-     "expected_present": ["1", "1A", "2", "7", "8"],
-     "note": "SRC full 10-K; empty pre-fix, recovered by newline tolerance"},
-    {"id": "jpm-fy2023", "accession": "0000019617-24-000225", "company": "JPMorgan Chase & Co.", "fiscal_year": 2023,
-     "sector": "finance", "filer_type": "large_accelerated", "structure": "scattered_item", "expect_red": false,
-     "pathologies": ["large_bank", "broken_text_source", "scattered_item_mda", "html_fallback_source"],
-     "expected_present": ["1", "1A", "2", "3", "7", "7A", "8", "9A", "15"],
-     "tail_probe": "Critical Accounting Estimates", "tail_probe_item": "7",
-     "note": "empty pre-fix (broken .text(), recovered by html-fallback). BUT Item 7 MD&A is SCATTERED: the span is a 396-char pointer stub; the real MD&A (Critical Accounting Estimates) is dropped -> scattered-item check RED. Tracked, not fixed (verification pass)."},
-    {"id": "msft-fy1995", "accession": "0000891020-95-000433", "company": "Microsoft Corp.", "fiscal_year": 1995,
-     "sector": "technology", "filer_type": "legacy", "structure": "legacy_sgml", "expect_red": false,
-     "pathologies": ["pre_2001_sgml", "no_toc_anchors", "all_caps_headers", "regex_trap"],
-     "expected_present": ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-     "note": "pre-2001 SGML, no anchors"},
-    {"id": "chemed-amend-fy2024", "accession": "0001562762-25-000070", "company": "Chemed Corp. (10-K/A)", "fiscal_year": 2024,
-     "sector": "healthcare", "filer_type": "large_accelerated", "structure": "amendment_10ka", "expect_red": false,
-     "pathologies": ["amendment", "partial_scope"],
-     "expected_present": [],
-     "note": "10-K/A correctly handled as Part-III-only (expected_present empty)"},
-    {"id": "bac-fy2023", "accession": "0000070858-24-000122", "company": "Bank of America Corp.", "fiscal_year": 2023,
-     "sector": "finance", "filer_type": "large_accelerated", "structure": "lead_item_drop", "expect_red": true,
-     "pathologies": ["large_bank", "lead_item_drop"],
-     "expected_present": ["1", "1A", "2", "3", "7", "7A", "8", "9A"],
-     "note": "RED residual: extractor drops Item 1 (Business) and Item 7 (MD&A); flagged but recall < 1.0. NOT fixed this pass -- tracked."},
-    {"id": "scwo-fy2025-amend", "accession": "0001654954-26-004179", "company": "374Water Inc. (10-K/A)", "fiscal_year": 2025,
-     "sector": "clean_tech", "filer_type": "smaller_reporting", "structure": "amendment_10ka", "expect_red": true,
-     "pathologies": ["amendment", "selection_issue"],
-     "expected_present": ["1", "1A", "7", "8"],
-     "note": "RED residual: exposes the 10-K/A SELECTION issue -- if ticker-by-year grabs the /A (Part III only) instead of the 10-K you lose Part I-II. NOT fixed this pass -- tracked."},
-    {"id": "msft-fy1996", "accession": "0000891020-96-001130", "company": "MICROSOFT CORP", "fiscal_year": 1996,
-     "sector": "technology", "filer_type": "legacy", "structure": "legacy_sgml", "expect_red": false,
-     "pathologies": ["pre_2001_sgml"],
-     "expected_present": ["1", "2", "3", "7", "8"],
-     "note": "Probe-a eval growth (round 1): 2nd pre-2001 SGML data point after msft-fy1995; clean structural-pass on current code (items 1/7/8 header-anchored, coverage 0.93)."},
-    {"id": "wmt-fy2003", "accession": "0000104169-03-000005", "company": "WAL MART STORES INC", "fiscal_year": 2003,
-     "sector": "retail", "filer_type": "large_accelerated", "structure": "part_glued_lead_item", "expect_red": true,
-     "pathologies": ["part_glued_lead_item", "html_2001_2008"],
-     "expected_present": ["1", "2", "3", "7", "8"],
-     "note": "Probe-a eval growth (round 1): fills retail sector + 2001-2008 HTML era. RED: Item 1 dropped because 'PART I ITEM 1.' shares one physical line, defeating the line-start anchor (Item 1A legitimately absent pre-2005). FLAGGED (needs_review), not silent."},
-    {"id": "amt-fy1997", "accession": "0000927016-98-001444", "company": "AMERICAN TOWER CORP", "fiscal_year": 1997,
-     "sector": "reit", "filer_type": "legacy", "structure": "collapsed_body", "expect_red": true,
-     "pathologies": ["pre_2001_sgml", "collapsed_body"],
-     "expected_present": ["1", "2", "7", "8"],
-     "note": "Probe-c sweep (round 1): collapsed-body SGML reit -- one item swallows the doc (cov 0.95), lead Item 1 absent. Confirmation of the GE-class B2 collapsed-body across a new era/sector. FLAGGED (needs_review), not silent."},
-    {"id": "ms-fy2024", "accession": "0000895421-25-000304", "company": "MORGAN STANLEY", "fiscal_year": 2024,
-     "sector": "finance", "filer_type": "large_accelerated", "structure": "header_text_stripped_ixbrl", "expect_red": true,
-     "pathologies": ["ixbrl", "common_mode_b3", "styled_span_headers"],
-     "expected_present": ["1", "1A", "7", "8"],
-     "note": "Probe-c sweep (round 1): NAMED CEILING (S1). 'Item N' labels live only in styled iXBRL spans .text() flattens -> 0 items via regex AND edgartools fallback (both header-anchored = dual-extractor common-mode B3). FLAGGED (0 items, needs_review). Unrecoverable without a decorrelated non-header/CRF extractor (out of 4-day scope)."},
-    {"id": "hon-fy2024", "accession": "0000773840-25-000010", "company": "HONEYWELL INTERNATIONAL INC", "fiscal_year": 2024,
-     "sector": "industrial", "filer_type": "large_accelerated", "structure": "no_separator_headers", "expect_red": true,
-     "pathologies": ["ixbrl", "no_separator_header"],
-     "expected_present": ["1", "1A", "7", "8"],
-     "note": "Probe-c sweep (round 1): no-separator header 'ITEM 1  Title' -> regex finds 0; edgartools fallback partially rescues (7 items) but structural_ok=False and lead Item 1 dropped. FLAGGED (needs_review), not silent."}
-  ]
+ "_note": "Self-built, ACCESSION-PINNED evaluation set (immutable + reproducible; sidesteps the 10-K/A selection bug). A covering set across era / filer type / structure pathology / sector -- NOT a random sample of EDGAR. expected_present is a CONSERVATIVE hand-labelled set of item keys we are confident the FULL filing contains; recall over it is the gold signal. expect_red=true marks a known failure we are tracking on purpose (let it go red, do not paper over). This batch fetches from EDGAR and is run ON DEMAND (python eval/run_eval.py); it is NOT part of the offline unit suite.",
+ "filings": [
+  {
+   "id": "apple-fy2024",
+   "accession": "0000320193-24-000123",
+   "company": "Apple Inc.",
+   "fiscal_year": 2024,
+   "sector": "technology",
+   "filer_type": "large_accelerated",
+   "structure": "clean",
+   "expect_red": false,
+   "pathologies": [
+    "ixbrl",
+    "item6_reserved",
+    "item1c",
+    "part3_incorporated",
+    "styled_span_headers"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "1C",
+    "2",
+    "3",
+    "5",
+    "7",
+    "7A",
+    "8",
+    "9",
+    "9A",
+    "15"
+   ],
+   "note": "clean modern iXBRL"
+  },
+  {
+   "id": "ko-fy2023",
+   "accession": "0000021344-24-000009",
+   "company": "Coca-Cola Co.",
+   "fiscal_year": 2023,
+   "sector": "consumer_staples",
+   "filer_type": "large_accelerated",
+   "structure": "clean",
+   "expect_red": false,
+   "pathologies": [
+    "clean",
+    "large_accelerated"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "1B",
+    "2",
+    "3",
+    "5",
+    "7",
+    "7A",
+    "8",
+    "9",
+    "9A",
+    "15"
+   ],
+   "note": "clean modern iXBRL"
+  },
+  {
+   "id": "msft-fy2023",
+   "accession": "0000950170-23-035122",
+   "company": "Microsoft Corp.",
+   "fiscal_year": 2023,
+   "sector": "technology",
+   "filer_type": "large_accelerated",
+   "structure": "clean",
+   "expect_red": false,
+   "pathologies": [
+    "clean",
+    "large_accelerated"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "1B",
+    "2",
+    "3",
+    "5",
+    "7",
+    "7A",
+    "8",
+    "9",
+    "9A",
+    "15"
+   ],
+   "note": "clean modern iXBRL"
+  },
+  {
+   "id": "xom-fy2023",
+   "accession": "0000034088-24-000018",
+   "company": "Exxon Mobil Corp.",
+   "fiscal_year": 2023,
+   "sector": "energy",
+   "filer_type": "large_accelerated",
+   "structure": "clean",
+   "expect_red": false,
+   "pathologies": [
+    "clean"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "3",
+    "7",
+    "7A",
+    "8",
+    "9A"
+   ],
+   "note": "energy, modern iXBRL"
+  },
+  {
+   "id": "unh-fy2024",
+   "accession": "0000731766-25-000063",
+   "company": "UnitedHealth Group Inc.",
+   "fiscal_year": 2024,
+   "sector": "healthcare",
+   "filer_type": "large_accelerated",
+   "structure": "clean",
+   "expect_red": false,
+   "pathologies": [
+    "clean"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "3",
+    "7",
+    "7A",
+    "8",
+    "9A"
+   ],
+   "note": "healthcare, modern iXBRL"
+  },
+  {
+   "id": "so-fy2023",
+   "accession": "0000092122-24-000009",
+   "company": "Southern Co.",
+   "fiscal_year": 2023,
+   "sector": "utility",
+   "filer_type": "large_accelerated",
+   "structure": "clean",
+   "expect_red": false,
+   "pathologies": [
+    "clean",
+    "regulated_utility"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "3",
+    "7",
+    "7A",
+    "8",
+    "9A"
+   ],
+   "note": "regulated utility, modern iXBRL"
+  },
+  {
+   "id": "ge-fy2023",
+   "accession": "0000040545-24-000027",
+   "company": "General Electric Co.",
+   "fiscal_year": 2023,
+   "sector": "industrial",
+   "filer_type": "large_accelerated",
+   "structure": "cross_reference_index",
+   "expect_red": false,
+   "pathologies": [
+    "large_filing",
+    "cross_reference_index",
+    "out_of_order"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "3",
+    "5",
+    "7",
+    "7A",
+    "8",
+    "9",
+    "9A",
+    "15"
+   ],
+   "note": "cross-reference index; boundary ungoldable (see ANALYSIS)"
+  },
+  {
+   "id": "ge-fy2009",
+   "accession": "0000040545-10-000010",
+   "company": "General Electric Co.",
+   "fiscal_year": 2009,
+   "sector": "industrial",
+   "filer_type": "large_accelerated",
+   "structure": "collapsed_body",
+   "expect_red": false,
+   "pathologies": [
+    "html_era_2008_2012",
+    "collapsed_body",
+    "fallback_rescued"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "7",
+    "8"
+   ],
+   "note": "2008-2012 HTML era; regex collapses Item 8 -> edgartools fallback recovers (regression anchor)"
+  },
+  {
+   "id": "xom-fy2010",
+   "accession": "0001193125-11-050134",
+   "company": "Exxon Mobil Corp.",
+   "fiscal_year": 2010,
+   "sector": "energy",
+   "filer_type": "large_accelerated",
+   "structure": "html_era",
+   "expect_red": false,
+   "pathologies": [
+    "html_era_2008_2012"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "3",
+    "7",
+    "7A",
+    "8"
+   ],
+   "note": "2008-2012 HTML era, energy"
+  },
+  {
+   "id": "m2i-fy2023",
+   "accession": "0001493152-24-014827",
+   "company": "M2i Global Inc.",
+   "fiscal_year": 2023,
+   "sector": "small_cap",
+   "filer_type": "smaller_reporting",
+   "structure": "token_per_line_headers",
+   "expect_red": false,
+   "pathologies": [
+    "smaller_reporting_company",
+    "item7a_omitted",
+    "two_year_financials"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "3",
+    "5",
+    "7",
+    "8",
+    "9",
+    "9A"
+   ],
+   "note": "token-per-line 'Item\\n1.' headers"
+  },
+  {
+   "id": "scwo-fy2025",
+   "accession": "0001654954-26-003094",
+   "company": "374Water Inc.",
+   "fiscal_year": 2025,
+   "sector": "clean_tech",
+   "filer_type": "smaller_reporting",
+   "structure": "token_per_line_headers",
+   "expect_red": false,
+   "pathologies": [
+    "smaller_reporting_company",
+    "token_per_line_headers",
+    "empty_pre_fix"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "7",
+    "8"
+   ],
+   "note": "SRC full 10-K; empty pre-fix, recovered by newline tolerance"
+  },
+  {
+   "id": "jpm-fy2023",
+   "accession": "0000019617-24-000225",
+   "company": "JPMorgan Chase & Co.",
+   "fiscal_year": 2023,
+   "sector": "finance",
+   "filer_type": "large_accelerated",
+   "structure": "scattered_item",
+   "expect_red": false,
+   "pathologies": [
+    "large_bank",
+    "broken_text_source",
+    "scattered_item_mda",
+    "html_fallback_source"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "3",
+    "7",
+    "7A",
+    "8",
+    "9A",
+    "15"
+   ],
+   "tail_probe": "Critical Accounting Estimates",
+   "tail_probe_item": "7",
+   "note": "empty pre-fix (broken .text(), recovered by html-fallback). BUT Item 7 MD&A is SCATTERED: the span is a 396-char pointer stub; the real MD&A (Critical Accounting Estimates) is dropped -> scattered-item check RED. Tracked, not fixed (verification pass)."
+  },
+  {
+   "id": "msft-fy1995",
+   "accession": "0000891020-95-000433",
+   "company": "Microsoft Corp.",
+   "fiscal_year": 1995,
+   "sector": "technology",
+   "filer_type": "legacy",
+   "structure": "legacy_sgml",
+   "expect_red": false,
+   "pathologies": [
+    "pre_2001_sgml",
+    "no_toc_anchors",
+    "all_caps_headers",
+    "regex_trap"
+   ],
+   "expected_present": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9"
+   ],
+   "note": "pre-2001 SGML, no anchors"
+  },
+  {
+   "id": "chemed-amend-fy2024",
+   "accession": "0001562762-25-000070",
+   "company": "Chemed Corp. (10-K/A)",
+   "fiscal_year": 2024,
+   "sector": "healthcare",
+   "filer_type": "large_accelerated",
+   "structure": "amendment_10ka",
+   "expect_red": false,
+   "pathologies": [
+    "amendment",
+    "partial_scope"
+   ],
+   "expected_present": [],
+   "note": "10-K/A correctly handled as Part-III-only (expected_present empty)"
+  },
+  {
+   "id": "bac-fy2023",
+   "accession": "0000070858-24-000122",
+   "company": "Bank of America Corp.",
+   "fiscal_year": 2023,
+   "sector": "finance",
+   "filer_type": "large_accelerated",
+   "structure": "lead_item_drop",
+   "expect_red": true,
+   "pathologies": [
+    "large_bank",
+    "lead_item_drop"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "2",
+    "3",
+    "7",
+    "7A",
+    "8",
+    "9A"
+   ],
+   "note": "RED residual: extractor drops Item 1 (Business) and Item 7 (MD&A); flagged but recall < 1.0. NOT fixed this pass -- tracked."
+  },
+  {
+   "id": "scwo-fy2025-amend",
+   "accession": "0001654954-26-004179",
+   "company": "374Water Inc. (10-K/A)",
+   "fiscal_year": 2025,
+   "sector": "clean_tech",
+   "filer_type": "smaller_reporting",
+   "structure": "amendment_10ka",
+   "expect_red": true,
+   "pathologies": [
+    "amendment",
+    "selection_issue"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "RED residual: exposes the 10-K/A SELECTION issue -- if ticker-by-year grabs the /A (Part III only) instead of the 10-K you lose Part I-II. NOT fixed this pass -- tracked."
+  },
+  {
+   "id": "msft-fy1996",
+   "accession": "0000891020-96-001130",
+   "company": "MICROSOFT CORP",
+   "fiscal_year": 1996,
+   "sector": "technology",
+   "filer_type": "legacy",
+   "structure": "legacy_sgml",
+   "expect_red": false,
+   "pathologies": [
+    "pre_2001_sgml"
+   ],
+   "expected_present": [
+    "1",
+    "2",
+    "3",
+    "7",
+    "8"
+   ],
+   "note": "Probe-a eval growth (round 1): 2nd pre-2001 SGML data point after msft-fy1995; clean structural-pass on current code (items 1/7/8 header-anchored, coverage 0.93)."
+  },
+  {
+   "id": "wmt-fy2003",
+   "accession": "0000104169-03-000005",
+   "company": "WAL MART STORES INC",
+   "fiscal_year": 2003,
+   "sector": "retail",
+   "filer_type": "large_accelerated",
+   "structure": "part_glued_lead_item",
+   "expect_red": true,
+   "pathologies": [
+    "part_glued_lead_item",
+    "html_2001_2008"
+   ],
+   "expected_present": [
+    "1",
+    "2",
+    "3",
+    "7",
+    "8"
+   ],
+   "note": "Probe-a eval growth (round 1): fills retail sector + 2001-2008 HTML era. RED: Item 1 dropped because 'PART I ITEM 1.' shares one physical line, defeating the line-start anchor (Item 1A legitimately absent pre-2005). FLAGGED (needs_review), not silent."
+  },
+  {
+   "id": "amt-fy1997",
+   "accession": "0000927016-98-001444",
+   "company": "AMERICAN TOWER CORP",
+   "fiscal_year": 1997,
+   "sector": "reit",
+   "filer_type": "legacy",
+   "structure": "collapsed_body",
+   "expect_red": true,
+   "pathologies": [
+    "pre_2001_sgml",
+    "collapsed_body"
+   ],
+   "expected_present": [
+    "1",
+    "2",
+    "7",
+    "8"
+   ],
+   "note": "Probe-c sweep (round 1): collapsed-body SGML reit -- one item swallows the doc (cov 0.95), lead Item 1 absent. Confirmation of the GE-class B2 collapsed-body across a new era/sector. FLAGGED (needs_review), not silent."
+  },
+  {
+   "id": "ms-fy2024",
+   "accession": "0000895421-25-000304",
+   "company": "MORGAN STANLEY",
+   "fiscal_year": 2024,
+   "sector": "finance",
+   "filer_type": "large_accelerated",
+   "structure": "header_text_stripped_ixbrl",
+   "expect_red": true,
+   "pathologies": [
+    "ixbrl",
+    "common_mode_b3",
+    "styled_span_headers"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "Probe-c sweep (round 1): NAMED CEILING (S1). 'Item N' labels live only in styled iXBRL spans .text() flattens -> 0 items via regex AND edgartools fallback (both header-anchored = dual-extractor common-mode B3). FLAGGED (0 items, needs_review). Unrecoverable without a decorrelated non-header/CRF extractor (out of 4-day scope)."
+  },
+  {
+   "id": "hon-fy2024",
+   "accession": "0000773840-25-000010",
+   "company": "HONEYWELL INTERNATIONAL INC",
+   "fiscal_year": 2024,
+   "sector": "industrial",
+   "filer_type": "large_accelerated",
+   "structure": "no_separator_headers",
+   "expect_red": true,
+   "pathologies": [
+    "ixbrl",
+    "no_separator_header"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "Probe-c sweep (round 1): no-separator header 'ITEM 1  Title' -> regex finds 0; edgartools fallback partially rescues (7 items) but structural_ok=False and lead Item 1 dropped. FLAGGED (needs_review), not silent."
+  },
+  {
+   "id": "oxy-fy2006",
+   "accession": "0000797468-07-000027",
+   "company": "OCCIDENTAL PETROLEUM CORP /DE/",
+   "fiscal_year": 2006,
+   "sector": "energy",
+   "filer_type": "large_accelerated",
+   "structure": "separator_less_header",
+   "expect_red": true,
+   "pathologies": [
+    "separator_less_header",
+    "empty_segmentation",
+    "html_2001_2008"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "Round-4 A1 RED anchor (empty cluster). RED: house-style headers carry NO separator after the number ('ITEM 1A RISK FACTORS', 'ITEM\n7\n\nManagement'), so _HEADER_RE matches 0 -> segment() empty. PROPOSED expected_present pending human audit. CAVEAT: Item 1 heading is COMBINED 'ITEMS 1 AND 2 BUSINESS AND PROPERTIES' (no standalone Item 2); Item 7A folded into Item 7 (no standalone heading). A1 must flip this RED->GREEN."
+  },
+  {
+   "id": "xom-fy2024",
+   "accession": "0000034088-25-000010",
+   "company": "EXXON MOBIL CORP",
+   "fiscal_year": 2024,
+   "sector": "energy",
+   "filer_type": "large_accelerated",
+   "structure": "crossref_intruder_lead_drop",
+   "expect_red": true,
+   "pathologies": [
+    "lead_item_1_missing_high_cov",
+    "crossref_intruder",
+    "ixbrl_2019_plus"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "Round-4 A2 RED anchor (lead_missing_high_cov). RED: an in-prose 'see Item 1A. Risk Factors' cross-reference inside Item 1 prose is mis-matched as a header, _split_runs severs the run, _pick_body_run picks the downstream run starting at 1A -> Item 1 dropped (coverage ~0.9). Item 6 legitimately absent ('[Reserved]' era). A2 must flip RED->GREEN; char-gold Item-1 span must stay byte-exact."
+  },
+  {
+   "id": "duk-fy2010",
+   "accession": "0001193125-11-047229",
+   "company": "DUKE ENERGY CORP",
+   "fiscal_year": 2010,
+   "sector": "utility",
+   "filer_type": "large_accelerated",
+   "structure": "crossref_regsx_false_header",
+   "expect_red": true,
+   "pathologies": [
+    "coverage_partial",
+    "reg_sx_4_08g_false_header",
+    "html_2009_2018"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "Round-4 A2 RED anchor (coverage_partial). RED: 'Item 4-08(g)' (a Regulation S-X citation inside Item 8) is mis-matched as an Item-4 header (because _SEP includes '-'), anchoring a back-half run that out-scores the real front-half body on max-prose -> only ~39.6% covered, Items 1/1A/7/8 uncovered. FLAGGED (needs_review=True), NOT silent. A2 must flip RED->GREEN."
+  },
+  {
+   "id": "csco-fy2018",
+   "accession": "0000858877-18-000011",
+   "company": "CISCO SYSTEMS INC",
+   "fiscal_year": 2018,
+   "sector": "technology",
+   "filer_type": "large_accelerated",
+   "structure": "run_fragmentation_lead_drop",
+   "expect_red": true,
+   "pathologies": [
+    "lead_item_1_missing_low_cov",
+    "html_2009_2018"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "Round-4 PINNED RED anchor (lead_missing_low_cov = run-fragmentation, a KNOWN class named in rounds 1-2). NOT an A1/A2 fix target this round -> EXPECTED TO STAY RED; pinned so any future change is measured and so G9 has it as a known-failing baseline."
+  },
+  {
+   "id": "intc-fy2018",
+   "accession": "0000050863-19-000007",
+   "company": "INTEL CORP",
+   "fiscal_year": 2018,
+   "sector": "technology",
+   "filer_type": "large_accelerated",
+   "structure": "crossref_index",
+   "expect_red": true,
+   "pathologies": [
+    "coverage_very_low",
+    "crossref_index_table",
+    "html_2009_2018"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "Round-4 PINNED RED anchor (cross-reference-INDEX-TABLE class: body has NO 'Item N' headings; items located only via an end-of-doc 'FORM 10-K CROSS-REFERENCE INDEX' mapping item->page). HUMAN-AUDITED: the items ARE PRESENT (interpretation A) -> this is a REAL extraction miss, not legitimate absence. NOT an A1/A2/A3 target this round (header-anchored tiers structurally cannot find headingless body items); EXPECTED TO STAY RED until the index-table handler is built (plan: research/todo-exploration-crossref-index-handling.md). ~1% of the 1656 sweep, concentrated in GE/MCD/HON/INTC."
+  },
+  {
+   "id": "gis-fy2018",
+   "accession": "0001193125-18-209377",
+   "company": "GENERAL MILLS INC",
+   "fiscal_year": 2018,
+   "sector": "consumer_staples",
+   "filer_type": "large_accelerated",
+   "structure": "separator_less_header",
+   "expect_red": true,
+   "pathologies": [
+    "separator_less_header",
+    "empty_segmentation",
+    "html_2009_2018"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "Round-4 A1 RED anchor WITH human-audited char-gold (boundary_gold.json gis-fy2018, frozen 2026-06-27). Clean STANDALONE separator-less headers (ITEM 1 / ITEM 1A / ITEM 7 / ITEM 8) -> segment() currently returns 0 (empty). A1 must flip RED->GREEN AND hit the char-gold at IoU 1.0."
+  }
+ ]
 }

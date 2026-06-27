@@ -148,17 +148,22 @@ ASSIGNMENT's **scalability / performance** ask with measured evidence.
   char-gold) is **human-labelled from the filing**, NEVER copied from production output. Freezing a
   bug as "correct" = circular = auto-discard. Adding RED anchors is safe ONLY alongside the existing
   GREEN clean-filing gold (which catches a fix that "passes" by over-widening).
-- **NEW G9 — no-collateral-change (population over-widening guard).** The 1,656 sweep filings have no
-  gold — that is exactly where an over-wide regex hides. After EACH A-fix, re-run the FULL sweep and
-  **DIFF the per-filing segmentation output (spans + pass/reason per accession) BEFORE vs AFTER**. The
-  ONLY filings whose output may change are the **targeted cluster** (the ones the fix is meant to
-  recover). If ANY other filing's segmentation changed — a clean filing that was fine now segments
-  differently — that is a **candidate over-widening regression**: investigate each one and document it;
-  do NOT ship a fix that silently moved boundaries on filings it wasn't supposed to touch.
-  **Check:** `diff(before sweep_report.json spans, after sweep_report.json spans)` must partition into
-  `{targeted-cluster recovered}` ∪ `{∅}`. A non-empty second set **blocks the keep** until every member
-  is explained (re-classified as intended, or the fix narrowed). **G9 is part of EVERY A-step keep
-  gate, alongside the RED anchor and the char-gold.**
+- **NEW G9 — no-collateral-change (population over-widening guard), computed CHEAPLY (zero re-fetch).**
+  The 1,656 sweep filings have no gold — that is exactly where an over-wide regex hides. **Mechanism:**
+  segmentation is deterministic on the canonical bytes, and A1/A2 change ONLY segmentation
+  (`segment` / `_split_runs` / `_pick_body_run` / `needs_fallback`), never fetch or normalize. So
+  **CACHE all 1,656 canonicals once at baseline** (a one-time sweep that also writes each filing's
+  canonical to a local cache, gitignored), then after each A-fix **RE-SEGMENT the cached canonicals
+  offline and DIFF the per-filing spans (key + `[start,end]`) BEFORE vs AFTER** — **zero network,
+  deterministic, seconds not ~30–40 min** (no re-fetch, no super-linear `to_canonical`). The ONLY
+  filings whose spans may change are the **targeted cluster**; any OTHER changed filing is a
+  **candidate over-widening regression** to investigate + document — never silently ship a boundary
+  move on an untargeted filing. **Check:** `diff(baseline spans, post-fix re-segment spans)` must
+  partition into `{targeted-cluster recovered}` ∪ `{∅}`; a non-empty second set **blocks the keep**
+  until every member is explained (re-classified as intended, or the fix narrowed). (A3 touches ingest,
+  not segmentation, so its G9 is the same offline re-segment diff over the reachable set, plus the
+  newly-reachable 1994 filings as the intended change.) **G9 is part of EVERY A-step keep gate,
+  alongside the RED anchor and the char-gold.** Tooling for this cache+diff is built in Step B.
 - structural-pass labelled **UPPER BOUND, not accuracy** on every line; it is monitored/reported (§1),
   never a keep gate.
 
