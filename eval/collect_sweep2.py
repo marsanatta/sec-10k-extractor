@@ -16,6 +16,7 @@ Run: SEC_EDGAR_USER_AGENT="Name email" python eval/collect_sweep2.py [out_file]
 from __future__ import annotations
 
 import json
+import os
 import random
 import sys
 import time
@@ -28,7 +29,7 @@ import edgar
 from sec10k.config import get_user_agent
 
 HERE = Path(__file__).resolve().parent
-SEED = 20260627
+SEED = int(os.environ.get("SWEEP_SEED", "20260627"))
 
 # (stratum, form, [filing-year range inclusive], target N) -- N over-samples the hard/thin cells.
 STRATA = [
@@ -42,9 +43,10 @@ STRATA = [
 
 
 def _existing() -> set[str]:
+    """All accessions in any prior pinned sweep list (sweep_accessions.txt, sweep2_accessions.txt, ...)
+    so a fresh round draws genuinely held-out filings -- never re-measuring an already-pinned one."""
     accs = set()
-    p = HERE / "sweep_accessions.txt"
-    if p.exists():
+    for p in HERE.glob("sweep*_accessions.txt"):
         for ln in p.read_text(encoding="utf-8").splitlines():
             if ln.strip():
                 accs.add(json.loads(ln)["accession"])
