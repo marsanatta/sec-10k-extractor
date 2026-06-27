@@ -116,6 +116,20 @@ def test_a4_starts_with_header_accepts_combined_items():
     assert _starts_with_header("Item 10. Directors", 0, "1") is False  # must not match 10 for key 1
 
 
+def test_a4_combined_regex_recovers_lead_across_variants():
+    # round-9: sweep3 surfaced real combined-lead-header variants the first cut missed. _COMBINED_RE
+    # must recover the LEAD item (group 1) from each, while rejecting a singular "Item 1" (strict's
+    # job) and prose "Items of ...".
+    from sec10k.segment import _COMBINED_RE
+    for s in ["Items 1. and 2.  Business", "ITEMS 1., 1A. & 2.  Business", "Items 1 and 2. Business",
+              "ITEMS 1. & 2. BUSINESS", "Items 1.,  1A., and 2.  X"]:
+        m = _COMBINED_RE.match(s)
+        assert m is not None and m.group(1) == "1", s
+    assert _COMBINED_RE.match("ITEMS\n1 AND 2. BUSINESS").group(1) == "1"   # newline gap
+    assert _COMBINED_RE.match("Item 1. Business") is None                    # singular -> strict
+    assert _COMBINED_RE.match("Items of the plan follow here") is None       # prose, not a list
+
+
 # --- B3: silent-failure guard (DUK coverage_partial must FLAG, not silently pass) ---------------
 
 @pytest.mark.skipif(not os.environ.get("SEC_EDGAR_USER_AGENT"),
