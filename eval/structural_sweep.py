@@ -36,9 +36,13 @@ _BIG = ("1", "1A", "7", "8")
 
 def _starts_with_header(canonical: str, start: int, key: str) -> bool:
     head = re.sub(r"\s+", " ", canonical[start:start + 48]).strip().lower()
-    # separator class must mirror production _HEADER_RE's _SEP (. : ) - en/em-dash); a hyphen
-    # header like "ITEM 1--BUSINESS" (COST FY1999) is real and must not fail this check.
-    return bool(re.match(rf"(?:part\s+[ivx]+\s+)?item\s+{re.escape(key.lower())}[.:)\-–—\s]", head))
+    # mirror production: the _SEP separators (. : ) - en/em-dash), AND the plural combined lead header
+    # "Items 1 and 2. Business and Properties" -- A4 recovers Item 1 from it, so the check must accept
+    # it (else a correct extraction is falsely flagged header:1). A hyphen header "ITEM 1--BUSINESS"
+    # (COST FY1999) is also real and must pass.
+    return bool(re.match(
+        rf"(?:part\s+[ivx]+\s+)?items?\s+{re.escape(key.lower())}(?:\s+and\s+\d{{1,2}}[a-c]?)?[.:)\-–—\s]",
+        head))
 
 
 def structural_pass(spans: list[tuple[str, int, int]], canonical: str) -> tuple[bool, str]:
