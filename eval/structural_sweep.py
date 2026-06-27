@@ -219,7 +219,8 @@ def main(argv: list[str]) -> int:
     entries = [json.loads(line) for line in acc_file.read_text().splitlines() if line.strip()]
     if limit:
         entries = entries[:limit]
-    out_json = HERE / "sweep_report.json"
+    base = acc_file.stem.replace("_accessions", "")  # sweep_accessions->sweep, sweep2_accessions->sweep2
+    out_json = HERE / f"{base}_report.json"
     results: dict[str, dict] = {}  # resume: reuse already-computed records (crash/stall-safe)
     if out_json.exists():
         try:
@@ -235,7 +236,7 @@ def main(argv: list[str]) -> int:
     recs = list(results.values())
     _write(out_json, recs)
     run_date = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
-    (HERE / "sweep_report.md").write_text(render(recs, run_date), encoding="utf-8")
+    (HERE / f"{base}_report.md").write_text(render(recs, run_date), encoding="utf-8")
     print(render(recs, run_date))
     return 0
 
