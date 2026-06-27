@@ -41,6 +41,21 @@ tiling**, and each title also occurs multiple times (TOC + real section + cross-
 title-locator would emit overlapping, out-of-order garbage — it cannot produce correct boundaries, and
 there is no clean contiguous section to char-gold.
 
+### 4. The non-intc filers fail the same way — the STOP is class-wide, not anchor-specific
+Checked the cleaner-looking filers (line-start title-heading match + monotonic-order test), since the
+crude (B) count had flagged them at 13–14/17:
+- **`0000773840` ×4** (the richest, 13 titles): **NOT monotonic** — Item 7 (MD&A) @44645 precedes 1A
+  @71056, and Items 2/3/4/5 cluster inside ~1,250 chars (159591–160841), i.e. a TOC/list, not real
+  section bodies. Not tileable.
+- **Citigroup `0000831001` ×7: 0** line-start title headings (the earlier 13–14 were prose
+  `businesses…` false-positives). Not tileable.
+- **`0000063908` ×4**: its 9 title headings all sit in 5272–7771 — the **TABLE OF CONTENTS**, not the
+  body. Not tileable.
+
+So the crude (B) count was inflated by three things — **prose false-positives, TOC occurrences, and a
+loose `startswith`**. Once a heading must be line-start AND the items must tile in canonical order,
+**no FM-4 filing in the cache qualifies.** The STOP is a property of the class, not of intc alone.
+
 ## Why this is a genuine STOP (not a gap to grind)
 - **(A) page→offset is dead** (verified earlier: `to_canonical` strips page markers).
 - **(B) title-locator is dead for the anchor** (this round: items scattered/out-of-order, body
