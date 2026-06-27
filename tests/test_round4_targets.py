@@ -108,6 +108,14 @@ def test_b5_starts_with_header_accepts_double_hyphen():
     assert _starts_with_header("ITEM 1--BUSINESS Costco Wholesale Corporation", 0, "1") is True
 
 
+def test_a4_starts_with_header_accepts_combined_items():
+    # round-7 A4 recovers Item 1 from the plural combined header "ITEMS 1 AND 2. BUSINESS AND
+    # PROPERTIES" (oil/gas); the sweep's self-header check must accept it, else a correct extraction
+    # is falsely flagged header:1 and the structural-pass rate undercounts the A4 recoveries.
+    assert _starts_with_header("ITEMS 1 AND 2. BUSINESS AND PROPERTIES", 0, "1") is True
+    assert _starts_with_header("Item 10. Directors", 0, "1") is False  # must not match 10 for key 1
+
+
 # --- B3: silent-failure guard (DUK coverage_partial must FLAG, not silently pass) ---------------
 
 @pytest.mark.skipif(not os.environ.get("SEC_EDGAR_USER_AGENT"),
