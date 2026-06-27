@@ -28,10 +28,10 @@ _SEPLESS = (
 )
 
 
-@pytest.mark.xfail(strict=True, reason="round-4 A1 target: separator-less headers RED until _HEADER_RE relaxed")
 def test_a1_separatorless_headers_are_found():
-    # OXY/GIS house-style headers carry NO separator after the number; the current _HEADER_RE
-    # requires one, so segment() returns []. A1 must recover {1,1A,7,8}.
+    # KEPT (round-4 A1, two-pass): OXY/GIS house-style headers carry NO separator after the number.
+    # The strict pass returns [] on these, so segment() falls back to the relaxed recogniser and
+    # recovers {1,1A,7,8}. Clean filings never reach the fallback (G9 zero-collateral).
     assert _keys(_SEPLESS) == ["1", "1A", "7", "8"]
 
 

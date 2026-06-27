@@ -83,13 +83,36 @@ same-count-diff-boundary=25, **DEGRADED(N→fewer)=35**.
 → **DISCARDED** (35 degradations ≠ zero collateral). The approach is right and converging; it needs
 one more refinement on the over-drop pattern (ED-class) + then the char-gold + no-false-header gates.
 
+## A1 — KEPT (two-pass: strict, relaxed only on empty) ✅
+
+The three full-relaxation probes failed because they applied the loose regex to EVERY filing, so the
+cross-ref false-positives it admits over-widened clean filings. **The clean fix is to confine the
+relaxation to the filings that need it:**
+- **STRICT pass first** (separator-required) — byte-identical to before; clean filings are unaffected.
+- **RELAXED pass ONLY when the strict pass yields 0 items** (the OXY/GIS empty cluster) — the
+  separator-less recogniser + the intruder-tolerant (one-element-lookahead) run split.
+
+**This makes G9 zero-collateral BY CONSTRUCTION** (a non-empty clean filing never reaches the relaxed
+path). Verified on the 1,734 cached canonicals:
+- **recovered (0→N) = 38** (the empty cluster, incl. GIS 0→21); **DEGRADED = 0; improved = 0;
+  same-count-boundary-shift = 0.** Clean filings literally unchanged.
+- **GIS char-gold IoU = 1.0000 on all of {1,1A,7,8}** (byte-exact to the frozen human gold); the 5
+  clean char-gold are byte-unchanged (strict pass). No-false-header guard holds; all segment tests
+  pass; offline suite 90 passed.
+
+→ **A1 KEPT.** It recovers the `empty(0_items)` cluster with provably zero collateral. The separator-
+less RED target is now a normal passing test.
+
 ## Disposition (Step A so far)
-- **A1 is materially HARDER than the round-3 plan estimated** — a coupled regex + run-selection
-  redesign, iterating 156→35 collateral over three probes, not yet clean. An honest, important finding
-  (the round-3 plan under-scoped A1).
-- **The guards did their job 3×:** G9 + the structural-pass demotion caught every over-widening that a
-  label-free metric would have rewarded. No degrading fix shipped.
-- **Next probe:** characterise the ED-class over-drop (why the lookahead drops a real header there),
-  refine, and only KEEP when G9 is **zero-degradation** AND char-gold IoU 1.0 AND no-false-header.
-- The v2 lookahead is committed as WIP on `round4/a1` (converging, NOT kept); the rulers (Step B)
-  stand. Nothing merged, nothing pushed.
+- **A1 KEPT** (two-pass, `sec10k/segment.py` on `round4/a1`). The empty cluster is recovered cleanly.
+- **The guards did their job:** G9 + the structural-pass demotion discarded **three** over-widening
+  attempts that a label-free metric would have rewarded, before the clean two-pass passed. No degrading
+  fix shipped. This is the methodology working end-to-end.
+- **Round-3 under-scoped A1** — it needed the two-pass insight, not a one-line regex change. The
+  full-relaxation approach (for the ~137 PARTIAL-segmentation filings that strict already handles) is
+  **deferred / noted** — it requires the ED-class over-drop characterisation and is a separate,
+  riskier probe; not needed to recover the empty cluster.
+- **A2** (cross-ref intruder on filings that DO segment — `lead_missing_high_cov` / `coverage_partial`)
+  and **A3** (ingest robustness) remain. Note: A2 is the same run-selection family; A3 is low-value
+  (callers already handle the exception). Next priorities TBD with the human.
+- `round4/a1` holds the kept A1; rulers (Step B) stand. Nothing merged, nothing pushed.
