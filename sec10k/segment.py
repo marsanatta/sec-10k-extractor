@@ -29,6 +29,12 @@ _XREF = (r"[ \t]+(?:under|of|in|as|at|to|on|by|for|with|from|herein|hereof|heret
          r"above|below|set\s+forth|described|referred|incorporated)\b")
 _HEADER_RE_LOOSE = re.compile(
     r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)(?!" + _XREF + r")(?:\s*[" + _SEP + r"]|\s+(?=[A-Z]))")
+# A4 (round 7): the PLURAL combined lead header "Items 1 and 2. Business and Properties" (the oil/gas
+# house-style where the business IS the properties). The singular _HEADER_RE needs "Item"+gap+digit,
+# so the trailing 's' of "Items 1" breaks the match and BOTH items are dropped (lead_item_1_missing).
+# This recovers the LEAD item number from such a combined header.
+_COMBINED_RE = re.compile(
+    r"(?im)^[ \t>]*items[ \t]+(\d{1,2}[A-C]?)[ \t]+and[ \t]+\d{1,2}[A-C]?\s*[" + _SEP + "]")
 
 
 def _find_headers(text: str, header_re: "re.Pattern" = _HEADER_RE) -> list[tuple[str, int, int]]:
@@ -36,6 +42,19 @@ def _find_headers(text: str, header_re: "re.Pattern" = _HEADER_RE) -> list[tuple
     for m in header_re.finditer(text):
         key = m.group(1).upper()
         if key in CANONICAL_BY_KEY:
+            out.append((key, m.start(), m.end()))
+    return out
+
+
+def _combined_lead_headers(text: str, present: set[str]) -> list[tuple[str, int, int]]:
+    """Recover the LEAD item of a combined "Items N and M. ..." header, emitting N ONLY when it is
+    not already found -- so a filing that segments N normally is byte-identical (confined; the combined
+    regex matches nothing on a non-combined filing). M is folded into N's span (the source genuinely
+    combines them)."""
+    out = []
+    for m in _COMBINED_RE.finditer(text):
+        key = m.group(1).upper()
+        if key in CANONICAL_BY_KEY and key not in present:
             out.append((key, m.start(), m.end()))
     return out
 
@@ -146,6 +165,9 @@ def segment(canonical_text: str) -> list[tuple[str, int, int]]:
       A3 (r5)  : if the strict result under-segments (separator-less / iXBRL token-per-line headers,
                  Part III the strict regex missed), keep the relaxed candidate ONLY if it is a strict
                  SUPERSET of the current keys + coverage does not drop.
+      A4 (r7)  : if the lead item is STILL missing after the relax passes, recover it from a combined
+                 "Items N and M." header (plural, oil/gas house-style) the singular regex misses --
+                 fired last so a lead another pass already recovered is untouched (G9 zero-collateral).
     Remaining P0 limits go to later phases (independent second extractor + validation layer)."""
     spans = _build_spans(canonical_text, _find_headers(canonical_text, _HEADER_RE), _split_runs)
     if not spans:
@@ -173,5 +195,17 @@ def segment(canonical_text: str) -> list[tuple[str, int, int]]:
     relax_at = {k: s for k, s, _ in relax}
     if set(strict_at) < set(relax_at) and all(relax_at[k] == s for k, s in strict_at.items()) and \
             _coverage(relax, canonical_text) >= _coverage(spans, canonical_text):
-        return relax
+        spans = relax
+    # A4 (round 7): if the lead item is STILL missing after every relax pass, it is most likely behind a
+    # combined "Items N and M." header (plural, oil/gas "Business and Properties") the singular regex
+    # cannot match. Prepend the lead item from the combined header just BEFORE the current body start --
+    # a pure prepend that preserves the existing spans (incl. A3 gains) and only ADDS coverage. Confined
+    # to leads still missing here, so a filing whose lead another pass recovered is untouched (G9 zero-
+    # collateral). M folds into N's span (the source genuinely combines them).
+    if spans and "1" not in {k for k, _, _ in spans}:
+        first_start = spans[0][1]
+        cands = [s for _, s, _ in _combined_lead_headers(canonical_text, {k for k, _, _ in spans})
+                 if s < first_start]
+        if cands:
+            spans = [("1", max(cands), first_start)] + spans
     return spans
