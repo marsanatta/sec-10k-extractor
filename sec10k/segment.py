@@ -120,6 +120,10 @@ def _build_spans(canonical_text, headers, split_runs) -> list[tuple[str, int, in
     return spans
 
 
+def _coverage(spans, text: str) -> float:
+    return sum(e - s for _, s, e in spans) / len(text) if text else 0.0
+
+
 def segment(canonical_text: str) -> list[tuple[str, int, int]]:
     """Tier-1 anchor segmentation. Returns [(item_key, start, end)] whose spans tile the document
     from the first body item to the end.
@@ -133,6 +137,15 @@ def segment(canonical_text: str) -> list[tuple[str, int, int]]:
     SGML, and a TOC whose entries out-span a terse body."""
     spans = _build_spans(canonical_text, _find_headers(canonical_text, _HEADER_RE), _split_runs)
     if not spans:
-        spans = _build_spans(
+        return _build_spans(
             canonical_text, _find_headers(canonical_text, _HEADER_RE_LOOSE), _split_runs_tolerant)
+    # A2 (round 4): when an in-prose cross-reference (e.g. "Item 1A. Risk Factors", "Item 4-08(g)")
+    # is matched as a header, it fragments the run and the lead item is dropped. If Item 1 is missing,
+    # retry the SAME (strict) header hits with the intruder-tolerant split, and keep it ONLY if it
+    # recovers Item 1 without losing coverage -- so a genuinely Item-1-absent filing is never forced,
+    # and a clean filing (Item 1 present) never reaches this path (G9 zero-collateral by construction).
+    if "1" not in {k for k, _, _ in spans}:
+        retry = _build_spans(canonical_text, _find_headers(canonical_text, _HEADER_RE), _split_runs_tolerant)
+        if "1" in {k for k, _, _ in retry} and _coverage(retry, canonical_text) >= _coverage(spans, canonical_text):
+            return retry
     return spans

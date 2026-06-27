@@ -103,8 +103,27 @@ path). Verified on the 1,734 cached canonicals:
 → **A1 KEPT.** It recovers the `empty(0_items)` cluster with provably zero collateral. The separator-
 less RED target is now a normal passing test.
 
+## A2 — KEPT (conditional Item-1-missing retry) ✅
+
+Same insight as A1: confine the intruder-tolerant run split to the filings that need it. A2's
+intruders (in-prose cross-references like `Item 1A. Risk Factors` / `Item 4-08(g)`) PASS the strict
+regex, so the strict pass DOES segment but drops the lead item. Trigger: **Item 1 missing** in the
+strict result → retry the SAME strict hits with the one-element-lookahead intruder-tolerant split;
+keep it ONLY if it recovers Item 1 without losing coverage (a clean filing has Item 1 → never
+retries → G9 zero-collateral by construction; a genuinely Item-1-absent filing is never forced).
+
+**Verified (A1-baseline vs A1+A2 on 1,735 cached):** Item-1-recovered = **72** filings (lead_missing
++ coverage_partial), **COLLATERAL (Item-1-present filings changed) = 0**, every changed filing
+recovered Item 1. XOM 19→22 (Item 1 back), DUK 9→19 (Item 1 back). GIS char-gold IoU still
+[1.0,1.0,1.0,1.0]; offline suite green; A2 RED target flipped to a normal passing test.
+
+→ **A2 KEPT.** The "hard, coupled" run-selection problem fell to the same conditional-fallback shape
+as A1 — recovering 72 lead-missing / partial-coverage filings with provably zero collateral.
+
 ## Disposition (Step A so far)
-- **A1 KEPT** (two-pass, `sec10k/segment.py` on `round4/a1`). The empty cluster is recovered cleanly.
+- **A1 KEPT** + **A2 KEPT** (`sec10k/segment.py`). Empty cluster + lead-missing/partial-coverage
+  recovered cleanly (38 + 72 filings), provably zero collateral via the two-pass / conditional-retry
+  shape. Three early over-widening attempts were discarded by G9 first.
 - **The guards did their job:** G9 + the structural-pass demotion discarded **three** over-widening
   attempts that a label-free metric would have rewarded, before the clean two-pass passed. No degrading
   fix shipped. This is the methodology working end-to-end.
