@@ -159,6 +159,40 @@
     "low": "低 confidence",
     "unscored": "未評分"
   },
+  "prov": {
+    "content": {
+      "t": "Content heuristic",
+      "d": "item 的文字通過 content sanity check —— 有合理、非瑣碎的內文,不是空殼。"
+    },
+    "title_match": {
+      "t": "Title match",
+      "d": "抽出的標題與 canonical SEC item title 相符(例:Item 1 → 'Business')。"
+    },
+    "xbrl_item8": {
+      "t": "XBRL Item 8 oracle",
+      "d": "獨立 oracle:filing 的 XBRL-tagged 財報 facts(來自 EDGAR companyfacts)落在這個 span 內,佐證 Item 8 邊界。"
+    },
+    "boundary_xcheck": {
+      "t": "Dual-extractor boundary",
+      "d": "regex tier 與獨立的 edgartools extractor 對這個邊界的 cross-check。✕ 表示兩者不一致 —— flagged 待 review。"
+    },
+    "escalation_applied": {
+      "t": "LLM boundary applied",
+      "d": "escalation LLM 回傳行號,邊界被移到那裡(index-don't-generate —— model 從不生成文字)。"
+    },
+    "escalated": {
+      "t": "Escalated to LLM",
+      "d": "這個低信心邊界被送進 escalation LLM 做 adjudication。"
+    },
+    "escalation_deferred": {
+      "t": "Escalation deferred",
+      "d": "符合 LLM escalation 條件,但 LLM tier 預設關閉($0)—— 只記錄 candidate,沒真的呼叫。"
+    },
+    "expected_but_not_found": {
+      "t": "Expected but not found",
+      "d": "filing template 認為這個 item 該存在,但 extractor 沒找到 —— flagged extraction failure,絕不 silent drop。"
+    }
+  },
   "g": {
     "indexDontGenerate": {
       "t": "index-don't-generate（只索引不生成）",
