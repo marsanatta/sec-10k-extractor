@@ -128,13 +128,18 @@ def segment(canonical_text: str) -> list[tuple[str, int, int]]:
     """Tier-1 anchor segmentation. Returns [(item_key, start, end)] whose spans tile the document
     from the first body item to the end.
 
-    TWO-PASS (round-4 A1): the STRICT pass (separator-required) runs first and is byte-identical to
-    before, so clean filings are unaffected. ONLY if it yields nothing does the RELAXED pass run --
-    the separator-less recogniser + intruder-tolerant run split, which recovers the OXY/GIS empty
-    cluster. Confining the relaxation to the empty fallback is what keeps it from over-widening clean
-    filings (the round-3 lesson + G9). Remaining P0 limits handled by later phases (independent
-    second extractor + validation layer): out-of-order cross-reference indices, header-less legacy
-    SGML, and a TOC whose entries out-span a terse body."""
+    LAYERED PASSES, each refining the best-so-far under a guard that can only ADD recovery, never
+    trade it away -- so clean filings stay byte-identical and every widen is G9 zero-collateral by
+    construction (round-3 lesson + G9):
+      strict   : separator-required regex + ordered run split (the byte-identical baseline).
+      A1 (r4)  : if strict yields nothing, the relaxed separator-less recogniser + intruder-tolerant
+                 split (the OXY/GIS empty cluster).
+      A2 (r4)  : if Item 1 is dropped by an in-prose cross-reference fragmenting the run, retry the
+                 strict hits with the intruder-tolerant split, kept only if Item 1 is recovered.
+      A3 (r5)  : if the strict result under-segments (separator-less / iXBRL token-per-line headers,
+                 Part III the strict regex missed), keep the relaxed candidate ONLY if it is a strict
+                 SUPERSET of the current keys + coverage does not drop.
+    Remaining P0 limits go to later phases (independent second extractor + validation layer)."""
     spans = _build_spans(canonical_text, _find_headers(canonical_text, _HEADER_RE), _split_runs)
     if not spans:
         return _build_spans(
@@ -142,10 +147,24 @@ def segment(canonical_text: str) -> list[tuple[str, int, int]]:
     # A2 (round 4): when an in-prose cross-reference (e.g. "Item 1A. Risk Factors", "Item 4-08(g)")
     # is matched as a header, it fragments the run and the lead item is dropped. If Item 1 is missing,
     # retry the SAME (strict) header hits with the intruder-tolerant split, and keep it ONLY if it
-    # recovers Item 1 without losing coverage -- so a genuinely Item-1-absent filing is never forced,
-    # and a clean filing (Item 1 present) never reaches this path (G9 zero-collateral by construction).
+    # recovers Item 1 without losing coverage -- so a genuinely Item-1-absent filing is never forced.
     if "1" not in {k for k, _, _ in spans}:
         retry = _build_spans(canonical_text, _find_headers(canonical_text, _HEADER_RE), _split_runs_tolerant)
         if "1" in {k for k, _, _ in retry} and _coverage(retry, canonical_text) >= _coverage(spans, canonical_text):
-            return retry
+            spans = retry
+    # A3 (round 5): the strict result has its lead item but may UNDER-segment (separator-less house
+    # styles, iXBRL token-per-line headers, Part III items the strict separator missed). Compute the
+    # relaxed candidate and keep it ONLY if (a) it is a strict SUPERSET of the current keys (no item
+    # lost), (b) every SHARED item keeps its exact start offset -- so the relaxed pass may only INSERT
+    # newly-found items into the strict skeleton, never RELOCATE an existing one (without (b), the
+    # tolerant split can drop a genuine body Item 1 as a false intruder and re-anchor it on the TOC
+    # line while still "keeping" the key) -- and (c) coverage does not drop. Over-drop cases are not
+    # supersets and are rejected. Confining the widen to strict-dominated filings whose anchors are
+    # stable keeps clean filings byte-identical (G9 zero-collateral by construction).
+    relax = _build_spans(canonical_text, _find_headers(canonical_text, _HEADER_RE_LOOSE), _split_runs_tolerant)
+    strict_at = {k: s for k, s, _ in spans}
+    relax_at = {k: s for k, s, _ in relax}
+    if set(strict_at) < set(relax_at) and all(relax_at[k] == s for k, s in strict_at.items()) and \
+            _coverage(relax, canonical_text) >= _coverage(spans, canonical_text):
+        return relax
     return spans
