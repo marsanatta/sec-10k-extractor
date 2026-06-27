@@ -354,8 +354,9 @@ and kept as an honest opt-in, because we **measured it** and it earns no indepen
 > item). The trigger is **over-broad**: 21/21 filings trigger, **106 opus-4.8 calls fired → 2
 > boundary moves**, both on non-gold filings (unverifiable). A mechanism one-shot confirms the real
 > model + apply-loop *work* (they fix a deliberately-wrong boundary) — they simply never need to on
-> the gold, where the deterministic path is already right. So the tier is **default-OFF**
-> (`SEC10K_LLM_ESCALATION` opt-in; a token alone does not enable it); the deterministic path stays
+> the gold, where the deterministic path is already right. So the tier is **default-OFF**, controlled
+> per request by the web UI toggle (a token is still required for a real call; `SEC10K_LLM_ESCALATION`
+> is only the CLI/library default when no explicit flag is passed); the deterministic path stays
 > the shipped, \$0, reproducible primary. Not a claimed win, not deleted — an honest graceful
 > fallback. (Full measurement + the `llm_touched` footprint tag: the measurement branch's
 > `eval/llm_measure.py` + `research/llm-measurement-findings.md`.)
@@ -369,12 +370,13 @@ and kept as an honest opt-in, because we **measured it** and it earns no indepen
    independent test (`tests/test_escalation.py`: inject a wrong boundary → mock returns the correct
    line → assert the span moves to the known-correct offset at IoU ≥ 0.9). A provider that returns
    `None` (auth fails, SDK absent, parse/timeout error) degrades to recording-only, never a crash.
-2. **Graceful-fallback, DEFAULT-OFF.** `escalation.default_llm_client()` returns the real
-   `CopilotLLMClient` only when the operator **explicitly enables the tier**
-   (`SEC10K_LLM_ESCALATION=1`) **and** a Copilot token is present — otherwise the deferred
-   (recording-only) stub. **A token alone does not turn it on**, so the default extract path stays
-   deterministic (\$0) even on a token-configured server, the **offline suite stays network-free**,
-   and the measured no-gain result above is why the default is off rather than on.
+2. **Graceful-fallback, DEFAULT-OFF.** `escalation.default_llm_client(model, enabled)` returns the
+   real `CopilotLLMClient` only when the tier is **enabled** **and** a Copilot token is present —
+   otherwise the deferred (recording-only) stub. The per-request `enabled` flag (sent by the web UI
+   toggle through the server) is **authoritative**; `SEC10K_LLM_ESCALATION` is only the default for
+   CLI/library callers that pass `enabled=None`. **A token alone does not turn it on**, so the default
+   extract path stays deterministic (\$0) even on a token-configured server, the **offline suite stays
+   network-free**, and the measured no-gain result above is why the default is off rather than on.
 3. **Cost — MEASURED, not estimated (§3).** With the token set, a real run on `ko-fy2023` fired
    **3 calls = 39,365 input + 386 output tokens** (~13k input/call — the Copilot CLI wraps each
    call in its agent harness, so input dwarfs the ~1k LIB prompt itself). Copilot is **flat-rate

@@ -92,8 +92,9 @@ never silently dropped**.
   by locating item heads back in our canonical (never copying foreign offsets). An
   **index-don't-generate LLM escalation** tier (windowed, closed item set, returns a line number that
   is mapped back to a char offset and *applied* to move the boundary) runs on a **real GitHub
-  Copilot LLM** (`sec10k/copilot_client.py`) — but it is **default-OFF** (`SEC10K_LLM_ESCALATION`
-  opt-in; a token alone does not enable it). We **measured** it against the frozen gold and it moved
+  Copilot LLM** (`sec10k/copilot_client.py`) — but it is **default-OFF**, controlled per request by
+  the web UI toggle (a token is still required for a real call; `SEC10K_LLM_ESCALATION` is only the
+  CLI/library default when no explicit flag is passed). We **measured** it against the frozen gold and it moved
   **zero** boundaries on all 5 boundary-gold filings (ΔIoU 0.000; Signal D unchanged by
   construction), firing 106 opus-4.8 calls for 2 unverifiable moves — so it is kept as an honest
   opt-in graceful-fallback, never the default. The offline suite stays network-free (\$0 floor).

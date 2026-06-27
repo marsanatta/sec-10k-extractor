@@ -70,7 +70,8 @@ export default function App() {
 
   const runExtract = (req: ExtractRequest) => run(() => extract(req, token));
   const runDemo = (id: string) => run(() => extractDemo(id));
-  const runText = (text: string, model?: string) => run(() => extractText(text, token, model));
+  const runText = (text: string, model?: string, escalate?: boolean) =>
+    run(() => extractText(text, token, model, escalate));
 
   return (
     <div className="app">

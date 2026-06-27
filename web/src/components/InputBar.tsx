@@ -26,7 +26,7 @@ interface Props {
   elapsed: number;
   onSubmit: (req: ExtractRequest) => void;
   onDemo: (id: string) => void;
-  onText: (text: string, model?: string) => void;
+  onText: (text: string, model?: string, escalate?: boolean) => void;
   token: string;
   onToken: (value: string) => void;
 }
@@ -51,6 +51,7 @@ export function InputBar({
   const [accession, setAccession] = useState("");
   const [text, setText] = useState("");
   const [model, setModel] = useState("");
+  const [escalate, setEscalate] = useState(false);
   const [fileError, setFileError] = useState("");
 
   const effectiveModel = model || defaultModel;
@@ -70,16 +71,18 @@ export function InputBar({
 
   function submit() {
     if (!canSubmit) return;
+    const selectedModel = escalate ? effectiveModel || undefined : undefined;
     if (mode === "ticker") {
       onSubmit({
         ticker: ticker.trim().toUpperCase(),
         fiscal_year: fiscalYear ? Number(fiscalYear) : undefined,
-        model: effectiveModel || undefined,
+        model: selectedModel,
+        escalate,
       });
     } else if (mode === "accession") {
-      onSubmit({ accession: accession.trim(), model: effectiveModel || undefined });
+      onSubmit({ accession: accession.trim(), model: selectedModel, escalate });
     } else {
-      onText(text, effectiveModel || undefined);
+      onText(text, selectedModel, escalate);
     }
   }
 
@@ -152,7 +155,21 @@ export function InputBar({
           />
         </div>
 
-        {models.length > 0 && (
+        <div className="field escalate-field">
+          <label htmlFor="escalate">
+            <input
+              id="escalate"
+              type="checkbox"
+              checked={escalate}
+              disabled={loading}
+              onChange={(e) => setEscalate(e.target.checked)}
+            />
+            {t("input.escalateLabel")}
+          </label>
+          {!escalate && <small className="hint">{t("input.escalateOffNote")}</small>}
+        </div>
+
+        {escalate && models.length > 0 && (
           <div className="field model-field">
             <label htmlFor="model">{t("input.modelLabel")}</label>
             <select

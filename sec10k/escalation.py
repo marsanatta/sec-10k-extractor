@@ -8,9 +8,12 @@ from sec10k.items import CANONICAL_BY_KEY
 from sec10k.schema import Band, ExtractionResult, Status
 
 _TOKEN_VARS = ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")
-# Default OFF. The deterministic regex path is the shipped, $0, reproducible primary; the LLM tier
-# is an explicit operator opt-in. Measured (research/llm-measurement-findings.md): no independent-
-# signal gain on our gold, so it stays an available graceful-fallback, never on by default.
+# The deterministic regex path is the shipped, $0, reproducible primary; the LLM tier is opt-in.
+# The per-request `enabled` flag (sent by the UI through the server) is authoritative. _ENABLE_VAR
+# (SEC10K_LLM_ESCALATION) is now only the fallback default for callers that pass enabled=None
+# (CLI/library). Either way a real (billed) call still requires a Copilot token, so a token-less
+# environment degrades to the deferred $0 stub. Measured (research/llm-measurement-findings.md): no
+# independent-signal gain on our gold, so the default stays off.
 _ENABLE_VAR = "SEC10K_LLM_ESCALATION"
 
 
@@ -48,18 +51,21 @@ class DeferredLLMClient:
         return None
 
 
-def default_llm_client(model: str | None = None) -> LLMClient:
-    """Pick the escalation provider: the REAL GitHub Copilot client when a token is configured in
-    the environment, else the deferred (recording-only) stub. This is the graceful-fallback
-    "real-when-configured" contract -- a token-less environment (CI, or a deploy without a Copilot
-    PAT) gets the stub, so the tier degrades cleanly and the offline suite never makes a network
-    call. Import is lazy so the SDK is only required when a token is actually present. `model`
-    selects the Copilot model (UI-configurable); None falls back to the configured default.
+def default_llm_client(model: str | None = None, enabled: bool | None = None) -> LLMClient:
+    """Pick the escalation provider: the REAL GitHub Copilot client when the tier is enabled AND a
+    token is configured in the environment, else the deferred (recording-only) stub. This is the
+    graceful-fallback "real-when-configured" contract -- a token-less environment (CI, or a deploy
+    without a Copilot PAT) gets the stub, so the tier degrades cleanly and the offline suite never
+    makes a network call. Import is lazy so the SDK is only required when a token is actually
+    present. `model` selects the Copilot model (UI-configurable); None falls back to the configured
+    default.
 
-    DEFAULT OFF: the real client is used only when the operator explicitly enables the tier
-    (`SEC10K_LLM_ESCALATION`) AND a token is present. Token presence alone does NOT turn it on, so
-    the default extract path stays deterministic ($0) even on a token-configured server."""
-    if llm_escalation_enabled() and any(os.environ.get(v) for v in _TOKEN_VARS):
+    `enabled` is the per-request lever (sent by the UI through the server) and is authoritative;
+    when None it falls back to the `SEC10K_LLM_ESCALATION` env default for CLI/library callers.
+    Either way a token must be present, so an explicit enable on a token-less server still degrades
+    to the deferred $0 stub."""
+    eff = enabled if enabled is not None else llm_escalation_enabled()
+    if eff and any(os.environ.get(v) for v in _TOKEN_VARS):
         try:
             from sec10k.copilot_client import CopilotLLMClient
 
@@ -118,7 +124,8 @@ def _line_ref_to_offset(
 
 
 def run_escalation(
-    result: ExtractionResult, canonical: str, client: LLMClient | None, model: str | None = None
+    result: ExtractionResult, canonical: str, client: LLMClient | None, model: str | None = None,
+    enabled: bool | None = None,
 ) -> dict:
     """Identify escalation candidates and, when a real client is wired, adjudicate each present
     low-confidence boundary, sum the real token cost, AND apply the model's line answer to move
@@ -126,7 +133,7 @@ def run_escalation(
     call is made (calls/tokens/applied stay 0); every candidate is annotated so nothing is
     silently skipped."""
     candidates = escalation_candidates(result)
-    client = client or default_llm_client(model)
+    client = client or default_llm_client(model, enabled)
     deferred = getattr(client, "name", "") == "deferred"
     note = "escalation_deferred" if deferred else "escalated"
     by_key = {it.item: it for it in result.items}

@@ -48,11 +48,12 @@ export async function extractText(
   text: string,
   token?: string,
   model?: string,
+  escalate?: boolean,
 ): Promise<ExtractionResult> {
   const resp = await fetch("/api/extract-text", {
     method: "POST",
     headers: authHeaders(token),
-    body: JSON.stringify({ text, model }),
+    body: JSON.stringify({ text, model, escalate }),
   });
   return asJson<ExtractionResult>(resp);
 }
