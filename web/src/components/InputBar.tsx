@@ -71,18 +71,18 @@ export function InputBar({
 
   function submit() {
     if (!canSubmit) return;
-    const model = escalate ? effectiveModel || undefined : undefined;
+    const selectedModel = escalate ? effectiveModel || undefined : undefined;
     if (mode === "ticker") {
       onSubmit({
         ticker: ticker.trim().toUpperCase(),
         fiscal_year: fiscalYear ? Number(fiscalYear) : undefined,
-        model,
+        model: selectedModel,
         escalate,
       });
     } else if (mode === "accession") {
-      onSubmit({ accession: accession.trim(), model, escalate });
+      onSubmit({ accession: accession.trim(), model: selectedModel, escalate });
     } else {
-      onText(text, model, escalate);
+      onText(text, selectedModel, escalate);
     }
   }
 
