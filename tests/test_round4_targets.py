@@ -85,10 +85,10 @@ def test_a2_clean_case_unaffected_today():
 
 # --- B5: harness predicate false-fail (COST "ITEM 1--BUSINESS", header_not_self_headed n=2) ------
 
-@pytest.mark.xfail(strict=True, reason="round-4 B5 target: sweep _starts_with_header rejects the '--' separator that production _HEADER_RE accepts")
 def test_b5_starts_with_header_accepts_double_hyphen():
-    # COST FY1999: "ITEM 1--BUSINESS" is a real header (production _HEADER_RE accepts '-'), but the
-    # sweep's verification check uses [.:)\s] (no '-') and falsely fails it -> the 85.6% undercounts.
+    # KEPT (round-4 B5): "ITEM 1--BUSINESS" (COST FY1999) is a real header -- production _HEADER_RE
+    # accepts '-', so the sweep's self-header check now mirrors that separator set. Before B5 the
+    # check used [.:)\s] (no '-') and falsely failed it, undercounting the structural-pass rate.
     assert _starts_with_header("ITEM 1--BUSINESS Costco Wholesale Corporation", 0, "1") is True
 
 

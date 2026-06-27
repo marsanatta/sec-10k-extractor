@@ -36,7 +36,9 @@ _BIG = ("1", "1A", "7", "8")
 
 def _starts_with_header(canonical: str, start: int, key: str) -> bool:
     head = re.sub(r"\s+", " ", canonical[start:start + 48]).strip().lower()
-    return bool(re.match(rf"(?:part\s+[ivx]+\s+)?item\s+{re.escape(key.lower())}[.:)\s]", head))
+    # separator class must mirror production _HEADER_RE's _SEP (. : ) - en/em-dash); a hyphen
+    # header like "ITEM 1--BUSINESS" (COST FY1999) is real and must not fail this check.
+    return bool(re.match(rf"(?:part\s+[ivx]+\s+)?item\s+{re.escape(key.lower())}[.:)\-–—\s]", head))
 
 
 def structural_pass(spans: list[tuple[str, int, int]], canonical: str) -> tuple[bool, str]:
