@@ -50,8 +50,8 @@ Thumbs.db
 eval/run.log
 eval/report.json
 # structural sweep + measure: large generated artifacts (committed .md is the durable record)
-eval/sweep_report.json
-eval/sweep_fail_tail.json
+eval/sweep*_report.json
+eval/sweep*_fail_tail.json
 eval/llm_measure_results.json
 
 # Agent scratch / RCA working files — never commit
