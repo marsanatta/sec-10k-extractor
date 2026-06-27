@@ -25,17 +25,32 @@ B (build independent rulers)  →  A (fix, one probe/iter, measured RED->GREEN) 
 
 ---
 
-## 1. Independent signals that gate KEEP (unchanged from rounds 1-3)
+## 1. Signals — KEEP evidence vs monitored-only (the proxy-trap fix)
 
-- **A — structural-pass** (label-free, **UPPER BOUND on robustness, NOT accuracy**) on the 1,656 sweep.
-- **B — char-gold IoU** on `boundary_gold.json` (human-audited, frozen, the accuracy floor).
-- **C — count of new named flagged-not-silent modes.**
-- **D — classification-match** vs frozen `classification_gold.json`.
-- **NEW — RED regression anchors** in `eval_set.json` (`expect_red: true`): a fix is KEPT only if its
-  anchor flips RED→GREEN **on an independently-labelled `expected_present`**, never on frozen output.
+A fix is KEPT only on signals that can actually **FAIL** on a wrong fix. Signals that only ever rise —
+or that can rise on garbage — are MONITORED and REPORTED, never a keep gate. This matters because A1
+relaxes a regex, and a looser regex is the classic way a fix "passes" while quietly adding false
+matches.
 
-**Forbidden as KEEP evidence (carry over):** coverage fraction, `needs_review` count,
-`extraction_failure` count, edgartools-alone, or any gold auto-frozen from production.
+**KEEP evidence (each can REFUTE a bad fix — these gate the keep):**
+- **B — char-gold IoU** on `boundary_gold.json` (human-audited, frozen): the fix must keep the clean
+  spans **byte-exact (IoU 1.0)**. Can fail.
+- **D — classification-match** vs frozen `classification_gold.json`. Can fail.
+- **RED anchors** in `eval_set.json` (`expect_red: true`): the fix flips its anchor **RED→GREEN on an
+  independently human-labelled `expected_present`**, never on frozen output. Can fail (the fix may not
+  recover it, or may break another anchor).
+- **B4 no-false-header control + G9 no-collateral-change** (§6): the looser regex must add **NO** false
+  header on clean fixtures and change the segmentation of **NO** untargeted filing. Can fail.
+
+**Monitored-only — REPORTED, NEVER a keep gate:**
+- **A — structural-pass** (label-free, **UPPER BOUND on robustness, NOT accuracy**, 1,656 sweep). A
+  looser regex that matches MORE headers **raises structural-pass even when the new matches are FALSE
+  positives** — being label-free, it literally cannot tell "found more correct items" from "found more
+  garbage". So it is a number we watch and report, **never evidence to keep a fix**.
+- **C — count of new named flagged-not-silent modes** (a discovery metric, not a keep gate).
+
+**Forbidden as KEEP evidence:** coverage fraction, `needs_review` count, `extraction_failure` count,
+edgartools-alone, any gold auto-frozen from production, **and structural-pass alone**.
 
 ---
 
@@ -81,18 +96,23 @@ Each iteration: a fresh worktree off `main`, one fix, measured against Step B's 
 
 - **A1 — separator-less header recogniser** (`empty` cluster, ~67 the biggest). Relax `_HEADER_RE`
   (`segment.py:17`) to accept `ITEM <num> <ws> (TITLE-like | EOL)` while KEEPING the line-start anchor.
-  **KEEP iff:** B1/B2 OXY anchor flips RED→GREEN **AND** the 5 char-gold stay 1.0 (B) **AND** clean
-  filings gain no false header (B4 control) **AND** structural-pass (A) rises with no ruler loosened.
+  **KEEP iff (all three CAN-FAIL gates pass):** (i) the B1/B2 OXY anchor flips **RED→GREEN** on the
+  human-labelled `expected_present`; (ii) the 5 char-gold stay **byte-exact IoU 1.0** (B); (iii) clean
+  fixtures gain **no false header** (B4) **and G9 no-collateral-change passes** (only the targeted
+  `empty`-cluster filings' segmentation changes). Structural-pass is reported, **not** a gate.
 - **A2 — cross-reference-intruder run-selection hardening** (`lead_missing_high_cov` ~50 +
   `coverage_partial` ~6 + GIS TOC). Intruder-tolerant `_split_runs` / reject `Item N-<digit>` (the
-  Reg S-X `4-08(g)` class) / broaden `needs_fallback`. **KEEP iff:** the XOM/DUK anchors flip GREEN
-  **AND** char-gold Item-1 spans stay byte-exact (B) **AND** no TOC-as-body regression (B4).
+  Reg S-X `4-08(g)` class) / broaden `needs_fallback`. **KEEP iff:** the XOM/DUK anchors flip
+  **RED→GREEN AND** char-gold Item-1 spans stay **byte-exact** (B) **AND** no TOC-as-body regression
+  (B4) **AND G9 passes** (only the targeted cluster changes). Structural-pass reported, not a gate.
 - **A3 — ingest robustness** (`drop_other`). Make a fetch failure a graceful per-filing
   `needs_review`, not an uncaught raise (the safe minimum); optional pre-1994-Q3 archive fallback.
-  **KEEP iff:** B5 ingest test passes AND no silent miss introduced.
+  **KEEP iff:** B5 ingest test passes **AND** no silent miss introduced **AND G9 passes** (the ingest
+  change must not alter the segmentation of any reachable filing).
 
-**Each fix: KEEP iff a real independent signal moves AND the full guard passes; else DISCARD +
-document.** No fix is kept because a forbidden proxy moved.
+**Each fix: KEEP iff a CAN-FAIL independent signal (RED anchor RED→GREEN / char-gold IoU 1.0 / D) moves
+the right way AND the full guard (incl. G8 + G9) passes; else DISCARD + document. A fix whose only
+movement is on a forbidden proxy OR on structural-pass alone is a DISCARD, not a win.**
 
 ---
 
@@ -128,14 +148,27 @@ ASSIGNMENT's **scalability / performance** ask with measured evidence.
   char-gold) is **human-labelled from the filing**, NEVER copied from production output. Freezing a
   bug as "correct" = circular = auto-discard. Adding RED anchors is safe ONLY alongside the existing
   GREEN clean-filing gold (which catches a fix that "passes" by over-widening).
-- structural-pass labelled **UPPER BOUND, not accuracy** on every line.
+- **NEW G9 — no-collateral-change (population over-widening guard).** The 1,656 sweep filings have no
+  gold — that is exactly where an over-wide regex hides. After EACH A-fix, re-run the FULL sweep and
+  **DIFF the per-filing segmentation output (spans + pass/reason per accession) BEFORE vs AFTER**. The
+  ONLY filings whose output may change are the **targeted cluster** (the ones the fix is meant to
+  recover). If ANY other filing's segmentation changed — a clean filing that was fine now segments
+  differently — that is a **candidate over-widening regression**: investigate each one and document it;
+  do NOT ship a fix that silently moved boundaries on filings it wasn't supposed to touch.
+  **Check:** `diff(before sweep_report.json spans, after sweep_report.json spans)` must partition into
+  `{targeted-cluster recovered}` ∪ `{∅}`. A non-empty second set **blocks the keep** until every member
+  is explained (re-classified as intended, or the fix narrowed). **G9 is part of EVERY A-step keep
+  gate, alongside the RED anchor and the char-gold.**
+- structural-pass labelled **UPPER BOUND, not accuracy** on every line; it is monitored/reported (§1),
+  never a keep gate.
 
 ## 7. STOP conditions
 
 - **S1** — a fix's only benefit is on a forbidden proxy (coverage/needs_review) → DISCARD (round-1
   pattern).
-- **S2** — a fix flips its RED anchor GREEN but regresses a clean char-gold or clean structural-pass →
-  DISCARD (the over-widening guard fired).
+- **S2** — a fix flips its RED anchor GREEN but regresses a clean char-gold (B) OR fails G9 (changed an
+  untargeted filing's segmentation) → DISCARD (the over-widening guard fired). Note: a structural-pass
+  *rise* is NEVER the thing that saves a fix here — only the can-fail gates do.
 - **S3** — budget / plateau.
 
 ## 8. Where it lands + no-push
