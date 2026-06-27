@@ -49,3 +49,9 @@ Thumbs.db
 # eval regenerable artifacts (report.md is kept as committed evidence)
 eval/run.log
 eval/report.json
+eval/sweep_report.json
+eval/sweep_fail_tail.json
+eval/llm_measure_results.json
+
+# Agent scratch / RCA working files — never commit
+scratch/
