@@ -18,9 +18,8 @@ import json
 import os
 import re
 import sys
-import threading
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing as mp
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -146,24 +145,56 @@ def render(records: list[dict], run_date: str) -> str:
     return "\n".join(L) + "\n"
 
 
-def _run_with_timeout(entry: dict, timeout: int = 90) -> dict:
-    """Run sweep_one in a daemon thread with a hard wall-clock timeout, so ONE wedged
-    fetch/parse/segment cannot stall the whole sweep. A hung filing is abandoned (the daemon
-    thread is left to die with the process) and recorded as a TIMEOUT drop -- honest, not silent."""
-    box: dict = {}
-    t = threading.Thread(target=lambda: box.__setitem__("r", sweep_one(entry)), daemon=True)
-    t.start()
-    t.join(timeout)
-    if t.is_alive():
-        return {"accession": entry["accession"], "sector": entry.get("sector", "?"),
-                "error": f"TIMEOUT after {timeout}s (wedged fetch/parse/segment)"}
-    return box.get("r", {"accession": entry["accession"], "error": "no result"})
+def _child(entry: dict, q) -> None:
+    """Process target: compute one filing's row and hand it back via the queue."""
+    try:
+        q.put(sweep_one(entry))
+    except Exception as exc:  # a child must never die silently
+        q.put({"accession": entry["accession"], "sector": entry.get("sector", "?"),
+               "error": f"CHILD:{type(exc).__name__}: {exc}"})
 
 
-def _worker(entry: dict) -> dict:
-    """Top-level (picklable) process-pool worker: one filing, with the internal hard timeout so a
-    wedged fetch/parse/segment cannot stall its worker (or the sweep)."""
-    return _run_with_timeout(entry, int(os.getenv("SWEEP_TIMEOUT", "90")))
+def _run_pool(todo, workers, timeout, results, total, out_json):
+    """Bounded process pool with a HARD-KILL per-filing timeout. Each filing runs in its own
+    multiprocessing.Process; one exceeding `timeout` is terminate()d -- which actually KILLS the
+    CPU-bound parse. (The earlier daemon-thread timeout could not: a slow 1M+ char `to_canonical`
+    left a zombie thread churning a core, and enough zombies saturated the box and cascaded healthy
+    filings into timeouts too -- whole filers dropped. Killing the process removes the zombie.)
+    A killed filing is an honest, logged TIMEOUT drop. Completion is signalled by the result landing
+    on the queue, which sidesteps the is_alive()/feeder-flush race."""
+    todo = list(todo)
+    running: dict = {}
+    n = len(results)
+    while todo or running:
+        while todo and len(running) < workers:
+            e = todo.pop()
+            q = mp.Queue()
+            p = mp.Process(target=_child, args=(e, q), daemon=True)
+            p.start()
+            running[id(p)] = (p, e, q, time.monotonic())
+        for k in list(running):
+            p, e, q, t0 = running[k]
+            try:
+                res = q.get_nowait()
+            except Exception:
+                res = None
+            if res is None and time.monotonic() - t0 > timeout:
+                p.terminate()
+                res = {"accession": e["accession"], "sector": e.get("sector", "?"),
+                       "error": f"TIMEOUT after {timeout}s (killed -- no zombie)"}
+            if res is not None:
+                p.join(2)
+                del running[k]
+                results[e["accession"]] = res
+                n += 1
+                tag = (f"ERR:{res['error'][:32]}" if "error" in res
+                       else ("PASS" if res["pass"] else f"FAIL:{res['reason']}"))
+                print(f"[{n}/{total}] {e['accession']} ({e.get('company','?')}/{e.get('target_year','?')}) {tag}",
+                      file=sys.stderr, flush=True)
+                if n % 10 == 0:
+                    _write(out_json, list(results.values()))  # checkpoint -> stall/crash-safe + resumable
+        time.sleep(0.15)
+    return n
 
 
 def _write(out_json: Path, records: list[dict]) -> None:
@@ -189,26 +220,11 @@ def main(argv: list[str]) -> int:
         except Exception:
             results = {}
     todo = [e for e in entries if e["accession"] not in results]
-    total, n = len(entries), len(results)
-    print(f"sweep: {total} filings, {len(todo)} to do, {len(results)} resumed, {workers} workers",
-          file=sys.stderr, flush=True)
-    with ProcessPoolExecutor(max_workers=workers) as ex:
-        futs = {ex.submit(_worker, e): e for e in todo}
-        for fut in as_completed(futs):
-            e = futs[fut]
-            try:
-                r = fut.result()
-            except Exception as exc:  # a worker that DIED (not just timed out) -> honest drop, logged
-                r = {"accession": e["accession"], "sector": e.get("sector", "?"),
-                     "error": f"POOL:{type(exc).__name__}: {exc}"}
-            results[e["accession"]] = r
-            n += 1
-            tag = (f"ERR:{r['error'][:32]}" if "error" in r
-                   else ("PASS" if r["pass"] else f"FAIL:{r['reason']}"))
-            print(f"[{n}/{total}] {e['accession']} ({e.get('company','?')}/{e.get('target_year','?')}) {tag}",
-                  file=sys.stderr, flush=True)
-            if n % 10 == 0:
-                _write(out_json, list(results.values()))  # checkpoint -> stall/crash-safe + resumable
+    total = len(entries)
+    timeout = int(os.getenv("SWEEP_TIMEOUT", "180"))
+    print(f"sweep: {total} filings, {len(todo)} to do, {len(results)} resumed, {workers} workers, "
+          f"{timeout}s kill-timeout", file=sys.stderr, flush=True)
+    _run_pool(todo, workers, timeout, results, total, out_json)
     recs = list(results.values())
     _write(out_json, recs)
     run_date = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
