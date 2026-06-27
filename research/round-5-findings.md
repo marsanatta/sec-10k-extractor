@@ -73,19 +73,47 @@ NOT a forbidden proxy (structural-pass / needs_review / extraction_failure). The
 code (`_HEADER_RE_LOOSE` + `_split_runs_tolerant`); only its APPLICATION is widened under the guard.
 Offline suite 95 passed / 1 skipped, network-free.
 
-**Residual risk (honest):** the guard proves no key is lost, anchors are stable, and gained headers READ
-as real — but it does not by itself prove every gained item's BOUNDARY is byte-correct (a gained item
-anchored on a *new* false cross-ref between two stable strict items would still pass). This is what the
-human-audited char-gold anchor is for: a sample of the 44 must be read from the filing and 1–2 locked as
-RED→GREEN char-gold, the same discipline that earned A1/A2. Audit packet generated in
-`scratch/r5_audit_packet.py` output.
+**The audit packet then exposed a false-positive class, which traced to a latent regex bug.** Reading
+the gained header at each offset (`scratch/r5_audit_packet.py`) showed a handful of gains anchored on
+in-prose CROSS-REFERENCES, not headers: `Item 1 under the caption "Risk Factors"`, `Item 8 of this
+Report`, `Item 8 herein`. Root cause (traced, not guessed): `_HEADER_RE_LOOSE`'s separator-less branch
+ends `\s+(?=[A-Z])`, but the pattern carries `(?i)`, so under IGNORECASE `[A-Z]` also matches lowercase
+— the documented "title starts uppercase" guard NEVER actually fired. A1/A2 never exposed it (empty
+cluster / Item-1-missing filings have no competing cross-refs); A3's broader application did.
+
+**Fix evolution (each step caught by an independent check — the loop working):**
+1. `(?-i:[A-Z])` (case-sensitive uppercase) — rejected the cross-refs BUT the regex-delta probe (buggy
+   vs fixed over the cache) showed it also dropped REAL headers whose item number is followed by a
+   lowercase token: combined headers (`Item 7 and 7A`, `Item 1 and 2.`) and title-less items
+   (`Item 15\n\n a) 1. Financial Statements`). Over-corrected → discarded.
+2. Negative-lookahead denylist of cross-ref words with `\s+` — fixed the combined/title-less, but the
+   delta then caught it dropping Lowe's `Item 2\n\nAt February 1, 2008...`: a title-less header whose
+   BODY starts with "At", and `\s+` let the denylist reach across the newline into the body. Discarded.
+3. **Same-line denylist (`[ \t]+`, final):** a title-less header puts its body on the NEXT line, so only
+   a SAME-line lowercase connective after the number signals a cross-reference. This rejects the in-prose
+   cross-refs and preserves combined / title-less / by-reference (`Item 7A\n\nSee MD&A`) / GIS-style.
+
+**Final measured state (1,735 cached):**
+- Regex-delta (original buggy loose regex vs same-line denylist): 7 filings change, ALL 7 are correct
+  cross-ref removals (verified by snippet), 0 real headers lost — a clean tightening.
+- A3 containment (old A1+A2 vs new A1+A2+A3): **identical=1696, widened=39, collateral=0.** 39 clean
+  pure-insertion recoveries, G9 zero-collateral by construction.
+- Offline suite **95 passed / 1 skipped, network-free**, across every regex iteration.
+- **One residual false positive** (`0001193125-15-070443`, an old=1-key 1.36M-char giant): A3 adds an
+  Item 1 anchored on an enumeration line `Item 1 Business, Item 1A Risk Factors, and Note 21...`. The
+  denylist can't catch it (the next word, "Business", is a real title word). Low harm — that filing is a
+  conspicuously under-segmented giant (2 keys) either way, so the validation layer flags it; it is NOT a
+  silent failure. A header-line-names-one-item filter (reject a gained header whose line holds a second
+  `Item N`) would close this enumeration class — deferred as a small future refinement, not load-bearing.
 
 ## Status / next
-- A3 (dominance + anchor-stability guard) IMPLEMENTED on `round5/a-full-relaxation`: +44 real recoveries,
-  G9 zero-collateral proven, suite green. The leading effective candidate.
+- A3 (dominance + anchor-stability guard) + the `_HEADER_RE_LOOSE` same-line cross-ref denylist
+  IMPLEMENTED on `round5/a-full-relaxation`: **+39 real recoveries, G9 zero-collateral, suite green.**
+  The leading effective candidate; the regex denylist also retroactively hardens A1/A2.
 - The 18 relocation cases + the `both` cluster (32 filings: relax net-helps but drops 7A) are LEFT for a
   later **Probe 2** (fix the 7A-drop / restart-vs-intruder ambiguity in `_split_runs_tolerant`) — separate,
-  riskier, gated the same way.
-- Pending for the gate: human-audit a sample of the 44 + lock 1–2 char-gold anchors (then they become
-  RED→GREEN eval evidence, as GIS did for A1).
+  riskier, gated the same way. The 1 enumeration residual + a header-line filter belong there too.
+- Pending for the gate: human-audit a sample of the 39 + lock 1–2 char-gold anchors (then RED→GREEN eval
+  evidence, as GIS did for A1). First clean candidate: `0000950123-11-019888` (77k chars, old=15 keys,
+  gains Part III 11/12/13/14/15).
 - Nothing pushed. Working branch `round5/a-full-relaxation`.

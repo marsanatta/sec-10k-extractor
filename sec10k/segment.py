@@ -15,13 +15,20 @@ from sec10k.items import CANONICAL_BY_KEY, CANONICAL_ORDER
 _SEP = re.escape("." + ":" + ")" + "-" + chr(0x2013) + chr(0x2014))
 _GAP = r"(?:[ \t]+|[ \t]*\n[ \t]*)"
 _HEADER_RE = re.compile(r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)\s*[" + _SEP + "]")
-# A1 (round 4): a RELAXED recogniser used ONLY as a fallback when the strict pass finds nothing (the
-# OXY/GIS separator-less "empty" cluster). After the number it also accepts a separator-LESS title:
-# whitespace then a Title-Case/UPPER word ("ITEM 1 Business", "ITEM 7\n\nMANAGEMENT"). `(?=[A-Z])`
-# rejects lowercase continuations ("Item 5 of the plan"). Confining it to the empty-fallback pass
-# means clean filings (non-empty under the strict pass) are never touched -> G9 zero-collateral.
+# A RELAXED recogniser used by the A1/A2/A3 fallback passes. After the number it also accepts a
+# separator-LESS title: whitespace then a Title-Case/UPPER word ("ITEM 1 Business", "ITEM 7\n\nMANAGEMENT").
+# Because the pattern is (?i), a bare `[A-Z]` lookahead does NOT actually reject lowercase, so the
+# separator-less branch would admit in-prose cross-references ("Item 1 under the caption", "Item 8 of
+# this Report", "Item 8 herein"). A negative lookahead rejects those by a cross-reference word on the
+# SAME line as the number. It must be same-line ([ \t]+, not \s+): a TITLE-LESS header puts its body on
+# the NEXT line ("Item 2\n\nAt February 1, 2008..."), and a body sentence can start with any of these
+# words -- only a SAME-line lowercase connective after the number signals a cross-reference. This is
+# preferred over an uppercase-only guard, which would also drop combined headers ("Item 7 and 7A",
+# "Item 1 and 2.") and title-less items. Item titles never start with these words on the header line.
+_XREF = (r"[ \t]+(?:under|of|in|as|at|to|on|by|for|with|from|herein|hereof|hereto|thereof|thereto|"
+         r"above|below|set\s+forth|described|referred|incorporated)\b")
 _HEADER_RE_LOOSE = re.compile(
-    r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)(?:\s*[" + _SEP + r"]|\s+(?=[A-Z]))")
+    r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)(?!" + _XREF + r")(?:\s*[" + _SEP + r"]|\s+(?=[A-Z]))")
 
 
 def _find_headers(text: str, header_re: "re.Pattern" = _HEADER_RE) -> list[tuple[str, int, int]]:
