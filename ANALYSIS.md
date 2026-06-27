@@ -332,7 +332,14 @@ added three new named modes with concrete accessions (detail:
   negligible**. NOT fixable by the header approach (there are no body headings to anchor on); a
   handling plan — parse the index table (item→page) + page-break markers → coarse boundaries, or a
   decorrelated CRF/structural extractor — is scoped in
-  `research/todo-exploration-crossref-index-handling.md` for a future round.
+  `research/todo-exploration-crossref-index-handling.md`. **Round 6 attempted the cheapest path (a
+  title-locator, approach B) and STOPPED at the decisive read-only experiment** (`research/round-6-findings.md`):
+  on the `intc-fy2018` anchor the current segmenter tiles the *index table itself* (coverage 1.6%, all
+  spans in the trailing table), and the body is a thematically-reorganized "integrated report" whose
+  item sections are **scattered and out of canonical order** (MD&A precedes Risk Factors; each title
+  recurs in TOC + body + cross-refs) — there is **no monotonic tileable item structure**, so B emits
+  out-of-order garbage. This **empirically confirms FM-4 is CRF-territory (approach D)**, not a
+  header/title-locator problem — out of scope, documented, not a silent failure.
 - **FM-5 — tolerant-split over-drop (the A3 partial-recovery ceiling).** The round-5 A3 pass widens
   an under-segmented filing only when the relaxed candidate is a strict **superset** of the strict
   keys (no item traded away). On **~1.8% of filings (32 / 1,735 cached; 22 of them drop Item 7A)**
