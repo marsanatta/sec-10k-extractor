@@ -14,7 +14,12 @@ from sec10k.items import CANONICAL_BY_KEY, CANONICAL_ORDER
 # a blank-line gap or no-space ("Item1.") is still rejected to avoid spurious mid-prose hits.
 _SEP = re.escape("." + ":" + ")" + "-" + chr(0x2013) + chr(0x2014))
 _GAP = r"(?:[ \t]+|[ \t]*\n[ \t]*)"
-_HEADER_RE = re.compile(r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)\s*[" + _SEP + "]")
+# A1 (round 4): after the number, accept a separator OR a separator-LESS title (whitespace then a
+# Title-Case/UPPER word: "ITEM 1 Business", "ITEM 7\n\nMANAGEMENT"). `(?=[A-Z])` rejects lowercase
+# continuations ("Item 5 of the plan"); the line anchor + the intruder-tolerant run split (A2) reject
+# in-prose cross-references.
+_HEADER_RE = re.compile(
+    r"(?im)^[ \t>]*item" + _GAP + r"(\d{1,2}[A-C]?)(?:\s*[" + _SEP + r"]|\s+(?=[A-Z]))")
 
 
 def _find_headers(text: str) -> list[tuple[str, int, int]]:
@@ -27,17 +32,39 @@ def _find_headers(text: str) -> list[tuple[str, int, int]]:
 
 
 def _split_runs(headers):
-    """Split header hits into maximal runs of non-decreasing canonical order. A 10-K's
-    table of contents and its body are each one such run."""
-    runs, cur, last = [], [], -1
-    for key, start, hend in headers:
-        order = CANONICAL_ORDER[key]
-        if order >= last:
-            cur.append((key, start, hend))
-        else:
-            runs.append(cur)
-            cur = [(key, start, hend)]
-        last = order
+    """Split header hits into maximal runs of non-decreasing canonical order. A 10-K's table of
+    contents and its body are each one such run.
+
+    Round-4 A2: tolerate a SINGLE out-of-order intruder -- a line-start in-prose cross-reference
+    (e.g. "Item 10 Executive Officers" inside Item 1's prose) that the relaxed A1 recogniser admits.
+    An intruder is distinguished from a genuine restart (TOC -> body, which also dips) by a
+    one-element LOOKAHEAD: an order dip is an intruder iff the NEXT hit RESUMES at/above the run's
+    last order; a restart's next hit does not resume past it. Two dip shapes are handled:
+      (b) the CURRENT hit is the dip ("...14, [10], 15"): skip it.
+      (a) the PREVIOUS hit was the spike ("...1, [10], 1A"): replace it with the current hit.
+    """
+    runs, cur = [], []
+    i, n = 0, len(headers)
+    while i < n:
+        hdr = headers[i]
+        order = CANONICAL_ORDER[hdr[0]]
+        if cur and order < CANONICAL_ORDER[cur[-1][0]]:
+            run_last = CANONICAL_ORDER[cur[-1][0]]
+            nxt = CANONICAL_ORDER[headers[i + 1][0]] if i + 1 < n else -1
+            prev = CANONICAL_ORDER[cur[-2][0]] if len(cur) >= 2 else -1
+            if nxt >= run_last:            # (b) current is a lone dip; next resumes -> skip current
+                i += 1
+                continue
+            if order >= prev:              # (a) cur[-1] was the spike -> drop it, keep current
+                cur[-1] = hdr
+                i += 1
+                continue
+            runs.append(cur)               # genuine restart (e.g. TOC -> body)
+            cur = [hdr]
+            i += 1
+            continue
+        cur.append(hdr)
+        i += 1
     if cur:
         runs.append(cur)
     return runs
