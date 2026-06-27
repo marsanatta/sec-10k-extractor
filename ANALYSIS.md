@@ -333,6 +333,18 @@ added three new named modes with concrete accessions (detail:
   handling plan — parse the index table (item→page) + page-break markers → coarse boundaries, or a
   decorrelated CRF/structural extractor — is scoped in
   `research/todo-exploration-crossref-index-handling.md` for a future round.
+- **FM-5 — tolerant-split over-drop (the A3 partial-recovery ceiling).** The round-5 A3 pass widens
+  an under-segmented filing only when the relaxed candidate is a strict **superset** of the strict
+  keys (no item traded away). On **~1.8% of filings (32 / 1,735 cached; 22 of them drop Item 7A)**
+  the relaxed pass admits an in-prose cross-reference (e.g. a "see Item 8" sitting between Item 7 and
+  Item 7A) that makes `_split_runs_tolerant` skip a *genuine* item, so the candidate is **not** a
+  superset and A3 **conservatively keeps the strict partial result** rather than recover more at the
+  cost of 7A. These stay **flagged (`needs_review` via coverage-implausible), not silent** — but ~20
+  of them (the "both" cluster: relax would gain items yet loses 7A) are partial recoveries left on the
+  table. The fix needs a restart-vs-intruder discriminator in the tolerant split that round-4 already
+  showed an order-lookahead **over-drops** (the ED 20→2 class), and it touches the split shared by
+  A1/A2/A3 — high blast-radius for a ~1.8% already-mitigated gain. Scoped as "Probe 2"; **deliberately
+  deferred** (`research/round-5-findings.md`).
 - **SGML boundary coverage is thin (N=1).** msft-fy1995 now carries independent char-gold on
   items 1/2/7 (boundary 1.0, 3/3), so the SGML era is no longer unmeasured — but it rests on a
   single filing, and **Item 8 was deliberately left ungolded**: its financial statements sit
