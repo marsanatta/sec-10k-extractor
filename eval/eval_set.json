@@ -624,6 +624,28 @@
     "8"
    ],
    "note": "Round-4 PINNED RED anchor (cross-reference-INDEX-TABLE class: body has NO 'Item N' headings; items located only via an end-of-doc 'FORM 10-K CROSS-REFERENCE INDEX' mapping item->page). HUMAN-AUDITED: the items ARE PRESENT (interpretation A) -> this is a REAL extraction miss, not legitimate absence. NOT an A1/A2/A3 target this round (header-anchored tiers structurally cannot find headingless body items); EXPECTED TO STAY RED until the index-table handler is built (plan: research/todo-exploration-crossref-index-handling.md). ~1% of the 1656 sweep, concentrated in GE/MCD/HON/INTC."
+  },
+  {
+   "id": "gis-fy2018",
+   "accession": "0001193125-18-209377",
+   "company": "GENERAL MILLS INC",
+   "fiscal_year": 2018,
+   "sector": "consumer_staples",
+   "filer_type": "large_accelerated",
+   "structure": "separator_less_header",
+   "expect_red": true,
+   "pathologies": [
+    "separator_less_header",
+    "empty_segmentation",
+    "html_2009_2018"
+   ],
+   "expected_present": [
+    "1",
+    "1A",
+    "7",
+    "8"
+   ],
+   "note": "Round-4 A1 RED anchor WITH human-audited char-gold (boundary_gold.json gis-fy2018, frozen 2026-06-27). Clean STANDALONE separator-less headers (ITEM 1 / ITEM 1A / ITEM 7 / ITEM 8) -> segment() currently returns 0 (empty). A1 must flip RED->GREEN AND hit the char-gold at IoU 1.0."
   }
  ]
 }
