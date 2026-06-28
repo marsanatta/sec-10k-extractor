@@ -60,3 +60,6 @@ scratch/
 # G9 no-collateral-change cache (one-time canonical cache, regenerable)
 eval/.g9_cache/
 eval/g9_baseline*.json
+
+# assignment brief — kept out of the repo
+ASSIGNMENT.md
