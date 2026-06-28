@@ -41,6 +41,15 @@
   background: #4b5667;
 }
 
+.source-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}
+
 * {
   box-sizing: border-box;
 }

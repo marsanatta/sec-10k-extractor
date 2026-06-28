@@ -148,9 +148,6 @@ export function InputBar({
               ))}
             </select>
           </div>
-          <small className="hint">
-            {escalate ? t("input.modelNote") : t("input.escalateOffNote")}
-          </small>
         </div>
 
         <div className="mode-switch" role="tablist">

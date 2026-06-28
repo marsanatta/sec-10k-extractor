@@ -110,6 +110,19 @@ export default function App() {
               {result.meta.fiscal_year ?? "?"} · {t("meta.filed")} {result.meta.filing_date || "?"}{" "}
               · <span className="mono">{result.meta.accession}</span> · {t("meta.era")}{" "}
               {result.meta.format_era}
+              {result.meta.source_url && (
+                <>
+                  {" "}·{" "}
+                  <a
+                    className="source-link"
+                    href={result.meta.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("meta.viewSource")} ↗
+                  </a>
+                </>
+              )}
             </p>
           )}
 
