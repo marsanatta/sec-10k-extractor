@@ -31,7 +31,12 @@
     "9A",
     "15"
    ],
-   "note": "clean modern iXBRL"
+   "note": "clean modern iXBRL",
+   "expected_status": {
+    "1C": [
+     "present"
+    ]
+   }
   },
   {
    "id": "ko-fy2023",
@@ -428,7 +433,15 @@
     "7",
     "8"
    ],
-   "note": "Probe-a eval growth (round 1): 2nd pre-2001 SGML data point after msft-fy1995; clean structural-pass on current code (items 1/7/8 header-anchored, coverage 0.93)."
+   "note": "Probe-a eval growth (round 1): 2nd pre-2001 SGML data point after msft-fy1995; clean structural-pass on current code (items 1/7/8 header-anchored, coverage 0.93).",
+   "expected_status": {
+    "7A": [
+     "legitimately_absent"
+    ],
+    "9C": [
+     "legitimately_absent"
+    ]
+   }
   },
   {
    "id": "wmt-fy2003",

@@ -96,6 +96,21 @@ def boundary_scores(result: ExtractionResult, gold_items: dict[str, list[int]], 
     }
 
 
+def status_match(result: ExtractionResult, expected_status: dict[str, list[str]]) -> dict:
+    """Per-item STATUS assertion (not just presence). Each named item's production status must be in
+    the human-written allowed set (present / legitimately_absent / extraction_failure). Catches
+    MIS-classification the presence-only check is blind to -- e.g. an era-absent item (1C pre-2024,
+    7A pre-1998) wrongly flagged extraction_failure instead of legitimately_absent, or an ABS item
+    not marked non-standard. The allowed sets come from the filing's era/structure, independent of
+    the segmenter -- so a wrong status fails this even when presence-recall stays 1.0."""
+    by_key = {it.item: it.status.value for it in result.items}
+    violations = [{"item": k, "got": by_key.get(k), "allowed": allowed}
+                  for k, allowed in expected_status.items()
+                  if by_key.get(k) not in allowed]
+    return {"matched": len(expected_status) - len(violations),
+            "total": len(expected_status), "violations": violations}
+
+
 def fmt_rate(k: int, n: int) -> str:
     if n == 0:
         return "0/0 (n/a)"

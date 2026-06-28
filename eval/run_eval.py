@@ -17,6 +17,7 @@ from sec10k.evalkit import (
     label_free_signals,
     presence_scores,
     scattered_item_check,
+    status_match,
 )
 from sec10k.pipeline import extract
 
@@ -87,6 +88,8 @@ def _run_one(entry: dict) -> dict:
         "silent_failure": is_silent_failure(result, exp),
         "boundary": boundary_scores(result, g["items"]) if g else None,
         "classification": classification_match_rate(result, cg["labels"]) if cg else None,
+        "status_match": (status_match(result, entry["expected_status"])
+                         if entry.get("expected_status") else None),
         "escalation": {k: s.get(k) for k in (
             "escalation_candidates", "escalation_performed", "escalation_provider",
             "escalation_calls", "escalation_input_tokens", "escalation_output_tokens")},
@@ -145,6 +148,10 @@ def main(argv=None) -> int:
     mrs = [r["boundary"]["match_rate"] for r in brows if r["boundary"]["match_rate"] is not None]
     agg["boundary_gold_filings"] = len(brows)
     agg["boundary_match_rate_mean"] = round(sum(mrs) / len(mrs), 3) if mrs else None
+    # per-item status correctness on the curated set
+    sxr = [r for r in ok if r.get("status_match")]
+    agg["status_violations"] = sum(len(r["status_match"]["violations"]) for r in sxr)
+    agg["status_checked"] = sum(r["status_match"]["total"] for r in sxr)
 
     run_date = (datetime.datetime.utcfromtimestamp(time.time()) + datetime.timedelta(hours=8)).strftime(
         "%Y-%m-%d %H:%M Asia/Taipei")
@@ -171,7 +178,11 @@ def _render_md(agg: dict, rows: list[dict], run_date: str) -> str:
         f"- **Covering-set non-RED pass (recall=1.0): {agg['fully_extracted_rate']}** "
         "(curated axes; population estimate ~78% is the random batch in ANALYSIS.md)",
         f"- **RED cases (tracked failures): {', '.join(agg['red_cases']) or 'none'}**",
-        f"- Presence silent-failure rate (lower better): {agg['silent_failure_rate']}",
+        f"- Presence silent-failure rate (lower better): {agg['silent_failure_rate']} "
+        "(PRESENCE-level only: missing gold keys; boundary-drift on present items is covered by the "
+        "char-gold IoU, not this rate)",
+        f"- Per-item status mismatches (era/by-ref/ABS vs human `expected_status`): "
+        f"{agg['status_violations']}/{agg['status_checked']} asserted statuses wrong",
         f"- Boundary match-rate @ IoU>=0.9 vs audited gold: {agg.get('boundary_match_rate_mean')}"
         f" over {agg.get('boundary_gold_filings', 0)} gold filings (per-era; gold stays human-audited)",
         f"- Structural-ok: {agg['structural_ok_rate']}  |  Coverage-plausible: {agg['coverage_plausible_rate']}",

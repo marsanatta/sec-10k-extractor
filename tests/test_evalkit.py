@@ -79,3 +79,22 @@ def test_scattered_item_check():
     assert scattered_item_check(r, "7", "early mda text")["inside"] is True
     # absent item -> abstain (None)
     assert scattered_item_check(r, "1", "anything")["inside"] is None
+
+
+def _result_status(statuses: dict) -> ExtractionResult:
+    items = [Item(item_id=f"I.{k}", part="I", item=k, title=k, text="t", char_range=(0, 1),
+                  status=st, confidence=Confidence(), provenance=Provenance())
+             for k, st in statuses.items()]
+    return ExtractionResult(FilingMeta("", "", "", "10-K", "", None, "html", None, None), items, 1, {})
+
+
+def test_status_match_fires_on_misclassification():
+    # validate-the-validator: a WRONG status (production extraction_failure where the era says the item
+    # is legitimately-absent) must violate, even though presence-recall would say nothing; a correct
+    # status passes.
+    from sec10k.evalkit import status_match
+    bad = _result_status({"7A": Status.EXTRACTION_FAILURE, "1": Status.PRESENT})
+    v = status_match(bad, {"7A": ["legitimately_absent"]})["violations"]
+    assert v and v[0]["item"] == "7A" and v[0]["got"] == "extraction_failure"
+    good = _result_status({"1C": Status.PRESENT})
+    assert status_match(good, {"1C": ["present"]})["violations"] == []
