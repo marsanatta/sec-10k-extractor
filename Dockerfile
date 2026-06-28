@@ -20,4 +20,6 @@ COPY --from=web /web/dist ./web/dist
 
 EXPOSE 8000
 # SEC_EDGAR_USER_AGENT must be provided at runtime (-e); the API returns a 500 if unset.
-CMD ["uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]
+# Bind $PORT when the platform injects one (Zeabur / Azure / Railway), else default 8000.
+# `exec` so uvicorn is PID 1 and receives SIGTERM on container stop.
+CMD ["sh", "-c", "exec uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-8000}"]
