@@ -18,10 +18,8 @@ export const markTourSeen = () => setCookie(TOUR_KEY);
 
 const INPUT_STEPS = [
   { key: "welcome", element: undefined },
-  { key: "tagline", element: '[data-tour="tagline"]' },
   { key: "demo", element: '[data-tour="demo"]' },
   { key: "lookup", element: '[data-tour="lookup"]' },
-  { key: "tabs", element: '[data-tour="tabs"]' },
   { key: "lang", element: '[data-tour="lang"]' },
 ] as const;
 

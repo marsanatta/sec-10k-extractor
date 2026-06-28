@@ -16,11 +16,6 @@ export async function fetchDemos(): Promise<DemoEntry[]> {
   return asJson<DemoEntry[]>(await fetch("/api/demo"));
 }
 
-export async function fetchEval(): Promise<string> {
-  const body = await asJson<{ markdown: string }>(await fetch("/api/eval"));
-  return body.markdown;
-}
-
 export async function fetchModels(): Promise<{ models: ModelInfo[]; default: string }> {
   return asJson<{ models: ModelInfo[]; default: string }>(await fetch("/api/models"));
 }

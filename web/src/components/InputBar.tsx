@@ -1,8 +1,7 @@
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { GlossaryKey } from "../i18n";
-import type { DemoEntry, ExtractRequest, ModelInfo } from "../types";
-import { ExampleGallery } from "./ExampleGallery";
+import type { ExtractRequest, ModelInfo } from "../types";
 import { InfoTip } from "./InfoTip";
 
 type Mode = "ticker" | "accession" | "text";
@@ -20,26 +19,22 @@ const MODE_TERM: Record<Mode, GlossaryKey> = {
 };
 
 interface Props {
-  demos: DemoEntry[];
   models: ModelInfo[];
   defaultModel: string;
   loading: boolean;
   elapsed: number;
   onSubmit: (req: ExtractRequest) => void;
-  onDemo: (id: string) => void;
   onText: (text: string, model?: string, escalate?: boolean) => void;
   token: string;
   onToken: (value: string) => void;
 }
 
 export function InputBar({
-  demos,
   models,
   defaultModel,
   loading,
   elapsed,
   onSubmit,
-  onDemo,
   onText,
   token,
   onToken,
@@ -97,15 +92,6 @@ export function InputBar({
 
   return (
     <div className="inputbar">
-      <div className="lookup-group demo-group" data-tour="demo">
-        <span className="group-title">
-          {t("input.demoTitle")}
-          <InfoTip term="curatedDemo" />
-          <small>· {t("input.demoNote")}</small>
-        </span>
-        <ExampleGallery demos={demos} loading={loading} onDemo={onDemo} />
-      </div>
-
       <div
         className={`lookup-group custom-group${hasInput && !hasToken ? " needs-token" : ""}`}
         data-tour="lookup"
@@ -135,26 +121,24 @@ export function InputBar({
         </div>
 
         <div className="field escalate-field">
-          <label htmlFor="escalate">
-            <input
-              id="escalate"
-              type="checkbox"
-              checked={escalate}
-              disabled={loading}
-              onChange={(e) => setEscalate(e.target.checked)}
-            />
-            {t("input.escalateLabel")}
-          </label>
-          {!escalate && <small className="hint">{t("input.escalateOffNote")}</small>}
-        </div>
-
-        {escalate && models.length > 0 && (
-          <div className="field model-field">
-            <label htmlFor="model">{t("input.modelLabel")}</label>
+          <div className="escalate-row">
+            <span className="escalate-toggle">
+              <input
+                id="escalate"
+                type="checkbox"
+                checked={escalate}
+                disabled={loading}
+                onChange={(e) => setEscalate(e.target.checked)}
+              />
+              <label htmlFor="escalate">{t("input.escalateLabel")}</label>
+              <InfoTip term="escalation" />
+            </span>
             <select
               id="model"
+              className="model-select"
               value={effectiveModel}
-              disabled={loading}
+              disabled={loading || !escalate || models.length === 0}
+              aria-label={t("input.modelLabel")}
               onChange={(e) => setModel(e.target.value)}
             >
               {models.map((m) => (
@@ -163,9 +147,11 @@ export function InputBar({
                 </option>
               ))}
             </select>
-            <small className="hint">{t("input.modelNote")}</small>
           </div>
-        )}
+          <small className="hint">
+            {escalate ? t("input.modelNote") : t("input.escalateOffNote")}
+          </small>
+        </div>
 
         <div className="mode-switch" role="tablist">
           {(["ticker", "accession", "text"] as Mode[]).map((m) => (

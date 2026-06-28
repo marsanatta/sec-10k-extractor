@@ -1,4 +1,23 @@
 {
+  "demos": {
+    "apple-fy2024": "乾淨的 modern iXBRL。每個 item 都找到，且每個邊界都與人工核對的 gold 完全吻合（IoU 1.0）。",
+    "ko-fy2023": "乾淨的 modern iXBRL。所有 item 都找到；邊界與 audited gold char-exact 吻合（IoU 1.0）。",
+    "msft-fy2023": "乾淨的 modern iXBRL。所有 item 都找到；邊界與 audited gold 吻合（IoU 1.0）。",
+    "msft-fy1995": "Legacy SGML（pre-2001），最舊的 filing 格式。Item 都找到，並帶有人工核對的 boundary gold（item 1/2/7 IoU 1.0），且由獨立於 regex 的方法標註。",
+    "msft-fy1996": "Legacy SGML（pre-2001）。Item 都找到，且該年代尚不存在的項目（如 1996 還沒有的 7A）正確標為 legitimately-absent，而非 extraction failure。",
+    "ge-fy2009": "HTML 年代、body 塌縮——rules 會把全部併成一個 item。保守的 edgartools fallback 接著把各 item 的開頭重新定位回我們自己的 canonical 文字，重建 item。",
+    "m2i-fy2023": "Token-per-line headers——'Item' 和 '1.' 分在不同行，會打敗單純的 regex。容忍換行的規則把所有 item 救回來。",
+    "scwo-fy2025": "smaller-reporting-company 的完整 10-K，同樣是 token-per-line headers；由容忍換行的規則救回。",
+    "jpm-fy2023": "壞掉的 text extractor 回傳空 body，系統偵測到並用 HTML fallback 救回。注意：Item 7（MD&A）是 scattered——該 span 只是個指標 stub，真正的 MD&A 落在範圍外，屬於被追蹤的 boundary 限制。",
+    "ms-fy2024": "Header 文字被剝除——named ceiling。'Item N' 標籤只存在於 styled tag 裡，樣式被拍平時就消失，所以 rule 和 fallback（兩者都靠 header）都找到 0 個 item。沒有 non-header model 就無法支援。會被 flag（needs_review），絕不靜默。",
+    "intc-fy2018": "Cross-reference index。body 完全沒有 'Item N' 標題；item 只列在文件末尾的索引表裡，coverage 因此塌到 ~1-2%。header 方法無法支援（約佔 1% 的 filing）。會被 flag。",
+    "ge-fy2023": "Cross-reference index。整合式 MD&A 加上順序錯亂的 item 參照，coverage 只有 ~1%；validation layer 會抓到（needs_review），但無法用人工標 boundary gold。",
+    "bac-fy2023": "因 run-fragmentation 導致 lead-item drop：對較早 item 編號的反向參照把 body 切成多段，系統保留較大段，丟掉 Item 1 和 7。會被 flag。",
+    "wmt-fy2003": "Lead-item drop。'PART I ITEM 1.' 黏在同一實體行，'PART I ' 夾在換行與 'ITEM' 之間，打敗 line-start anchor，丟掉 Item 1。會被 flag。",
+    "hon-fy2024": "Lead-item drop。no-separator header（'ITEM 1 BUSINESS'，編號後沒有 '.'/':'）不被要求分隔符的 regex 比對到。會被 flag。",
+    "gis-fy2018": "Separator-less header（hard anchor）。它的 boundary 經人工 char-gold 核對，但在整份 filing 層級仍被列為已知難案。Tracked。",
+    "scwo-fy2025-amend": "Filing selection。用 ticker+年份查詢可能抓到 10-K/A 修正版（只有 Part III）而非完整 10-K。eval 用 accession 釘住完整 filing。Tracked。"
+  },
   "app": {
     "title": "SEC 10-K Item Extractor",
     "taglineIndex": "index-don't-generate",

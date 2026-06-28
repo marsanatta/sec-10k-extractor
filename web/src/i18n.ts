@@ -13,6 +13,7 @@ export const resources = {
 
 export type AppLang = keyof typeof resources;
 export type GlossaryKey = keyof typeof en.g;
+export type DemoKey = keyof typeof en.demos;
 
 i18n.use(initReactI18next).init({
   resources,

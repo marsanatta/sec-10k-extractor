@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { extract, extractDemo, extractText, fetchDemos, fetchModels } from "./api";
-import { EvalView } from "./components/EvalView";
+import { ExampleGallery } from "./components/ExampleGallery";
 import { FailureInspector } from "./components/FailureInspector";
 import { InfoTip } from "./components/InfoTip";
 import { InputBar } from "./components/InputBar";
@@ -12,11 +12,8 @@ import { Onboarding } from "./components/Onboarding";
 import { SummaryPanel } from "./components/SummaryPanel";
 import type { DemoEntry, ExtractRequest, ExtractionResult, Item, ModelInfo } from "./types";
 
-type Tab = "inspect" | "eval";
-
 export default function App() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>("inspect");
   const [demos, setDemos] = useState<DemoEntry[]>([]);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [defaultModel, setDefaultModel] = useState("");
@@ -76,46 +73,30 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
-          {t("app.title")}
-          <small data-tour="tagline">
-            {t("app.taglineIndex")}
-            <InfoTip term="indexDontGenerate" /> · {t("app.taglineConfidence")}
-            <InfoTip term="calibratedConfidence" />
-          </small>
-        </div>
+        <div className="brand">{t("app.title")}</div>
         <div className="topbar-actions">
           <Onboarding hasResult={result != null} onLoadExample={() => runDemo("msft-fy1995")} />
           <LanguageSwitcher />
         </div>
-        <div className="tabs" data-tour="tabs">
-          <button
-            className="tab"
-            aria-pressed={tab === "inspect"}
-            onClick={() => setTab("inspect")}
-          >
-            {t("tabs.inspect")}
-          </button>
-          <InfoTip term="tabInspect" />
-          <button className="tab" aria-pressed={tab === "eval"} onClick={() => setTab("eval")}>
-            {t("tabs.eval")}
-          </button>
-          <InfoTip term="tabEval" />
-        </div>
       </header>
 
-      {tab === "eval" ? (
-        <EvalView />
-      ) : (
-        <>
+      <div className="workspace">
+        <aside className="examples-sidebar" data-tour="demo">
+          <div className="sidebar-head">
+            <span className="sidebar-title">{t("input.demoTitle")}</span>
+            <InfoTip term="curatedDemo" />
+            <small>{t("input.demoNote")}</small>
+          </div>
+          <ExampleGallery demos={demos} loading={loading} onDemo={runDemo} />
+        </aside>
+
+        <main className="workmain">
           <InputBar
-            demos={demos}
             models={models}
             defaultModel={defaultModel}
             loading={loading}
             elapsed={elapsed}
             onSubmit={runExtract}
-            onDemo={runDemo}
             onText={runText}
             token={token}
             onToken={setToken}
@@ -153,8 +134,8 @@ export default function App() {
           ) : (
             !loading && <div className="empty">{t("empty.start")}</div>
           )}
-        </>
-      )}
+        </main>
+      </div>
     </div>
   );
 }
