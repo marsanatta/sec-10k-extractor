@@ -14,7 +14,7 @@ COPY pyproject.toml ./
 COPY sec10k/ ./sec10k/
 COPY api/ ./api/
 COPY eval/report.md ./eval/report.md
-RUN pip install --no-cache-dir ".[api]"
+RUN pip install --no-cache-dir ".[api,llm]"
 
 COPY --from=web /web/dist ./web/dist
 
