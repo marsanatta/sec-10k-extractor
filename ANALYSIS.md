@@ -2,8 +2,10 @@
 
 What this system is, how well it works **with real numbers**, how it stays cheap, and — the
 part with no public ground truth — **how it verifies itself**. Every number here is produced
-by `eval/run_eval.py` over a 27-filing self-built set (`eval/eval_set.json`) plus the unit
-suites; reproduce with `python eval/run_eval.py` and `python -m pytest -q`.
+by `eval/run_eval.py` over a self-built set (`eval/eval_set.json`, **27 filings curated**) plus the
+unit suites. The committed `eval/report.md` measures **all 27** (dated 2026-06-28; `edgartools` is
+pinned so the canonical — and the frozen char-gold offsets — stay reproducible). Reproduce with
+`python eval/run_eval.py` and `python -m pytest -q`.
 
 The design in one line: **index, don't generate.** An item is a `char_range` into the
 filing's canonical text, never LLM free-text. A deterministic regex/anchor tier segments
@@ -51,44 +53,50 @@ Pooling lets the easy iXBRL cases hide the hard ones, so each bucket is reported
 **with its N**. Presence recall is over a conservative hand-labelled expected-present set;
 boundary match-rate is char-exact IoU ≥ 0.9 vs the audited gold (`eval/boundary_gold.json`).
 
-### Presence (label-free + conservative gold), 27-filing set (20 measured this run)
-The last committed `eval/report.md` (dated) measured the earlier 20-filing subset; the curated set
-is now **27 filings**, and a live re-run is pending EDGAR rate-limit recovery (so these presence
-numbers are the last network run, not the full 27). `ge-fy2023` dropped on a transient EDGAR
-disconnect (a consistent flaky fetch on that ~4 MB cross-reference-index filing — the B2 ceiling
-that structural-fails regardless), so N = 20 measured.
-- **Non-RED presence recall 14/14 = 1.0**; the **six** tracked RED residuals (bac, scwo-/A,
-  wmt-2003, amt-1997, ms-2024, hon-2024) pull the **mean recall to 0.78** — by design (§6), not a
-  hidden miss. Recall 1.0 is **the curated set, not a population claim** (the broad number is §2.5).
-- Silent-failure rate **0/20** (obs 0.00, 95% CI [0.00, 0.16]) — even the REDs are *flagged*
+### Presence (label-free + conservative gold), 27-filing set
+The committed `eval/report.md` (dated 2026-06-28) measures **all 27** filings; `ge-fy2023` — the
+~4 MB cross-reference-index filing that earlier dropped on a transient EDGAR disconnect — now fetches
+cleanly, so **N = 27** (`edgartools` is pinned so the canonical, hence the frozen char-gold offsets,
+stay reproducible — see the Boundary reproducibility note below).
+- **Non-RED presence recall 15/15 = 1.0**; the **twelve** tracked RED residuals (bac, scwo-/A,
+  wmt-2003, amt-1997, ms-2024, hon-2024, oxy-2006, xom-2024, duk-2010, csco-2018, intc-2018,
+  gis-2018) pull the **mean recall to 0.83** — by design (§6), not a hidden miss. Recall 1.0 is
+  **the curated set, not a population claim** (the broad number is §2.5).
+- Silent-failure rate **0/27** (obs 0.00, 95% CI [0.00, 0.12]) — even the REDs are *flagged*
   (`needs_review`), so a *silent* failure (a missed gold item with `needs_review=False`) = none.
-  Structural-ok **19/20** (the one geometry-fail is an amendment with legit-low coverage).
-- `needs_review` fired on **19/20** — the layer is conservative, flagging every hard/medium filing
-  and all six REDs.
+  Structural-ok **26/27** (the one geometry-fail is an amendment with legit-low coverage).
+- `needs_review` fired on **26/27** — the layer is conservative, flagging every hard/medium filing
+  and all twelve REDs.
 
 ### Boundary (char-exact), per era — with N
-| bucket | N gold filings | boundary match-rate @ IoU≥0.9 |
+| bucket | N gold filings | boundary match-rate @ IoU≥0.9 (mean IoU) |
 |---|---|---|
-| **iXBRL** | 4 (apple, ko, msft-2023, m2i) | **1.0** — apple 4/4, ko 4/4, msft-2023 4/4, m2i 2/2 |
-| **SGML** | 1 (msft-1995, items 1/2/7) | **1.0 (3/3)** |
+| **iXBRL** | 4 (apple, ko, msft-2023, m2i) | **1.0** — apple 4/4 (.996), ko 4/4 (.998), msft-2023 4/4 (.998), m2i 2/2 (1.000) |
+| **HTML** | 1 (gis-2018, items 1/1A/7/8) | **1.0 (4/4)** (.999) — boundary GREEN; the filing is full-filing RED (§6) |
+| **SGML** | 1 (msft-1995, items 1/2/7) | **1.0 (3/3)** (1.000) |
 | iXBRL, cross-ref-index (GE) | **0** | **unmeasured / ungoldable** (see §6) |
 
-Boundary match-rate **1.0 over the 5 GREEN-eval gold** (iXBRL apple/ko/msft-2023 + m2i; SGML
-msft-1995), reported **per bucket, never pooled** — the GE cross-reference case (§6) has **N=0**
-char-gold and is excluded, not averaged away. Two of these are **method-independent**, not frozen
-from the regex: m2i (title-labelled by hand) and msft-1995 (SGML body located by *reading* the
-canonical, then confirmed at IoU 1.0); their agreement is a genuine cross-method confirmation. The
-other three GREEN gold are regex-verified, human-audited (apple/ko/msft-2023).
+Boundary match-rate **1.0 over the 6 eval-set char-gold**, **mean IoU 0.996–1.000** per filing,
+reported **per bucket, never pooled** — the GE cross-reference case (§6) has **N=0** char-gold and is
+excluded, not averaged away. Two are **method-independent**, not frozen from the regex: m2i
+(title-labelled by hand) and msft-1995 (SGML body located by *reading* the canonical); their agreement
+is a genuine cross-method confirmation. The other four are human-audited (apple/ko/msft-2023
+regex-verified; gis-2018 read directly from the filing).
 
-Three further char-gold (`boundary_gold.json` holds **8** entries in total) were added in rounds
-4–7 as **fix-target boundaries** for hard headers: gis-2018 (separator-less), usb-2010
-(partial-coverage), oxy-2020 (combined *Items 1 and 2*). The round-9 G9 gate reports these at
-IoU 1.0, but they are **hard cases, not clean passes** — usb-2010/oxy-2020 are not in the eval
-covering set, and **gis-fy2018 is still flagged `expect_red` at the full-filing level in
-`eval_set.json`**, a flag that contradicts the round-9 char-gold result and needs reconciliation
-(it is offline-unverifiable here: the g9 cache is empty and EDGAR is rate-limited). So the
-**verified accuracy floor is the 5 GREEN gold**; the three fix-target golds are reported honestly
-as such, not as a clean 8/8.
+`boundary_gold.json` holds **8** entries: the **6** above are in the eval covering set; the other **2**
+(usb-2010 partial-coverage, oxy-2020 combined *Items 1 and 2*) are fix-target boundaries not in the
+covering set. **gis-fy2018 is boundary-GREEN (4/4) but still `expect_red` at the full-filing level** —
+**not a contradiction, different scopes**: the char-gold IoU is a *boundary-level* result on the items
+marked, while `expect_red` is the *full-filing* verdict (the filing still fails other items). So the
+**verified boundary floor is these 6 gold** (5 clean-filing GREEN + gis as a boundary-GREEN
+fix-target); the 2 off-set golds are reported honestly as such, not as a clean 8/8.
+
+**Reproducibility note (why the offsets are stable).** Char-gold is byte-offset-based, so it tracks the
+exact canonical text. `edgartools` (which renders the canonical) is now **pinned** in `pyproject.toml`:
+an earlier *unpinned* drift (5.16→5.40) silently shifted m2i's canonical ~33 chars and desynced its
+frozen Item-1A offset (mean IoU fell 0.993→0.68). The gold was re-audited to the pinned-5.40 canonical
+(m2i back to 2/2 at IoU 1.000) and the pin prevents recurrence — detail in
+`prompts/2026-06-28-*-reaudit-m2i-boundary-gold-after-edgartools-pin.md`.
 
 ### 2.5 Robustness on a diverse batch — the curated set was hiding empties
 
@@ -124,8 +132,8 @@ filings** spanning the axes in §1 and measured once (`eval/report.md`, dated), 
 bucket, not pooled** — so you can see *which axis breaks*. On this curated set the non-RED
 filings pass **14/14** (recall 1.0) and the two tracked residuals go **RED** by design:
 `lead_item_drop` (BAC) **0/1**, `amendment_10ka` (10-K/A selection) **1/2**; every other
-era/structure/sector bucket is green, silent-failure **0/16** (the REDs are *flagged*, not
-silent). The char-exact boundary gold was **not** expanded in that pass (it then stood at **5
+era/structure/sector bucket is green, silent-failure **0/16 in that earlier 16-filing pass** (the
+REDs are *flagged*, not silent; the current committed headline is **0/27**, §2). The char-exact boundary gold was **not** expanded in that pass (it then stood at **5
 human-audited filings**; later rounds grew it to **8** — §2, §5.3 — still no auto-freezing). This 14/14 is **axis coverage on a curated set, not a population
 rate** — the random-batch ~78% above remains the honest broad signal; BAC + the 10-K/A selection
 are now *tracked* (not papered over) so the next pass can target whichever bucket accrues the
@@ -137,9 +145,9 @@ most reds. The HTML 2008–2012 era bucket (ge-2009, xom-2010) is now covered: *
 hard-strata tracked REDs (amt-1997 collapsed SGML, ms-2024 the common-mode ceiling, hon-2024
 no-separator). Measured post-round (N=20; ge-2023 transient drop): **non-RED 14/14** still clean,
 **silent-failure 0/20**, **boundary 1.0 / 5 gold unchanged** (never auto-frozen; the gold has
-since grown to **8 human-audited filings** in later rounds — §2, §5.3). The six REDs
-now span six distinct failure classes (§6) — a deliberately adversarial spread, every one
-*flagged*, none silent.
+since grown to **8 human-audited filings** in later rounds — §2, §5.3). The six REDs at that
+point spanned six distinct failure classes (§6); rounds 4–9 then added six more anchors → **12
+REDs** today (§2). Every one is *flagged*, none silent.
 
 **Population structural sweep (committed + reproducible).** The 27-filing curated set is small
 (wide CIs), so committed label-free sweeps (`eval/structural_sweep.py`) over large,
@@ -175,28 +183,33 @@ eval/structural_sweep.py`.
 
 The deterministic path does the work; the LLM is the exception, not the rule.
 
-- **Deterministic tier: \$0 inference, 100% of filings.** Regex/anchor segmentation +
-  structural validation + the XBRL/DEI oracles make no paid model call. The HIGH-confidence
-  majority of items is accepted here at zero marginal cost.
+- **Deterministic tier: \$0 inference, runs on 100% of filings.** This is a **cost** statement
+  (every filing passes through the rules tier with no paid model call) — **not** an accuracy figure:
+  robustness is the 85.6–93.5% structural-pass upper bound (§2.5) and the accuracy floor is the 8
+  human-audited char-gold (§5.3). Regex/anchor segmentation + structural validation + the XBRL/DEI
+  oracles make no paid model call. The HIGH-confidence majority of items is accepted here at zero
+  marginal cost.
 - **Escalation tier: flagged minority only, windowed.** A boundary is escalated only if it is
-  not HIGH confidence (or the item is an extraction-failure). Measured on the 7 core curated filings (pre-batch)
-  set: **64 / 161 canonical item-slots flagged (39.8%)** — but that average is dominated by the
-  pathological filings (GE 23/23 all-low, chemed 12/12); on the clean filings it is **apple
-  1/23, ko 3/23**. Each escalation sees a **±2000-char window** (`build_lib_prompt`,
-  `sec10k/escalation.py`), ~1k tokens, never the whole filing.
+  not HIGH confidence (or the item is an extraction-failure). On the committed 27-filing ledger
+  (`eval/report.md`) the confidence gate flags **203 escalation candidates** — dominated by the
+  pathological filings (ge-2023 23, intc-2018 21, hon-fy2024 16); on the clean filings the flagged
+  fraction is small — **apple 1/23, ko 3/23**. Each escalation sees a **±2000-char window**
+  (`build_lib_prompt`, `sec10k/escalation.py`), ~1k tokens, never the whole filing.
 - **Estimated escalation cost if wired** (small-model rates ~\$0.15/1M input): ~9k tokens ×
   flagged-items ⇒ blended **≈ \$0.001–0.002 / filing**, under the \$0.003–0.006 target; clean
   filings ≈ \$0.0002. The planned provider is the **GitHub Copilot SDK (flat-rate quota)**, so
   the marginal \$ is ≈ 0 and the truly bounded resource is **escalation requests/filing +
   latency**, not \$/token.
-- **Cost vs the naive baseline (a Pareto point):** *adjudicate-all* would call the LLM on all
-  **161** item-slots; *escalate-only-flagged* calls **64** (**−60%**), and on a clean filing
-  **1 vs 23 (−96%)**. Same correctness ceiling on the boundaries that matter, a fraction of the
-  calls.
-- **Cost is now MEASURED on the real provider, with graceful fallback.** The escalation tier is
-  wired to the **GitHub Copilot SDK** (`sec10k/copilot_client.py`, §7). With a token configured, a
-  real run on `ko-fy2023` fired **3 calls = 39,365 input + 386 output tokens** (~13k input/call —
-  the Copilot CLI wraps each call in its agent harness, so input dwarfs the ~1k LIB prompt).
+- **Cost vs the naive baseline (a Pareto point):** *adjudicate-all* would call the LLM on every
+  present item in all 27 filings; *escalate-only-flagged* calls only the **203 gated candidates**
+  (`eval/report.md`), and on a clean filing **1 vs 23 (−96%)** (apple). Same correctness ceiling on
+  the boundaries that matter, a fraction of the calls.
+- **Cost is MEASURABLE on the real provider, with graceful fallback.** The escalation tier is
+  wired to the **GitHub Copilot SDK** (`sec10k/copilot_client.py`, §7). The committed
+  `eval/report.md` ledger is the **\$0 deferred default** (0 calls / 0 tokens); a separate **live,
+  uncommitted Copilot run** on `ko-fy2023` fired **3 calls at ~13k input tokens/call** — the Copilot
+  CLI wraps each call in its agent harness, so input dwarfs the ~1k LIB prompt (exact token totals
+  are run-variable and not committed).
   Copilot is **flat-rate quota**, so the marginal **\$ ≈ 0**; the bounded resource is **escalation
   requests/quota + latency**, not \$/token. `run_escalation` sums real per-call usage into the
   per-filing ledger (`escalation_calls / input_tokens / output_tokens / applied`).
@@ -247,9 +260,11 @@ cheap→expensive. Each is named by its real file + test.
    read-located) are method-independent of the regex, the other six human-audited (apple/ko/msft-2023
    regex-verified; gis-2018/usb-2010/oxy-2020 read directly from the filing). This is the only signal
    that turns a *wrong* boundary into a number; it sees the common-mode the cross-check is blind to,
-   on the filings it covers. The **5 GREEN-eval gold** match at **IoU 1.0** (scoped per era); the
-   three added hard-strata golds (gis/usb/oxy-2020) are **fix-target boundaries**, reported at IoU
-   1.0 by the round-9 G9 gate but kept honest as hard cases (gis-fy2018 is still `expect_red` at the
+   on the filings it covers. The **6 eval-set gold** pass at **match-rate 1.0 (IoU ≥ 0.9)**, **mean
+   IoU 0.996–1.000** per filing (m2i is exact at 1.000 after the 2026-06-28 edgartools-pin re-audit —
+   §2), scoped per era; the two off-set hard-strata golds (usb-2010/oxy-2020) are **fix-target
+   boundaries** not in the covering set, reported at match-rate 1.0 by the round-9 G9 gate but kept
+   honest as hard cases (gis-fy2018 is in the set, boundary-GREEN, yet still `expect_red` at the
    full-filing level — see §2).
 4. **XBRL Item-8 oracle (independent data source).** From the companyfacts API — never our own
    output — a tagged financial fact must fall inside the extracted Item 8 (`sec10k/oracle.py`).
@@ -306,9 +321,9 @@ cheap→expensive. Each is named by its real file + test.
    Two anchors so far: apple-fy2024 `{1C: present}`, msft-fy1996 `{7A, 9C: legitimately_absent}`.
 
 The headline metric is therefore **abstention/needs_review-gated**: the system is allowed to
-be wrong only if it says so. Silent-failure 0/20 (the post-round-1 set; ge-2023 transient drop)
-is the number that matters; boundary 1.0 over the **5 verified GREEN gold** (of 8 char-gold total;
-3 are fix-target hard cases, §2) is scoped to the era it was measured on.
+be wrong only if it says so. Silent-failure **0/27** is the number that matters; boundary **match-rate
+1.0 at IoU ≥ 0.9** over the **6 eval-set gold** (mean IoU 0.996–1.000; of 8 char-gold total, 2 are
+off-set fix-targets, §2) is scoped to the era it was measured on.
 
 ---
 
@@ -441,9 +456,11 @@ and kept as an honest opt-in, because we **measured it** and it earns no indepen
    CLI/library callers that pass `enabled=None`. **A token alone does not turn it on**, so the default
    extract path stays deterministic (\$0) even on a token-configured server, the **offline suite stays
    network-free**, and the measured no-gain result above is why the default is off rather than on.
-3. **Cost — MEASURED, not estimated (§3).** With the token set, a real run on `ko-fy2023` fired
-   **3 calls = 39,365 input + 386 output tokens** (~13k input/call — the Copilot CLI wraps each
-   call in its agent harness, so input dwarfs the ~1k LIB prompt itself). Copilot is **flat-rate
+3. **Cost — measurable on the real provider; \$0 deferred in the committed ledger (§3).** The
+   committed `eval/report.md` shows the default \$0 deferred ledger (0 calls / 0 tokens); a live,
+   uncommitted Copilot run on `ko-fy2023` fired **3 calls at ~13k input tokens/call** — the Copilot
+   CLI wraps each call in its agent harness, so input dwarfs the ~1k LIB prompt itself (exact totals
+   are run-variable, not committed). Copilot is **flat-rate
    quota**, so the marginal **\$ ≈ 0**; the bounded resource is **requests/quota + latency**, not
    \$/token. On a clean filing the calls are no-ops (`applied: 0` — the boundaries are already
    correct, so the model confirms rather than moves). The LLM only ever touches the flagged

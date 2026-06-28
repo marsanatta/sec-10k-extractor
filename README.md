@@ -33,7 +33,7 @@ This tool reads one 10-K and returns each item separately. For each item, it giv
 
 The system has three layers. It always uses the cheap one first:
 
-1. A **deterministic** layer (fixed rules: regular expressions and section anchors) handles about 100% of normal filings at **$0** — no paid model call.
+1. A **deterministic** layer (fixed rules: regular expressions and section anchors) runs on ~100% of filings at **$0** — no paid model call. (This is a **cost** statement, not an accuracy one: every filing passes through the rules tier for free; the robustness and accuracy numbers are in [`ANALYSIS.md`](ANALYSIS.md) §2.)
 2. A **validation layer** then attaches a confidence score and a provenance record (which checks passed or failed) to every item. **This layer is the real product** — no existing item-splitter reports confidence.
 3. A **language-model (LLM) layer** is available but **turned off by default**. We measured it and it gave **no improvement** on our verified examples, so the default path never calls it. (Details below and in [`ANALYSIS.md`](ANALYSIS.md) §7.)
 
@@ -138,7 +138,7 @@ Each decision below is backed by a reason or by measured evidence.
 | Decision | Reason or evidence |
 |----------|--------------------|
 | **Index, don't generate** (items are character ranges, not generated text) | The round-trip rebuild is an enforced check, so coverage is provable and no text is invented. |
-| **Deterministic rules first, LLM last** | Existing research shows a code/rules segmenter handles ~100% of normal filings at $0; the LLM is reserved for the flagged minority. |
+| **Deterministic rules first, LLM last** | Existing research shows a code/rules segmenter can run on ~100% of filings at $0 (a cost point, not an accuracy claim); the LLM is reserved for the flagged minority. |
 | **The validation layer is the product** | No existing item-splitter reports confidence. The differentiator is calibrated confidence + provenance on every item, gated by `needs_review`. |
 | **Independent oracles for verification — never self-consistency** | A model judging its own output cannot catch its own confident, systematic errors. Every check uses a source that does not share code with the extractor. |
 | **Conservative `edgartools` fallback** (never copies foreign offsets) | It re-locates item heads in our own canonical text to keep the `char_range` contract, and only fires when the rules fail — so clean filings are untouched. |
@@ -159,7 +159,7 @@ These cases are reliable. Each row names a **real, accession-pinned filing** fro
 
 | Case | Example filing | Result |
 |------|----------------|--------|
-| Clean modern iXBRL | Apple FY2024, Coca-Cola FY2023, Microsoft FY2023 | All items found; char-exact boundary match (IoU 1.0; IoU = intersection-over-union, a 0–1 overlap score). |
+| Clean modern iXBRL | Apple FY2024, Coca-Cola FY2023, Microsoft FY2023 | All items found; char-exact boundary match (match-rate 1.0 at IoU ≥ 0.9, mean IoU ≈ 1.0; IoU = intersection-over-union, a 0–1 overlap score). |
 | Legacy SGML (pre-2001) | Microsoft FY1995 / FY1996 | Items found; FY1995 carries human-verified boundary gold. |
 | Token-per-line headers (`Item` then `1.`) | M2i FY2023, 374Water FY2025 | A newline-tolerant rule recovers the items. |
 | Collapsed body, recovered | GE FY2009 | The rules collapse the body → the `edgartools` fallback rebuilds the items. |
@@ -207,7 +207,7 @@ There is no public, filing-level reference answer (ground truth) for 10-K item b
 6. **Signal D — classification gold.** A human-audited, frozen reference labels each item's true status by the objective rule "does the heading physically exist?". It independently catches real production errors (for example a date-boundary mistake on Item 1C).
 7. **Validate-the-validator.** A mutation battery injects faults (swap, merge, truncate an item) into a known-good filing and asserts each check fires. A check that never fails is worthless.
 
-The headline result is **silent-failure rate 0 on the curated set** (where the flag is measured against the gold) — the system is allowed to be wrong only when it says so. On the large population sweep we report structural-pass only (an upper bound); the flag-vs-silent check on the fail tail is reproducible via `eval/sweep_fail_tail.py`, but that population result is not committed as a report. Boundary match is IoU 1.0 on the **5 verified gold filings** (8 char-gold in total; the other 3 are hard-case fix-targets, see [`ANALYSIS.md`](ANALYSIS.md) §2), scoped per era.
+The headline result is **silent-failure rate 0/27 on the curated set** (where the flag is measured against the gold) — the system is allowed to be wrong only when it says so. On the large population sweep we report structural-pass only (an upper bound); the flag-vs-silent check on the fail tail is reproducible via `eval/sweep_fail_tail.py`, but that population result is not committed as a report. Boundary match-rate is **1.0 at IoU ≥ 0.9 across the 6 eval-set gold filings** (mean IoU 0.996–1.000: Apple, Coca-Cola, Microsoft FY2023, M2i, Microsoft FY1995, General Mills FY2018); 8 char-gold in total (the other 2 — US Bancorp, Occidental — are fix-targets outside the covering set, see [`ANALYSIS.md`](ANALYSIS.md) §2), scoped per era.
 
 ---
 
