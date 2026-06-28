@@ -811,6 +811,11 @@ a:focus-visible,
   pointer-events: none;
 }
 
+.infotip-bubble.infotip-above {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
 .infotip-bubble strong {
   color: var(--accent);
 }
