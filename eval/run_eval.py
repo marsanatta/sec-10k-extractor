@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
 import re
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path for `python eval/run_eval.py`
@@ -109,18 +111,40 @@ def _bucket(ok: list[dict], key: str) -> list[tuple]:
     return sorted(out.items())
 
 
+def _run_one_safe(entry: dict) -> dict:
+    """`_run_one` for the worker pool: isolate a per-filing failure (one bad filing must not sink the
+    report) and keep the progress prints. Returns the row dict either way."""
+    t0 = time.monotonic()
+    print(f"[eval] {entry['id']} ...", file=sys.stderr, flush=True)
+    try:
+        row = _run_one(entry)
+        print(f"[eval] {entry['id']} done in {time.monotonic() - t0:.0f}s", file=sys.stderr, flush=True)
+        return row
+    except Exception as ex:  # one bad filing must not sink the whole report
+        print(f"[eval] {entry['id']} ERROR: {ex}", file=sys.stderr, flush=True)
+        return {"id": entry["id"], "error": f"{type(ex).__name__}: {ex}"}
+
+
+def _run_all(entries: list[dict]) -> list[dict]:
+    """Evaluate the filings in parallel with a PROCESS pool, returning rows in the SAME order as
+    `entries`. Each filing is ~30s of GIL-held work (the XBRL Item-8 oracle's concept search + the
+    big-doc parse) plus edgartools' in-process-serialized HTTP, so THREADS give no overlap (one GIL,
+    one throttle -- measured 0.9x). Separate PROCESSES have separate GILs and separate edgartools
+    throttles, so the work truly parallelizes -- the same reason eval/structural_sweep.py uses
+    processes. `ProcessPoolExecutor.map` preserves input order, so report.md / report.json stay
+    stable regardless of completion order. EVAL_WORKERS tunes it (default 4: with processes the
+    fetches overlap, so kept modest to stay under SEC's 10 req/s). EVAL_WORKERS<=1 runs in-process --
+    no pool/pickle overhead -- used by the offline correctness test and for a clean sequential A/B."""
+    workers = int(os.getenv("EVAL_WORKERS", "4"))
+    if workers <= 1 or len(entries) <= 1:
+        return [_run_one_safe(e) for e in entries]
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(_run_one_safe, entries))
+
+
 def main(argv=None) -> int:
     entries = json.loads(MANIFEST.read_text())["filings"]
-    rows = []
-    for e in entries:
-        t0 = time.monotonic()
-        print(f"[eval] {e['id']} ...", file=sys.stderr, flush=True)
-        try:
-            rows.append(_run_one(e))
-            print(f"[eval] {e['id']} done in {time.monotonic() - t0:.0f}s", file=sys.stderr, flush=True)
-        except Exception as ex:  # one bad filing must not sink the whole report
-            rows.append({"id": e["id"], "error": f"{type(ex).__name__}: {ex}"})
-            print(f"[eval] {e['id']} ERROR: {ex}", file=sys.stderr, flush=True)
+    rows = _run_all(entries)
 
     ok = [r for r in rows if "error" not in r]
     n = len(ok)
