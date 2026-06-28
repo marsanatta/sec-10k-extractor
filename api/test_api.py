@@ -57,14 +57,17 @@ def test_health_is_open(client):
     assert resp.json() == {"status": "ok"}
 
 
-def test_demo_returns_five_entries(client):
+def test_demo_returns_grouped_entries(client):
     resp = client.get("/api/demo")
     assert resp.status_code == 200
     body = resp.json()
-    assert len(body) == 5
-    assert {e["id"] for e in body} == {
-        "apple-fy2024", "ko-fy2023", "ge-fy2023", "m2i-fy2023", "msft-fy1995"
-    }
+    assert len(body) == len(server.DEMO_FILINGS)
+    assert {"apple-fy2024", "ge-fy2023", "ms-fy2024"} <= {e["id"] for e in body}
+    for entry in body:
+        assert entry["group"] in {"good", "limitation"}
+        assert isinstance(entry.get("detail"), str) and entry["detail"].strip()
+    assert any(e["group"] == "good" for e in body)
+    assert any(e["group"] == "limitation" for e in body)
 
 
 def test_eval_returns_markdown(client):

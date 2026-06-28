@@ -2,6 +2,7 @@ import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { GlossaryKey } from "../i18n";
 import type { DemoEntry, ExtractRequest, ModelInfo } from "../types";
+import { ExampleGallery } from "./ExampleGallery";
 import { InfoTip } from "./InfoTip";
 
 type Mode = "ticker" | "accession" | "text";
@@ -44,7 +45,6 @@ export function InputBar({
   onToken,
 }: Props) {
   const { t } = useTranslation();
-  const [demo, setDemo] = useState("");
   const [mode, setMode] = useState<Mode>("ticker");
   const [ticker, setTicker] = useState("");
   const [fiscalYear, setFiscalYear] = useState("");
@@ -61,13 +61,6 @@ export function InputBar({
   const hasInput = Boolean(input);
   const hasToken = Boolean(token.trim());
   const canSubmit = hasInput && hasToken && !loading;
-
-  function pickDemo(id: string) {
-    const entry = demos.find((d) => d.id === id);
-    if (!entry) return;
-    setDemo("");
-    onDemo(entry.id);
-  }
 
   function submit() {
     if (!canSubmit) return;
@@ -110,21 +103,7 @@ export function InputBar({
           <InfoTip term="curatedDemo" />
           <small>· {t("input.demoNote")}</small>
         </span>
-        <select
-          value={demo}
-          disabled={loading}
-          onChange={(e) => {
-            setDemo(e.target.value);
-            if (e.target.value) pickDemo(e.target.value);
-          }}
-        >
-          <option value="">{t("input.demoPlaceholder")}</option>
-          {demos.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.label} — {d.note}
-            </option>
-          ))}
-        </select>
+        <ExampleGallery demos={demos} loading={loading} onDemo={onDemo} />
       </div>
 
       <div

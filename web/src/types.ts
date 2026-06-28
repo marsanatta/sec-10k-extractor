@@ -79,6 +79,8 @@ export interface DemoEntry {
   ticker?: string;
   fiscal_year?: number;
   note: string;
+  group: "good" | "limitation";
+  detail: string;
 }
 
 export interface ExtractRequest {

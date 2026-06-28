@@ -51,7 +51,8 @@
   "input": {
     "demoTitle": "Curated demo",
     "demoNote": "no token",
-    "demoPlaceholder": "Pick an example…",
+    "groupGood": "Works well",
+    "groupLimitation": "Known limitations",
     "customTitle": "Look up or submit a filing",
     "customNote": "needs access token",
     "tokenLabel": "Access token",

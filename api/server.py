@@ -29,20 +29,82 @@ EXTRACT_TIMEOUT_S = 120
 MAX_UPLOAD_CHARS = 6_000_000
 _HTML_RE = re.compile(r"<\s*(html|body|div|p|table|td|tr|span|ix:)\b", re.I)
 
-# Curated reviewer examples. Extraction still goes through /api/extract (and is cached by
-# accession), so a clean filer fetched by ticker resolves to the same cached result.
+# Curated reviewer examples, grouped into "Works well" (good) and "Known limitations"
+# (limitation) per the README tables / ANALYSIS.md sec.6. Extraction still goes through
+# /api/extract (and is cached by accession), so a clean filer fetched by ticker resolves to
+# the same cached result. `detail` is the rich, English-only description shown in the gallery.
 DEMO_FILINGS = [
     {"id": "apple-fy2024", "label": "Apple FY2024", "accession": "0000320193-24-000123",
-     "note": "clean iXBRL"},
-    {"id": "ko-fy2023", "label": "Coca-Cola FY2023", "ticker": "KO", "fiscal_year": 2023,
-     "note": "clean iXBRL"},
-    {"id": "ge-fy2023", "label": "General Electric FY2023", "accession": "0000040545-24-000027",
-     "note": "known mis-segmented - regex latched onto the cross-reference index"},
-    {"id": "m2i-fy2023", "label": "M2i Global FY2023", "accession": "0001493152-24-014827",
-     "note": "newline-broken 'Item' headers defeat the regex; unlocated items are flagged "
-             "extraction_failure (not dropped) and the filing needs review"},
+     "group": "good", "note": "clean iXBRL",
+     "detail": "Clean modern iXBRL. All items found; char-exact boundary match (IoU 1.0)."},
+    {"id": "ko-fy2023", "label": "Coca-Cola FY2023", "accession": "0000021344-24-000009",
+     "group": "good", "note": "clean iXBRL",
+     "detail": "Clean modern iXBRL. All items found; char-exact boundary match (IoU 1.0)."},
+    {"id": "msft-fy2023", "label": "Microsoft FY2023", "accession": "0000950170-23-035122",
+     "group": "good", "note": "clean iXBRL",
+     "detail": "Clean modern iXBRL. All items found; char-exact boundary match (IoU 1.0)."},
     {"id": "msft-fy1995", "label": "Microsoft FY1995", "accession": "0000891020-95-000433",
-     "note": "legacy SGML"},
+     "group": "good", "note": "legacy SGML",
+     "detail": "Legacy SGML (pre-2001). Items found; carries human-verified boundary gold "
+               "(IoU 1.0 on items 1/2/7)."},
+    {"id": "msft-fy1996", "label": "Microsoft FY1996", "accession": "0000891020-96-001130",
+     "group": "good", "note": "legacy SGML",
+     "detail": "Legacy SGML (pre-2001). Items found; era-absent items such as 7A are correctly "
+               "marked legitimately-absent, not extraction failures."},
+    {"id": "ge-fy2009", "label": "General Electric FY2009", "accession": "0000040545-10-000010",
+     "group": "good", "note": "HTML collapsed body, fallback recovers",
+     "detail": "HTML era with a collapsed body. The rules collapse the body, then the "
+               "edgartools fallback rebuilds the items."},
+    {"id": "m2i-fy2023", "label": "M2i Global FY2023", "accession": "0001493152-24-014827",
+     "group": "good", "note": "token-per-line headers, recovered",
+     "detail": "Token-per-line headers ('Item' and '1.' on separate lines). A newline-tolerant "
+               "rule recovers the items."},
+    {"id": "scwo-fy2025", "label": "374Water FY2025", "accession": "0001654954-26-003094",
+     "group": "good", "note": "SRC token-per-line headers, recovered",
+     "detail": "Smaller-reporting-company full 10-K with token-per-line headers; recovered by "
+               "newline tolerance."},
+    {"id": "jpm-fy2023", "label": "JPMorgan FY2023", "accession": "0000019617-24-000225",
+     "group": "good", "note": "broken text extractor, HTML fallback recovers",
+     "detail": "A broken text extractor is detected and the HTML fallback recovers the items. "
+               "Note: Item 7 (MD&A) is scattered - a tracked boundary limitation, where the "
+               "span is a pointer stub and the real MD&A falls outside it."},
+    {"id": "ms-fy2024", "label": "Morgan Stanley FY2024", "accession": "0000895421-25-000304",
+     "group": "limitation", "note": "header text stripped - the named ceiling",
+     "detail": "Header text stripped - the named ceiling. The 'Item N' labels live only in "
+               "styled tags that are removed when the styling is stripped, so both the rule and "
+               "the fallback find 0 items. Unsupported without a non-header model. Flagged "
+               "(needs_review), never silent."},
+    {"id": "intc-fy2018", "label": "Intel FY2018", "accession": "0000050863-19-000007",
+     "group": "limitation", "note": "cross-reference index, ~1-2% coverage",
+     "detail": "Cross-reference index. The body has no 'Item N' headings; items are listed only "
+               "in an end-of-document index table, so coverage drops to ~1-2%. Unsupported by "
+               "the header approach (~1% of filings). Flagged."},
+    {"id": "ge-fy2023", "label": "General Electric FY2023", "accession": "0000040545-24-000027",
+     "group": "limitation", "note": "cross-reference index, ~1% coverage",
+     "detail": "Cross-reference index. Integrated MD&A plus out-of-order item references give "
+               "~1% coverage; caught (needs_review), but not boundary-goldable by hand."},
+    {"id": "bac-fy2023", "label": "Bank of America FY2023", "accession": "0000070858-24-000122",
+     "group": "limitation", "note": "lead-item drop (run-fragmentation)",
+     "detail": "Lead-item drop. Item 1 and Item 7 are dropped due to run-fragmentation. "
+               "Flagged."},
+    {"id": "wmt-fy2003", "label": "Walmart FY2003", "accession": "0000104169-03-000005",
+     "group": "limitation", "note": "lead-item drop (joined header line)",
+     "detail": "Lead-item drop. A joined-together 'PART I ITEM 1.' line defeats the line-start "
+               "anchor and drops Item 1. Flagged."},
+    {"id": "hon-fy2024", "label": "Honeywell FY2024", "accession": "0000773840-25-000010",
+     "group": "limitation", "note": "lead-item drop (no-separator header)",
+     "detail": "Lead-item drop. A no-separator header ('ITEM 1 BUSINESS' with no '.'/':' "
+               "separator) is not matched. Flagged."},
+    {"id": "gis-fy2018", "label": "General Mills FY2018", "accession": "0001193125-18-209377",
+     "group": "limitation", "note": "separator-less header (char-gold-verified)",
+     "detail": "Separator-less header (hard anchor). The boundary is char-gold-verified, but "
+               "the filing is still tracked at the full-filing level. Tracked."},
+    {"id": "scwo-fy2025-amend", "label": "374Water FY2025 (10-K/A)",
+     "accession": "0001654954-26-004179",
+     "group": "limitation", "note": "filing selection (amendment vs full 10-K)",
+     "detail": "Filing selection. A ticker-by-year lookup can return a 10-K/A amendment "
+               "(Part III only) instead of the full 10-K. The eval pins the full filing by "
+               "accession. Tracked."},
 ]
 
 _cache: dict[str, dict] = {}

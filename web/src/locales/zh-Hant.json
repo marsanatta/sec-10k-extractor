@@ -51,7 +51,8 @@
   "input": {
     "demoTitle": "Curated demo",
     "demoNote": "免 token",
-    "demoPlaceholder": "挑一個範例…",
+    "groupGood": "Works well（運作良好）",
+    "groupLimitation": "Known limitations（已知限制）",
     "customTitle": "查詢或提交一份 filing",
     "customNote": "需要 access token",
     "tokenLabel": "Access token",
