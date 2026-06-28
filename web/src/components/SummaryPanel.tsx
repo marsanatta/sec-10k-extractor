@@ -113,6 +113,28 @@ export function SummaryPanel({ summary: s }: Props) {
         v={s.escalation_performed ? s.escalation_calls : t("summary.callsNone")}
       />
       <Row
+        k={t("summary.moved")}
+        v={
+          !s.escalation_performed ? (
+            <span style={{ color: "var(--text-dim)" }}>{t("summary.movedNa")}</span>
+          ) : s.escalation_calls === 0 ? (
+            <span style={{ color: "var(--text-dim)" }}>{t("summary.movedNoCalls")}</span>
+          ) : (
+            <>
+              {t("summary.movedCount", {
+                applied: s.escalation_applied,
+                calls: s.escalation_calls,
+              })}
+              <small style={{ display: "block", color: "var(--text-dim)" }}>
+                {s.escalation_applied === 0
+                  ? t("summary.movedConfirmed")
+                  : t("summary.movedList", { items: s.escalation_items_moved.join(", ") })}
+              </small>
+            </>
+          )
+        }
+      />
+      <Row
         k={t("summary.tokens")}
         v={
           s.escalation_performed

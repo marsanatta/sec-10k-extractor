@@ -17,7 +17,7 @@
     "hon-fy2024": "Lead-item drop. A no-separator header ('ITEM 1 BUSINESS' with no '.'/':' after the number) is not matched by the separator-requiring regex. Flagged.",
     "gis-fy2018": "Separator-less header (a hard anchor). Its boundaries are human char-gold-verified, but the filing is still tracked as a known-hard case at the full-filing level. Tracked.",
     "scwo-fy2025-amend": "Filing selection. A ticker-by-year lookup can return a 10-K/A amendment (Part III only) instead of the full 10-K. The eval pins the full filing by accession. Tracked."
-  },
+  },
   "app": {
     "title": "SEC 10-K Item Extractor",
     "taglineIndex": "index-don't-generate",
@@ -138,6 +138,12 @@
     "callsNone": "0 — not exercised (deferred)",
     "tokens": "Tokens (in / out)",
     "tokensNone": "0 / 0 — measured, no LLM call",
+    "moved": "Boundaries moved by LLM",
+    "movedNa": "—",
+    "movedNoCalls": "— no boundaries adjudicated",
+    "movedCount": "{{applied}} of {{calls}}",
+    "movedConfirmed": "deterministic boundaries confirmed, output unchanged",
+    "movedList": "moved: {{items}}",
     "driverStructural": "structural invariants broken",
     "driverRoundTrip": "round-trip reconstruction failed",
     "driverCoverage": "coverage implausibly low ({{percent}}%)",

@@ -59,6 +59,8 @@ export interface Summary {
   escalation_provider: string;
   escalation_performed: boolean;
   escalation_calls: number;
+  escalation_applied: number;
+  escalation_items_moved: string[];
   escalation_input_tokens: number;
   escalation_output_tokens: number;
   format_era: string;
