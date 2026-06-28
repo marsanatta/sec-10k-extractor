@@ -2,7 +2,7 @@
 
 What this system is, how well it works **with real numbers**, how it stays cheap, and — the
 part with no public ground truth — **how it verifies itself**. Every number here is produced
-by `eval/run_eval.py` over a 21-filing self-built set (`eval/eval_set.json`) plus the unit
+by `eval/run_eval.py` over a 27-filing self-built set (`eval/eval_set.json`) plus the unit
 suites; reproduce with `python eval/run_eval.py` and `python -m pytest -q`.
 
 The design in one line: **index, don't generate.** An item is a `char_range` into the
@@ -17,10 +17,12 @@ no existing item-segmenter emits confidence.
 
 ## 1. Eval set (what the numbers are measured on)
 
-**21 filings, a CURATED covering set, pinned by exact accession** (immutable, reproducible, and
+**27 filings, a CURATED covering set, pinned by exact accession** (immutable, reproducible, and
 it sidesteps the 10-K/A selection bug). It deliberately spans the axes a held-out reviewer batch
 will hit — it is **not** a random EDGAR sample. The base 16 were grown by **+5 in autoresearch
-round 1** (`research/round-1-findings.md`), each accession-pinned and immutable:
+round 1** (`research/round-1-findings.md`) → 21, then **+6 hard RED anchors in rounds 4–9**
+(oxy-fy2006, xom-fy2024, duk-fy2010, csco-fy2018, intc-fy2018, gis-fy2018) → 27, each
+accession-pinned and immutable:
 
 - **Era**: pre-2001 SGML (msft-1995, **+msft-1996**), **2001–2008 HTML** (**+wmt-2003** — the
   middle-era bucket that was missing), **2008–2012 HTML** (ge-2009, xom-2010), modern iXBRL.
@@ -49,8 +51,10 @@ Pooling lets the easy iXBRL cases hide the hard ones, so each bucket is reported
 **with its N**. Presence recall is over a conservative hand-labelled expected-present set;
 boundary match-rate is char-exact IoU ≥ 0.9 vs the audited gold (`eval/boundary_gold.json`).
 
-### Presence (label-free + conservative gold), 21-filing set (20 measured this run)
-Post-round-1 numbers (`eval/report.md`, dated). `ge-fy2023` dropped on a transient EDGAR
+### Presence (label-free + conservative gold), 27-filing set (20 measured this run)
+The last committed `eval/report.md` (dated) measured the earlier 20-filing subset; the curated set
+is now **27 filings**, and a live re-run is pending EDGAR rate-limit recovery (so these presence
+numbers are the last network run, not the full 27). `ge-fy2023` dropped on a transient EDGAR
 disconnect (a consistent flaky fetch on that ~4 MB cross-reference-index filing — the B2 ceiling
 that structural-fails regardless), so N = 20 measured.
 - **Non-RED presence recall 14/14 = 1.0**; the **six** tracked RED residuals (bac, scwo-/A,
@@ -69,13 +73,22 @@ that structural-fails regardless), so N = 20 measured.
 | **SGML** | 1 (msft-1995, items 1/2/7) | **1.0 (3/3)** |
 | iXBRL, cross-ref-index (GE) | **0** | **unmeasured / ungoldable** (see §6) |
 
-Boundary match-rate **1.0 over 5 gold filings spanning two eras** (iXBRL 4 + SGML 1) — reported
-**per bucket, never pooled**, because the GE cross-reference case (§6) has **N=0** char-gold
-and is excluded, not averaged away. Two labels are **method-independent**, not frozen from the
-regex: m2i (title-labelled by hand) and msft-1995 (SGML body sections located by *reading* the
-canonical text, then confirmed the extractor matches at IoU 1.0). Their agreement is a genuine
-cross-method confirmation, not a tautology. The three iXBRL easy filings are regex-derived but
-**human-audited** (every offset's snippet eyeballed as a real section body — §5.3).
+Boundary match-rate **1.0 over the 5 GREEN-eval gold** (iXBRL apple/ko/msft-2023 + m2i; SGML
+msft-1995), reported **per bucket, never pooled** — the GE cross-reference case (§6) has **N=0**
+char-gold and is excluded, not averaged away. Two of these are **method-independent**, not frozen
+from the regex: m2i (title-labelled by hand) and msft-1995 (SGML body located by *reading* the
+canonical, then confirmed at IoU 1.0); their agreement is a genuine cross-method confirmation. The
+other three GREEN gold are regex-verified, human-audited (apple/ko/msft-2023).
+
+Three further char-gold (`boundary_gold.json` holds **8** entries in total) were added in rounds
+4–7 as **fix-target boundaries** for hard headers: gis-2018 (separator-less), usb-2010
+(partial-coverage), oxy-2020 (combined *Items 1 and 2*). The round-9 G9 gate reports these at
+IoU 1.0, but they are **hard cases, not clean passes** — usb-2010/oxy-2020 are not in the eval
+covering set, and **gis-fy2018 is still flagged `expect_red` at the full-filing level in
+`eval_set.json`**, a flag that contradicts the round-9 char-gold result and needs reconciliation
+(it is offline-unverifiable here: the g9 cache is empty and EDGAR is rate-limited). So the
+**verified accuracy floor is the 5 GREEN gold**; the three fix-target golds are reported honestly
+as such, not as a clean 8/8.
 
 ### 2.5 Robustness on a diverse batch — the curated set was hiding empties
 
@@ -112,8 +125,8 @@ bucket, not pooled** — so you can see *which axis breaks*. On this curated set
 filings pass **14/14** (recall 1.0) and the two tracked residuals go **RED** by design:
 `lead_item_drop` (BAC) **0/1**, `amendment_10ka` (10-K/A selection) **1/2**; every other
 era/structure/sector bucket is green, silent-failure **0/16** (the REDs are *flagged*, not
-silent). The char-exact boundary gold was **not** expanded — it stays at **5 human-audited
-filings** (no auto-freezing). This 14/14 is **axis coverage on a curated set, not a population
+silent). The char-exact boundary gold was **not** expanded in that pass (it then stood at **5
+human-audited filings**; later rounds grew it to **8** — §2, §5.3 — still no auto-freezing). This 14/14 is **axis coverage on a curated set, not a population
 rate** — the random-batch ~78% above remains the honest broad signal; BAC + the 10-K/A selection
 are now *tracked* (not papered over) so the next pass can target whichever bucket accrues the
 most reds. The HTML 2008–2012 era bucket (ge-2009, xom-2010) is now covered: **2/2** green.
@@ -123,31 +136,38 @@ most reds. The HTML 2008–2012 era bucket (ge-2009, xom-2010) is now covered: *
 **2001–2008 HTML** middle era (wmt-2003), a **2nd pre-2001 SGML** (msft-1996), and three
 hard-strata tracked REDs (amt-1997 collapsed SGML, ms-2024 the common-mode ceiling, hon-2024
 no-separator). Measured post-round (N=20; ge-2023 transient drop): **non-RED 14/14** still clean,
-**silent-failure 0/20**, **boundary 1.0 / 5 gold unchanged** (never auto-frozen). The six REDs
+**silent-failure 0/20**, **boundary 1.0 / 5 gold unchanged** (never auto-frozen; the gold has
+since grown to **8 human-audited filings** in later rounds — §2, §5.3). The six REDs
 now span six distinct failure classes (§6) — a deliberately adversarial spread, every one
 *flagged*, none silent.
 
-**Population structural sweep (committed + reproducible).** The 21-filing curated set is small
-(wide CIs) and the broad ~97% number cited in §8 came from an *external* worktree, not reproducible
-here. A committed label-free sweep (`eval/structural_sweep.py` + the pinned `eval/sweep_accessions.txt`)
-over **471 accession-pinned filings** — 48 diverse companies × target years, deliberately
-over-sampling the 2001–2018 middle — now gives an **in-repo, reproducible population number. It is
-an UPPER BOUND on robustness, NOT accuracy**: it catches the gross-failure tail (empty body, lead
+**Population structural sweep (committed + reproducible).** The 27-filing curated set is small
+(wide CIs), so committed label-free sweeps (`eval/structural_sweep.py`) over large,
+accession-pinned diverse samples give an **in-repo, reproducible population number. It is an
+UPPER BOUND on robustness, NOT accuracy**: it catches the gross-failure tail (empty body, lead
 dropped, no tiling, implausible coverage) but is blind to interior boundary drift, so the accuracy
-floor stays the 5 char-gold.
-- **Full-10-K structural-pass: 376/423 = 88.9% (95% CI [85.5%, 91.5%]).** By era: SGML **92.5%**,
-  HTML **90.3%**, iXBRL **82.8%**. 10-K/A reported as a separate stratum (6/40 — amendments
-  legitimately lack Part I, so they are not failures).
-- **The fail tail is concentrated, not random:** GE/INTC cross-reference-index (coverage ~1%),
-  OXY/USB/GIS `empty` (the regex finds 0 items). 8 honest drops logged (7 large-filing segmenter
-  timeouts — a real performance edge case the per-filing timeout caught — + 1 stdout-encoding glitch).
-- **Flag-vs-silent on the fail tail:** a full-pipeline pass (`eval/sweep_fail_tail.py`) confirms the
-  structural fails raise `needs_review` — **0 silent** — so the abstention gate holds at population
-  scale, not just on the curated set. Detail: `eval/sweep_report.md`.
+floor stays the **8 human-audited char-gold** (§5.3). Three committed sweeps:
+- **sweep1** (`eval/sweep_report.md`): **full-10-K structural-pass 1418/1656 = 85.6% (95% CI
+  [83.9%, 87.2%])**. By era: HTML **84.9%**, iXBRL **83.5%**, SGML **92.1%**. 10-K/A reported as a
+  separate stratum (amendments legitimately lack Part I, so they are not failures).
+- **sweep2** (`eval/sweep2_report.md`): **602/644 full 10-Ks (of 883 fetched) = 93.5% (95% CI
+  [91.3%, 95.1%])** — a post-fix sample never seen during development.
+- **sweep3** (`eval/sweep3_report.md`): **605/656 full 10-Ks (of 880 fetched) = 92.2% (95% CI
+  [89.9%, 94.0%])**. By era: HTML **91.1%**, iXBRL **95.8%**, SGML **92.2%**.
+- **The fail tail is concentrated, not random:** GE/INTC/MCD/HON cross-reference-index (coverage
+  ~1%), OXY/USB/GIS/C `empty` (the regex finds 0 items), and the lead-item-drop cluster
+  (BAC/CSCO/COP/VLO-class).
+- **Flag-vs-silent on the fail tail:** the fast structural sweep cannot compute `needs_review`, so
+  the flag-vs-silent determination is deferred to a separate full-pipeline pass over the fail tail
+  (`eval/sweep_fail_tail.py`) — run it to reproduce that the structural fails raise `needs_review`.
+  That population-level pass is **reproducible via the committed script but not committed as a
+  report**; the measured `silent-failure 0` headline is scoped to the curated set (§2).
 
-**88.9% is honest, and lower than the curated 100% by design** — a diverse 471-filing sample exposes
-the failure tail the 21 hand-picked filings cannot. This replaces the external/uncommitted ~130
-reference with a number anyone can regenerate (`python eval/structural_sweep.py`).
+sweep2 and sweep3 are **fresh held-out samples drawn post-fix**; their overlapping CIs
+(~92–94%) validate that the segmenter **generalizes to filings it never saw**, not just to the
+curated set. structural-pass is an **UPPER BOUND, NOT accuracy** — the only accuracy floor is the
+**8 human-audited char-gold** (§5.3). All three are regeneratable with `python
+eval/structural_sweep.py`.
 
 ---
 
@@ -222,11 +242,15 @@ cheap→expensive. Each is named by its real file + test.
    gate on big items of well-formed filings, **not** a gate on the common-mode — which is
    exactly what the decorrelated third source (#6) probes.
 3. **Char-exact boundary gold + IoU scorer.** `boundary_scores` (`sec10k/evalkit.py`) vs
-   `eval/boundary_gold.json` — **5 filings across 2 eras** (4 iXBRL + 1 SGML), each offset's
+   `eval/boundary_gold.json` — **8 filings across 2 eras** (7 iXBRL/HTML + 1 SGML), each offset's
    snippet eyeballed as a real section body, not a TOC line; m2i (title) and msft-1995 (SGML,
-   read-located) are method-independent of the regex. This is the only signal that turns a
-   *wrong* boundary into a number; it sees the common-mode the cross-check is blind to, on the
-   filings it covers. Boundary match **1.0** per era (iXBRL 4/4 filings, SGML 3/3 items).
+   read-located) are method-independent of the regex, the other six human-audited (apple/ko/msft-2023
+   regex-verified; gis-2018/usb-2010/oxy-2020 read directly from the filing). This is the only signal
+   that turns a *wrong* boundary into a number; it sees the common-mode the cross-check is blind to,
+   on the filings it covers. The **5 GREEN-eval gold** match at **IoU 1.0** (scoped per era); the
+   three added hard-strata golds (gis/usb/oxy-2020) are **fix-target boundaries**, reported at IoU
+   1.0 by the round-9 G9 gate but kept honest as hard cases (gis-fy2018 is still `expect_red` at the
+   full-filing level — see §2).
 4. **XBRL Item-8 oracle (independent data source).** From the companyfacts API — never our own
    output — a tagged financial fact must fall inside the extracted Item 8 (`sec10k/oracle.py`).
    Confirmed on **4/7** (2/2 tagged facts located on each of apple/ko/msft-2023; the others
@@ -256,7 +280,7 @@ cheap→expensive. Each is named by its real file + test.
    - **What it can't:** edgar-corpus is **lossy** (cleaned/normalized text — locate missed
      xom-2010's 1A/7), gives **text not offsets** (located starts are approximate), and covers
      **1993–2020 only** (no modern filings). So it is a **cross-check, not gold**: it is NOT
-     auto-frozen, the **5 human-audited char-exact filings stay the floor**, and it runs
+     auto-frozen, the **8 human-audited char-exact filings stay the floor**, and it runs
      on-demand, never the CI gate.
 7. **Signal D — independent classification-correctness (human-audited gold, NEW in round 2).**
    A second human-audited reference (`eval/classification_gold.json`, **frozen** 2026-06-26) labels,
@@ -272,11 +296,19 @@ cheap→expensive. Each is named by its real file + test.
    the loop may never freeze/edit it. **REPORTED, non-gating** — surfaced per filing in
    `eval/report.md`, it feeds no production decision. This is the ruler that **earned the
    form-aware fix** (§8 #1); detail in `research/round-2-findings.md`.
+8. **Per-item STATUS assertion on the curated eval set (`expected_status`, MERGED to main).**
+   `eval_set.json` carries an `expected_status` per item on curated anchors, scored by
+   `evalkit.status_match`, sourced from the human-audited `classification_gold` under the
+   heading-exists rule. It is **independent of the production segmenter** — it fires when
+   production mis-classifies (e.g. msft-fy1996 Item 7A flagged `extraction_failure` instead of
+   `legitimately_absent`). Honest scope: it **shares the same gold source as Signal D**, so it is
+   *not* an independent oracle *of* Signal D — but it IS independent of the production classifier.
+   Two anchors so far: apple-fy2024 `{1C: present}`, msft-fy1996 `{7A, 9C: legitimately_absent}`.
 
 The headline metric is therefore **abstention/needs_review-gated**: the system is allowed to
 be wrong only if it says so. Silent-failure 0/20 (the post-round-1 set; ge-2023 transient drop)
-is the number that matters; boundary 1.0 over the 5 human-audited gold is scoped to the era it
-was measured on.
+is the number that matters; boundary 1.0 over the **5 verified GREEN gold** (of 8 char-gold total;
+3 are fix-target hard cases, §2) is scoped to the era it was measured on.
 
 ---
 
@@ -376,7 +408,9 @@ The escalation tier is a **real LLM**, wired through the **GitHub Copilot SDK**
 (`sec10k/copilot_client.py`), with graceful fallback to a recording-only stub. It is **default-OFF**
 and kept as an honest opt-in, because we **measured it** and it earns no independent-signal gain.
 
-> **Measured verdict (the headline for this tier).** LLM-on vs LLM-off on the 21-filing eval set,
+> **Measured verdict (the headline for this tier).** LLM-on vs LLM-off on the eval set as it stood
+> at measurement time (then 21 filings / 5 boundary-gold; the curated set has since grown to 27 / 8
+> gold but this measurement was not re-run),
 > scored against the FROZEN human gold (model `claude-opus-4.8`): **all 5 boundary-gold filings
 > ΔIoU = 0.000** (including the hard m2i token-per-line and msft-fy1995 legacy SGML), **all Signal-D
 > gold ΔmatchRate = 0.000** (the apply-loop nudges a present item's start — it never changes a
@@ -428,8 +462,8 @@ Apply-loop detail: `research/round-1-findings.md` (iteration 4).
 
 These are **recorded, not implemented** — a forward map of where robustness would improve next
 and where the design's hard ceiling sits. The fail tail they describe is now quantified by the
-**committed 471-filing structural sweep (§2.5)** — an **upper-bound structural-pass signal, not
-char-exact accuracy** (the only accuracy floor remains the 5 human-audited gold filings, §5.3). They
+**committed structural sweeps (§2.5)** — an **upper-bound structural-pass signal, not
+char-exact accuracy** (the only accuracy floor remains the 8 human-audited gold filings, §5.3). They
 are listed here so the cut-lines are visible, not hidden.
 
 **Ranked candidate fixes (highest-ROI first):**
@@ -542,7 +576,7 @@ its headline goal and is **being closed out**:
 ## Reproduce
 
 ```bash
-python -m pytest -q                 # 77 unit tests incl. mutation battery, token ledger, Signal D, Copilot fallback
+python -m pytest -q                 # 99 passing, 1 skipped — incl. mutation battery, token ledger, Signal D, Copilot fallback
 SEC_EDGAR_USER_AGENT="Name email" python eval/run_eval.py   # regenerates eval/report.md + report.json
 ```
 Numbers in this doc are from that report (`eval/report.md`) and the per-filing summaries; the

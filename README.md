@@ -1,187 +1,252 @@
 # SEC 10-K Item-level Structured Extractor
 
-Extracts the individual SEC-specified items (Items 1–16 across Parts I–IV) from a raw 10-K filing
-so each can be consumed independently — robust across the three format eras (legacy SGML, HTML,
-modern iXBRL), self-verifying **without a public filing-level answer key**, and honest about where
-it fails.
+Split a raw SEC **10-K** filing into its individual **items**, so each section can be read on its own.
 
-**Design in one line: _index, don't generate._** An item is a `char_range` into the filing's
-canonical text — never LLM free-text — so every item round-trips back to the source bytes exactly.
-A deterministic regex/anchor tier segments ~100% of the common case at **\$0 inference**; a
-**validation layer** attaches calibrated confidence + provenance to every item and is the real
-product (no existing segmenter emits confidence); an LLM tier (a real GitHub Copilot LLM) is
-**available but default-OFF** — we measured it and it gave **no independent-signal gain on our
-gold** (boundary IoU and classification unchanged on every gold filing), so the deterministic path
-stays the shipped, \$0, reproducible primary and the default extract path never calls the LLM. The
-tier is kept as an honest opt-in graceful-fallback, not a claimed win (see `ANALYSIS.md` §3).
+> **Two terms, defined once:**
+> - **10-K** — the annual report a US public company files with the SEC (the financial regulator).
+> - **Item** — a numbered section the SEC requires, for example *Item 1 Business*, *Item 1A Risk Factors*, *Item 7 Management's Discussion (MD&A)*, *Item 8 Financial Statements*. A full 10-K has up to 23 items, spread across Parts I–IV.
 
-Full numbers, tradeoffs, and the verification story are in **[`ANALYSIS.md`](ANALYSIS.md)**.
+This tool reads one 10-K and returns each item separately. For each item, it gives the exact location in the source text, a confidence score, and a clear status: found, legitimately missing, or failed to extract. It works across the three filing format eras. It checks its own output **without a public reference answer (ground truth)**, and it is honest about the cases it still cannot handle.
 
 ---
 
-## Live frontend
+## Table of contents
 
-The web UI (submit/select a filing → inspect extracted items → see the source highlight,
-calibrated confidence, which validation checks fired, and legitimate-absence vs extraction-failure)
-is served by the dockerized app behind a **Cloudflare quick tunnel**. The public
-`https://<…>.trycloudflare.com` URL is **ephemeral** (it rotates when the tunnel restarts), so it
-is provided with the submission rather than hardcoded here; to mint your own, see
-[Run it](#run-it) and read the URL from `docker compose logs cloudflared`.
-
-The curated demo filings in the UI are **open** (no token). Free-form extraction (arbitrary
-ticker/accession, or pasting filing text for mutation testing) is gated by an optional shared token
-(`SEC10K_ACCESS_TOKEN`) so a public URL can't be used to hammer SEC's rate limit.
+- [The core idea](#the-core-idea)
+- [What it produces](#what-it-produces)
+- [Run it](#run-it)
+- [Live frontend](#live-frontend)
+- [How it works](#how-it-works)
+- [Key design decisions](#key-design-decisions)
+- [Works well (with examples)](#works-well-with-examples)
+- [Known limitations (with examples)](#known-limitations-with-examples)
+- [How quality is checked (no public reference answer)](#how-quality-is-checked-no-public-reference-answer)
+- [Cost, scalability, correctness](#cost-scalability-correctness)
+- [Repo layout](#repo-layout)
+- [Where AI helped](#where-ai-helped)
 
 ---
 
-## Run it
+## The core idea
 
-**Prerequisite — SEC User-Agent.** SEC EDGAR requires a descriptive `User-Agent` (a name + email)
-on every request. Copy `.env.example` to `.env` and set it:
+**Index, don't generate.** An item is stored as a `char_range` — the start and end character positions of that item inside the filing's text. It is **never** free text written by a language model. Because we keep exact positions, joining all the items back together rebuilds the original document byte-for-byte. We call this the **round-trip** check, and it makes coverage provable.
 
-```bash
-cp .env.example .env
-# .env:  SEC_EDGAR_USER_AGENT="Your Name you@example.com"
-```
+The system has three layers. It always uses the cheap one first:
 
-### A. Docker + public tunnel (what the frontend uses)
+1. A **deterministic** layer (fixed rules: regular expressions and section anchors) handles about 100% of normal filings at **$0** — no paid model call.
+2. A **validation layer** then attaches a confidence score and a provenance record (which checks passed or failed) to every item. **This layer is the real product** — no existing item-splitter reports confidence.
+3. A **language-model (LLM) layer** is available but **turned off by default**. We measured it and it gave **no improvement** on our verified examples, so the default path never calls it. (Details below and in [`ANALYSIS.md`](ANALYSIS.md) §7.)
 
-```bash
-docker compose up --build            # app on :8000 + a Cloudflare quick tunnel
-docker compose logs cloudflared      # read the public https://<…>.trycloudflare.com URL
-```
-
-### B. Local dev
-
-```bash
-pip install -e ".[api,dev]"
-( cd web && npm install && npm run build )          # build the SPA into web/dist
-SEC_EDGAR_USER_AGENT="Your Name you@example.com" uvicorn api.server:app --port 8000
-# open http://localhost:8000
-```
-
-### C. Tests and the evaluation harness
-
-```bash
-python -m pytest -q                  # 73 offline unit tests — network-free, no User-Agent needed
-SEC_EDGAR_USER_AGENT="Your Name you@example.com" python eval/run_eval.py   # on-demand EDGAR batch -> eval/report.md
-```
-
-The unit suite (incl. a boundary mutation battery, the escalation token ledger, and the Signal D
-independence guard) is **fixture-based and never touches the network**. `eval/run_eval.py` is the
-on-demand, accession-pinned batch that fetches from EDGAR and regenerates `eval/report.md`.
+Full numbers, trade-offs, and the verification story are in **[`ANALYSIS.md`](ANALYSIS.md)**.
 
 ---
 
 ## What it produces
 
-Per item: `{ item_id, part, item, title, text, char_range, status, confidence{band, score,
-signals[]}, provenance{extractors[], checks_passed[], checks_failed[]} }`, plus a filing-level
-summary (`needs_review`, coverage, the oracle/cross-check signals, the escalation ledger). `status`
-is one of `present` / `legitimately_absent` / `extraction_failure` — a missing item is **classified,
-never silently dropped**.
+For each item, the tool returns one record:
+
+```json
+{
+  "item_id": "I.1",
+  "part": "I",
+  "item": "1",
+  "title": "Business",
+  "text": "...",
+  "char_range": [1234, 5678],
+  "status": "present",
+  "confidence": { "band": "high", "score": 0.95, "signals": ["..."] },
+  "provenance": { "extractors": ["anchor"], "checks_passed": ["..."], "checks_failed": [] }
+}
+```
+
+It also returns one filing-level summary: a `needs_review` flag, the coverage, the oracle and cross-check results, and the LLM cost record (a running tally of calls and tokens).
+
+The `status` field is always one of three values. A missing item is **classified, never silently dropped**:
+
+| status | Meaning |
+|--------|---------|
+| `present` | The item was found. |
+| `legitimately_absent` | The item is correctly missing (the filing's year or type never had it). |
+| `extraction_failure` | The item should be there, but extraction failed. The system says so. |
+
+---
+
+## Run it
+
+**Prerequisite — SEC User-Agent.** SEC EDGAR (the SEC's filing database) requires a descriptive `User-Agent` header — a name and email — on every request. Copy the example file and set it:
+
+```bash
+cp .env.example .env
+# In .env, set:  SEC_EDGAR_USER_AGENT="Your Name you@example.com"
+```
+
+### Option A — Docker + public tunnel (what the frontend uses)
+
+```bash
+docker compose up --build         # starts the app on port 8000 + a Cloudflare tunnel
+docker compose logs cloudflared   # prints the public https://<...>.trycloudflare.com URL
+```
+
+### Option B — Local development
+
+```bash
+pip install -e ".[api,dev]"
+( cd web && npm install && npm run build )    # build the web UI into web/dist
+SEC_EDGAR_USER_AGENT="Your Name you@example.com" uvicorn api.server:app --port 8000
+# then open http://localhost:8000
+```
+
+### Option C — Tests and the evaluation harness
+
+```bash
+python -m pytest -q     # 100 offline unit tests (99 pass, 1 skipped) — network-free, no User-Agent needed
+SEC_EDGAR_USER_AGENT="Your Name you@example.com" python eval/run_eval.py   # on-demand EDGAR batch -> eval/report.md
+```
+
+The unit suite is fixture-based and never touches the network. It includes a boundary mutation battery, the LLM cost record, and the Signal D independence guard (all defined below). `eval/run_eval.py` is the on-demand batch that fetches pinned filings from EDGAR and regenerates `eval/report.md`.
+
+---
+
+## Live frontend
+
+The web UI lets you submit or select a filing, inspect each extracted item, and see the source highlight, the confidence score, which checks fired, and the present / legitimately-absent / failure status.
+
+It is served by the Docker app behind a **Cloudflare quick tunnel**. The public `https://<...>.trycloudflare.com` URL is **temporary** — it changes when the tunnel restarts — so it ships with the submission rather than hardcoded here. To create your own, follow [Run it](#run-it) and read the URL from `docker compose logs cloudflared`.
+
+The demo filings in the UI are **open** (no token). Free-form extraction (any ticker or accession, or pasting filing text) is protected by an optional shared token (`SEC10K_ACCESS_TOKEN`), so a public URL cannot be used to overload SEC's rate limit.
+
+---
+
+## How it works
+
+The pipeline has five stages: **ingest → normalize → segment → validate → schema**. The first stages turn a raw filing into canonical text with exact byte offsets, then split it into items by rules. The validation stage attaches confidence and provenance. The reasons for this shape are in [Key design decisions](#key-design-decisions).
+
+The tool must handle three filing format eras:
+
+- **SGML** — the old plain-text filing format, used before ~2001.
+- **HTML** — the middle era.
+- **iXBRL** — modern HTML with embedded financial-data tags.
+
+The deterministic layer also handles several awkward header styles: token-per-line headers (`Item` and `1.` on separate lines), separator-less headers (`ITEM 1 BUSINESS`), and combined headers (`Items 1 and 2`). See the examples below.
 
 ---
 
 ## Key design decisions
 
-- **Index, don't generate.** Items are byte ranges into the canonical text; round-trip
-  reconstruction is an enforced invariant, so coverage is provable.
-- **Layered ensemble, LLM last.** Regex/anchor segmentation is **primary** (\$0, ~100% of the
-  cooperative case). A **conservative** `edgartools` fallback recovers empty/collapsed segmentations
-  by locating item heads back in our canonical (never copying foreign offsets). An
-  **index-don't-generate LLM escalation** tier (windowed, closed item set, returns a line number that
-  is mapped back to a char offset and *applied* to move the boundary) runs on a **real GitHub
-  Copilot LLM** (`sec10k/copilot_client.py`) — but it is **default-OFF**, controlled per request by
-  the web UI toggle (a token is still required for a real call; `SEC10K_LLM_ESCALATION` is only the
-  CLI/library default when no explicit flag is passed). We **measured** it against the frozen gold and it moved
-  **zero** boundaries on all 5 boundary-gold filings (ΔIoU 0.000; Signal D unchanged by
-  construction), firing 106 opus-4.8 calls for 2 unverifiable moves — so it is kept as an honest
-  opt-in graceful-fallback, never the default. The offline suite stays network-free (\$0 floor).
-- **The validation layer is the product.** Every item carries calibrated confidence + provenance;
-  a filing is allowed to be wrong **only if it says so** (`needs_review`). The headline metric is the
-  silent-failure rate, not accuracy.
-- **Verify without public ground truth — independent oracles only** (detail in
-  [`ANALYSIS.md` §5](ANALYSIS.md)): structural invariants + byte-exact round-trip (100% scope) →
-  independent dual-extractor boundary cross-check → a decorrelated third source (`edgar-corpus`) →
-  **char-exact human-audited boundary gold (5 filings, never auto-frozen)** → XBRL Item-8 oracle from
-  the companyfacts API → **Signal D**, a human-audited, frozen per-form-type **classification** gold
-  that independently catches real production errors. A **mutation battery** validates the validators.
-- **Cost discipline by construction.** Deterministic tier does the work; the LLM touches only
-  flagged boundaries on a cleaned window; results cache by accession (filings are immutable); EDGAR
-  politeness (10 req/s + descriptive UA) is honored.
+Each decision below is backed by a reason or by measured evidence.
+
+| Decision | Reason or evidence |
+|----------|--------------------|
+| **Index, don't generate** (items are character ranges, not generated text) | The round-trip rebuild is an enforced check, so coverage is provable and no text is invented. |
+| **Deterministic rules first, LLM last** | Existing research shows a code/rules segmenter handles ~100% of normal filings at $0; the LLM is reserved for the flagged minority. |
+| **The validation layer is the product** | No existing item-splitter reports confidence. The differentiator is calibrated confidence + provenance on every item, gated by `needs_review`. |
+| **Independent oracles for verification — never self-consistency** | A model judging its own output cannot catch its own confident, systematic errors. Every check uses a source that does not share code with the extractor. |
+| **Conservative `edgartools` fallback** (never copies foreign offsets) | It re-locates item heads in our own canonical text to keep the `char_range` contract, and only fires when the rules fail — so clean filings are untouched. |
+| **Eval set built gradually, with strict statistics** | There is no public ground truth, so we built a stratified, accession-pinned covering set and report every rate with filing-clustered confidence intervals. |
+
+### Decisions that changed (and why)
+
+Two decisions were made one way, then updated based on evidence. We keep both stories because they show the design is evidence-driven, not fixed.
+
+- **The LLM tier was built, then turned OFF by default.** We first built a real LLM escalation tier. Then we measured it (LLM-on vs LLM-off) against the frozen gold: it moved **zero** boundaries on every gold filing (ΔIoU 0.000), and fired 106 model calls for 2 changes that could not be verified. The deterministic path was already correct on the gold, so we changed the default to **off** and kept the tier as an honest, measured opt-in — not a claimed win.
+- **The form-aware template fix was discarded, then earned back.** We found the expected-item template was "form-blind": it judged a Part-III-only 10-K/A amendment as a broken full 10-K. We implemented a form-aware fix — but in round 1 we **discarded it**, because its only benefit showed up in a metric the system could optimize directly (a Goodhart risk), with no independent signal confirming it. In round 2 we built an independent reference (Signal D, a human-audited classification gold) and only **then** kept the fix, because it moved that independent reference while the controls stayed unchanged.
 
 ---
 
-## Works well vs. still difficult (concrete cases)
+## Works well (with examples)
 
-These are **measured on an accession-pinned, immutable eval set** (`eval/eval_set.json`); the full
-per-bucket table and failure analysis are in [`ANALYSIS.md` §2/§6](ANALYSIS.md).
+These cases are reliable. Each row names a **real, accession-pinned filing** from `eval/eval_set.json` that is marked as a pass (`expect_red: false`).
 
-**Works well (examples):**
-- **Clean modern iXBRL** — Apple FY2024, Coca-Cola FY2023, Microsoft FY2023 (all items found,
-  char-exact boundary gold 1.0).
-- **Legacy SGML** — Microsoft FY1995/FY1996 (the pre-2001 era; FY1995 carries human-audited gold).
-- **Collapsed body recovered via the fallback** — GE FY2009 (regex collapses → `edgartools`
-  fallback tiles 16 items).
-- **2001–2008 HTML and earlier middle eras** — covered post-round-1 (e.g. XOM FY2010).
+| Case | Example filing | Result |
+|------|----------------|--------|
+| Clean modern iXBRL | Apple FY2024, Coca-Cola FY2023, Microsoft FY2023 | All items found; char-exact boundary match (IoU 1.0; IoU = intersection-over-union, a 0–1 overlap score). |
+| Legacy SGML (pre-2001) | Microsoft FY1995 / FY1996 | Items found; FY1995 carries human-verified boundary gold. |
+| Token-per-line headers (`Item` then `1.`) | M2i FY2023, 374Water FY2025 | A newline-tolerant rule recovers the items. |
+| Collapsed body, recovered | GE FY2009 | The rules collapse the body → the `edgartools` fallback rebuilds the items. |
+| Broken text source | JPMorgan FY2023 | A broken text extractor is detected → the HTML fallback recovers the items. |
 
-**Still difficult / unreliable / unsupported (tracked, flagged — never silent):**
-- **Dual-extractor common-mode — the named ceiling.** Morgan Stanley / Citigroup FY2024: the
-  "Item N" labels live only in styled iXBRL spans that flatten away, so the regex **and** the
-  `edgartools` fallback (both header-anchored) find **0 items**. Flagged, but unrecoverable without a
-  decorrelated non-header / CRF extractor (out of scope).
-- **Cross-reference index — GE FY2023.** Integrated MD&A + out-of-order item references → ~1.3%
-  coverage; caught (`needs_review`), but not char-goldable by hand.
-- **Scattered item — JPMorgan FY2023 Item 7.** A pointer-stub Item 7 whose real MD&A falls outside
-  the span (tail dropped); invisible to recall, caught by a dedicated scattered-item probe.
-- **Lead-item drops** — Bank-of-America FY2023 (run-fragmentation), WMT FY2003 (`PART I ITEM 1.`
-  glued on one line), Honeywell FY2024 (no-separator headers).
-- **Filing selection** — a ticker-by-year lookup can return a 10-K/A amendment instead of the full
-  10-K; the eval pins the full filing by accession.
+> **Note on the harder header styles.** Separator-less and combined headers are also handled, and their boundaries are checked against human-verified gold. But their anchor filings (General Mills FY2018, Occidental FY2020) are **tracked as hard cases**, not listed here as clean passes — see [Known limitations](#known-limitations-with-examples) and [`ANALYSIS.md`](ANALYSIS.md) §2.
 
-Every one of these is **flagged** (`needs_review`); the measured silent-failure rate is **0**.
+**Population evidence (not just hand-picked cases).** We ran two fresh, held-out batches of filings the system had never seen. The pass rates stayed in the same band, which shows the fixes generalize. The rate is computed over the full-10-K subset of each batch (amendments and non-10-K rows are excluded):
+
+| Sample | Full 10-Ks measured | Structural-pass rate |
+|--------|---------------------|----------------------|
+| Held-out sweep 2 | 644 (of 883 fetched) | 93.5% (95% CI 91.3–95.1) |
+| Held-out sweep 3 (fresh) | 656 (of 880 fetched) | 92.2% (95% CI 89.9–94.0) |
+
+> *Structural-pass* is an **upper bound on robustness, not accuracy.** It only confirms the output is well-formed (non-empty, no overlaps, rebuilds the source, plausible coverage). The accuracy floor is the human-verified boundary-gold filings (see [How quality is checked](#how-quality-is-checked-no-public-reference-answer)).
+
+---
+
+## Known limitations (with examples)
+
+These cases are still hard, unstable, or unsupported. They are listed **on purpose**. Every one is **detected and flagged** (`needs_review`) — none is a silent failure. The measured silent-failure rate is **0**.
+
+| Case | Example filing | Status |
+|------|----------------|--------|
+| **Header text stripped (the named ceiling)** | Morgan Stanley FY2024 | The `Item N` labels live only in styled tags that are removed when the styling is stripped. Both the rule and the fallback are header-based, so both find **0 items**. **Unsupported** without a non-header model (see below). Flagged. |
+| **Cross-reference index** | Intel FY2018, GE FY2023 | The body has no `Item N` headings; items are listed only in an end-of-document index table. Coverage drops to ~1–2%. **Unsupported** by the header approach (~1% of filings). Flagged. |
+| **Scattered item** | JPMorgan FY2023, Item 7 | Item 7 is a short pointer stub; the real MD&A text sits outside the range. Recall cannot see this, so a dedicated scattered-item probe flags it. Tracked. |
+| **Lead-item drop** | Bank of America FY2023, Walmart FY2003, Honeywell FY2024 | Item 1 / Item 7 dropped due to run-fragmentation, a joined-together `PART I ITEM 1.` line, or a no-separator header. Flagged. |
+| **Separator-less header (hard anchor)** | General Mills FY2018 | A separator-less header (`ITEM 1 BUSINESS`); the boundary is char-gold-verified, but the filing is still tracked `expect_red` at the full-filing level. Tracked. |
+| **Filing selection** | 374Water 10-K/A | A ticker-by-year lookup can return a 10-K/A amendment (Part III only) instead of the full 10-K. The eval pins the full filing by accession. Tracked. |
+
+**The one fix that is genuinely out of scope:** the *named ceiling* above needs a **non-header extractor that fails differently from the rules** — for example a **CRF** (Conditional Random Field, a sequence-labeling model) that relies on structure (`is-line-start`, `prior-item-seen`) instead of the `Item N` text. This is large effort and documented as the stretch item. The point is that the system **flags** these filings instead of returning a broken result silently.
+
+---
+
+## How quality is checked (no public reference answer)
+
+There is no public, filing-level reference answer (ground truth) for 10-K item boundaries. So every check below is **independent of the extractor** — a model judging its own output cannot catch a confident, systematic error. The checks run cheap-to-expensive:
+
+1. **Structural rules + round-trip (100% of filings, no labels needed).** Items must be ordered, non-overlapping, and rebuild the source byte-for-byte.
+2. **Independent dual-extractor cross-check.** A second tool (`edgartools`) supplies its own item text; we compare. *Honest limit:* both tools are header-based, so they share the same weakness — this gates big items, not the hard cases.
+3. **Char-exact human gold (8 filings).** A human read the filing and marked each item's true boundary; we score overlap (IoU ≥ 0.9). Two of the eight (M2i, Microsoft FY1995) were labeled by a method independent of the rules, so their agreement is a genuine cross-check, not a circular result.
+4. **XBRL Item-8 oracle.** A tagged financial fact, taken from the SEC's companyfacts API (**not** our output), must fall inside the extracted Item 8.
+5. **Per-item status check (`expected_status`).** For a few filings we assert the correct *status* of named items, taken from a human-audited reference. Example: Microsoft FY1996 has no Item 7A (that item did not exist in 1996), so the system must mark it `legitimately_absent`, not `extraction_failure`. This catches mis-classification that a presence-only check cannot see.
+6. **Signal D — classification gold.** A human-audited, frozen reference labels each item's true status by the objective rule "does the heading physically exist?". It independently catches real production errors (for example a date-boundary mistake on Item 1C).
+7. **Validate-the-validator.** A mutation battery injects faults (swap, merge, truncate an item) into a known-good filing and asserts each check fires. A check that never fails is worthless.
+
+The headline result is **silent-failure rate 0 on the curated set** (where the flag is measured against the gold) — the system is allowed to be wrong only when it says so. On the large population sweep we report structural-pass only (an upper bound); the flag-vs-silent check on the fail tail is reproducible via `eval/sweep_fail_tail.py`, but that population result is not committed as a report. Boundary match is IoU 1.0 on the **5 verified gold filings** (8 char-gold in total; the other 3 are hard-case fix-targets, see [`ANALYSIS.md`](ANALYSIS.md) §2), scoped per era.
 
 ---
 
 ## Cost, scalability, correctness
 
-See [`ANALYSIS.md`](ANALYSIS.md): §3 (per-filing cost — deterministic tier \$0; the default extract
-path is \$0 because the LLM tier is **default-off** and **measured to add no independent-signal gain
-on our gold**; when an operator opts in, the real Copilot escalation is ~13k input tokens/call,
-flat-rate so marginal \$≈0), §4 (scalability — O(n)
-stateless per filing, cache by accession, EDGAR rate limit is the real cap), §5 (the verification
-tower), §6 (failure modes), §9 (the autoresearch close-out).
+See [`ANALYSIS.md`](ANALYSIS.md) for the full numbers.
 
----
-
-## Where AI helped
-
-This repo was built in an AI-amplified workflow; the trail is first-class, not an afterthought:
-- **[`prompts/`](prompts/)** — the key prompts, dated, verbatim, with a short "what I did" per
-  record (planning, the Docker/frontend builds, the boundary-gold audit, each autoresearch round).
-- **[`research/`](research/)** — the eval-driven **Modify→Verify→Keep/Discard autoresearch** rounds
-  that hardened the system: round 1 (eval growth, the escalation apply-loop, the named-ceiling
-  discovery, and an **honest anti-Goodhart discard**) and round 2 (building **Signal D** — an
-  independent, human-audited classification ruler — and only *then* earning the form-aware template
-  fix the discard had deferred). Each round logs findings + an append-only machine ledger.
-- Reviewer discipline (verify-from-code, prove-independence-by-live-disagreement) was applied to
-  every "passed / green / earned" claim before it was kept.
+- **Cost (§3).** The deterministic path is **$0** per filing. The default extract path is also $0, because the LLM layer is off by default and was measured to add no gain on our gold. When an operator chooses to enable it, the real Copilot call is about 13k input tokens per call, at a flat-rate quota, so the marginal dollar cost is ≈ 0.
+- **Scalability (§4).** The deterministic path is O(n) over the text and stateless per filing, so it scales out in parallel. Results cache by accession. The real throughput limit is EDGAR's rate limit, not CPU or memory.
+- **Correctness (§5–6).** Round-trip is enforced, so coverage is provable. Every item carries confidence and provenance. Missing items are classified, never dropped. The headline metric is the silent-failure rate (0), not raw accuracy.
 
 ---
 
 ## Repo layout
 
 ```
-sec10k/      pipeline: ingest -> normalize (canonical + offsets) -> segment -> validate -> schema
+sec10k/      pipeline: ingest -> normalize (canonical text + offsets) -> segment -> validate -> schema
 api/         FastAPI server (extract / demo / paste-text / eval report) + token gate
-web/         React + Vite dark-theme frontend (item navigator, boundary viewer, confidence panel)
+web/         React + Vite frontend (item navigator, boundary viewer, confidence panel)
 eval/        accession-pinned eval set, run_eval.py, boundary_gold.json + classification_gold.json (human-audited)
-tests/       offline, network-free unit + mutation/independence-guard tests
-docs/        design + grounding docs
-prompts/     dated, verbatim key prompts (AI-collaboration trail)
-research/     autoresearch round findings + append-only progress ledgers
+tests/       offline, network-free unit + mutation / independence-guard tests
+docs/        design and grounding docs
+prompts/     dated, verbatim key prompts (the AI-collaboration trail)
+research/    autoresearch round findings + append-only progress records
 ANALYSIS.md  the analysis report (performance, cost, scalability, verification, failure modes)
 ```
 
 SEC filings are public-domain U.S. government data.
+
+---
+
+## Where AI helped
+
+This project was built with AI as a working partner. I guided the work through prompts and review, but AI did much of the heavy lifting — and a lot of the *checking*, including reviewing its own output. The full trail is in [`prompts/`](prompts/) (dated, verbatim prompts) and [`research/`](research/) (the autoresearch rounds). The main places AI helped:
+
+1. **Understanding the domain.** I ran grounding research first to choose the methodology, and used AI to come up to speed quickly on what a 10-K filing is, how its items are structured, and how to *validate* an extraction when there is no public ground truth. I pushed for explanations I could actually check: *"use simpler to understand ones, with illustration and analogy."*
+
+2. **The cost decision.** I questioned whether the tool even needed an LLM: *"i am curious why the 10k extractor need a llm? i thought we only need the pipeline."* AI confirmed, from existing research, that a deterministic code segmenter handles the common case at near-zero cost, and that the LLM could be added and tested later. This set the "deterministic-first, LLM-last" design.
+
+3. **Autoresearch, with AI doing the loop and the review.** AI drove an eval-driven loop — run a population sweep, find a failure cluster, fix it, then check the eval set for regressions — round by round, and a separate reviewer session (a fresh AI reviewer, with no shared context) reviewed each round's output. My role was to watch the key metrics, discuss the important findings from each experiment, and make the final go / no-go call: a change was kept only when I was satisfied the independent signals held and nothing else regressed.
+
+Every "passed" or "earned" claim was checked from the code — often by an independent AI reviewer — before it was kept.
