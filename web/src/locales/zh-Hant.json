@@ -183,6 +183,26 @@
     "unscored": "未評分"
   },
   "prov": {
+    "monotonic": {
+      "t": "Monotonic order（單調順序）",
+      "d": "各 item 依位置遞增排列——沒有 item 的起點早於前一個的終點。違反代表 segmentation 順序錯亂。"
+    },
+    "non_overlapping": {
+      "t": "Non-overlapping（不重疊）",
+      "d": "任兩個 item 的 range 不重疊，因此同一段文字不會被指派給兩個 item。"
+    },
+    "contiguous": {
+      "t": "Contiguous tiling（連續拼接）",
+      "d": "item 的 span 連續拼接、無縫隙——被涵蓋區域的每個部分都屬於剛好一個 item。"
+    },
+    "round_trip": {
+      "t": "Round-trip exact（往返一致）",
+      "d": "把所有 item 的 span 接起來能逐位元組重建原文。這證明 item 是從原文索引出來的，從不改寫。"
+    },
+    "coverage_plausible": {
+      "t": "Plausible coverage（合理覆蓋率）",
+      "d": "抽出的 item 覆蓋文件的合理比例。覆蓋率過低代表很可能 mis-segmentation，例如 cross-reference index。"
+    },
     "content": {
       "t": "Content heuristic",
       "d": "item 的文字通過 content sanity check —— 有合理、非瑣碎的內文,不是空殼。"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { itemColor } from "../lib/format";
 import type { Item } from "../types";
@@ -16,8 +16,40 @@ interface Props {
 function ProvenanceChip({ tag, ok }: { tag: string; ok: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [offsetX, setOffsetX] = useState(0);
+  const [above, setAbove] = useState(false);
+  const bubbleRef = useRef<HTMLSpanElement>(null);
   const label = t(`prov.${tag}.t`, { defaultValue: tag });
   const desc = t(`prov.${tag}.d`, { defaultValue: "" });
+
+  // Same viewport clamp as InfoTip: shift the bubble horizontally so it never overflows the
+  // window edge (the leftmost chip's centered tooltip would otherwise clip off the left), and
+  // flip it above when there is no room below.
+  useLayoutEffect(() => {
+    if (!open || !desc) return;
+    function clamp() {
+      const bubble = bubbleRef.current;
+      if (!bubble) return;
+      bubble.style.transform = "translateX(-50%)";
+      const rect = bubble.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      const vh = document.documentElement.clientHeight;
+      const m = 8;
+      let dx = 0;
+      if (rect.right > vw - m) dx = vw - m - rect.right;
+      else if (rect.left < m) dx = m - rect.left;
+      setOffsetX(dx);
+      setAbove(rect.bottom > vh - m && rect.top - rect.height > m);
+    }
+    clamp();
+    window.addEventListener("resize", clamp);
+    window.addEventListener("scroll", clamp, true);
+    return () => {
+      window.removeEventListener("resize", clamp);
+      window.removeEventListener("scroll", clamp, true);
+    };
+  }, [open, desc, label]);
+
   return (
     <span
       className={`chip ${ok ? "pass" : "fail"} tagtip`}
@@ -29,7 +61,12 @@ function ProvenanceChip({ tag, ok }: { tag: string; ok: boolean }) {
     >
       {ok ? "✓" : "✕"} {tag}
       {open && desc && (
-        <span role="tooltip" className="infotip-bubble">
+        <span
+          ref={bubbleRef}
+          role="tooltip"
+          className={`infotip-bubble${above ? " infotip-above" : ""}`}
+          style={{ transform: `translateX(calc(-50% + ${offsetX}px))` }}
+        >
           <strong>{label}</strong>
           <span>{desc}</span>
         </span>

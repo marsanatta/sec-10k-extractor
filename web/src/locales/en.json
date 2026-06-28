@@ -183,6 +183,26 @@
     "unscored": "Unscored"
   },
   "prov": {
+    "monotonic": {
+      "t": "Monotonic order",
+      "d": "The items appear in increasing position order — no item starts before the previous one ends. A violation means the segmentation is out of order."
+    },
+    "non_overlapping": {
+      "t": "Non-overlapping",
+      "d": "No two item ranges overlap, so the same text is never assigned to two different items."
+    },
+    "contiguous": {
+      "t": "Contiguous tiling",
+      "d": "The item spans tile the body without gaps — every part of the covered region belongs to exactly one item."
+    },
+    "round_trip": {
+      "t": "Round-trip exact",
+      "d": "Joining all the item spans reconstructs the source text byte-for-byte. This proves the items are indexed from the source, never rewritten."
+    },
+    "coverage_plausible": {
+      "t": "Plausible coverage",
+      "d": "The extracted items cover a plausible fraction of the document. Very low coverage flags a likely mis-segmentation, such as a cross-reference index."
+    },
     "content": {
       "t": "Content heuristic",
       "d": "The item's text passed a content sanity check — a plausible, non-trivial body, not an empty stub."
