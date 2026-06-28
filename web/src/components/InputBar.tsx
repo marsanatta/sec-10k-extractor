@@ -23,6 +23,10 @@ interface Props {
   defaultModel: string;
   loading: boolean;
   elapsed: number;
+  escalate: boolean;
+  onEscalate: (value: boolean) => void;
+  model: string;
+  onModel: (value: string) => void;
   onSubmit: (req: ExtractRequest) => void;
   onText: (text: string, model?: string, escalate?: boolean) => void;
   token: string;
@@ -34,6 +38,10 @@ export function InputBar({
   defaultModel,
   loading,
   elapsed,
+  escalate,
+  onEscalate,
+  model,
+  onModel,
   onSubmit,
   onText,
   token,
@@ -45,8 +53,6 @@ export function InputBar({
   const [fiscalYear, setFiscalYear] = useState("");
   const [accession, setAccession] = useState("");
   const [text, setText] = useState("");
-  const [model, setModel] = useState("");
-  const [escalate, setEscalate] = useState(false);
   const [fileError, setFileError] = useState("");
 
   const effectiveModel = model || defaultModel;
@@ -128,7 +134,7 @@ export function InputBar({
                 type="checkbox"
                 checked={escalate}
                 disabled={loading}
-                onChange={(e) => setEscalate(e.target.checked)}
+                onChange={(e) => onEscalate(e.target.checked)}
               />
               <label htmlFor="escalate">{t("input.escalateLabel")}</label>
               <InfoTip term="escalation" />
@@ -139,7 +145,7 @@ export function InputBar({
               value={effectiveModel}
               disabled={loading || !escalate || models.length === 0}
               aria-label={t("input.modelLabel")}
-              onChange={(e) => setModel(e.target.value)}
+              onChange={(e) => onModel(e.target.value)}
             >
               {models.map((m) => (
                 <option key={m.id} value={m.id}>

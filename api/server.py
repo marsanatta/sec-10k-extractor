@@ -218,14 +218,19 @@ def extract(req: ExtractRequest) -> JSONResponse:
 
 
 @app.get("/api/demo-result/{demo_id}")
-def demo_result(demo_id: str) -> JSONResponse:
+def demo_result(demo_id: str, escalate: bool = False, model: str | None = None) -> JSONResponse:
     """Open (ungated) extraction for the fixed curated demo set. The token gate exists to stop
     arbitrary EDGAR queries; the demos are a small fixed list (not user input), so reviewers
-    can browse them without a token. Cached after the first hit like any other extraction."""
+    can browse them without a token. `escalate`/`model` let the LLM-escalation toggle apply to the
+    demo set too (bounded to these fixed filings), so a reviewer can see the tier fire on a hard
+    case. Cached (by escalate+model) after the first hit like any other extraction."""
     entry = next((d for d in DEMO_FILINGS if d["id"] == demo_id), None)
     if entry is None:
         return JSONResponse(status_code=404, content={"error": f"Unknown demo id: {demo_id}"})
-    return _run_extraction(entry.get("ticker"), entry.get("fiscal_year"), entry.get("accession"))
+    return _run_extraction(
+        entry.get("ticker"), entry.get("fiscal_year"), entry.get("accession"),
+        model=model if escalate else None, escalate=escalate,
+    )
 
 
 class ExtractTextRequest(BaseModel):

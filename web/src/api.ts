@@ -20,8 +20,20 @@ export async function fetchModels(): Promise<{ models: ModelInfo[]; default: str
   return asJson<{ models: ModelInfo[]; default: string }>(await fetch("/api/models"));
 }
 
-export async function extractDemo(id: string): Promise<ExtractionResult> {
-  return asJson<ExtractionResult>(await fetch(`/api/demo-result/${encodeURIComponent(id)}`));
+export async function extractDemo(
+  id: string,
+  escalate?: boolean,
+  model?: string,
+): Promise<ExtractionResult> {
+  const params = new URLSearchParams();
+  if (escalate) {
+    params.set("escalate", "true");
+    if (model) params.set("model", model);
+  }
+  const qs = params.toString();
+  return asJson<ExtractionResult>(
+    await fetch(`/api/demo-result/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`),
+  );
 }
 
 function authHeaders(token?: string): Record<string, string> {

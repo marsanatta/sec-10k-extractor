@@ -23,6 +23,8 @@ export default function App() {
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState(() => localStorage.getItem("sec10k_access_token") ?? "");
+  const [escalate, setEscalate] = useState(false);
+  const [model, setModel] = useState("");
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -66,7 +68,8 @@ export default function App() {
   }
 
   const runExtract = (req: ExtractRequest) => run(() => extract(req, token));
-  const runDemo = (id: string) => run(() => extractDemo(id));
+  const runDemo = (id: string) =>
+    run(() => extractDemo(id, escalate, escalate ? model || defaultModel : undefined));
   const runText = (text: string, model?: string, escalate?: boolean) =>
     run(() => extractText(text, token, model, escalate));
 
@@ -96,6 +99,10 @@ export default function App() {
             defaultModel={defaultModel}
             loading={loading}
             elapsed={elapsed}
+            escalate={escalate}
+            onEscalate={setEscalate}
+            model={model}
+            onModel={setModel}
             onSubmit={runExtract}
             onText={runText}
             token={token}
