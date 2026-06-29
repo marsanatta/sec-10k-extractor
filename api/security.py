@@ -2,11 +2,11 @@
 
 Mirrors browser-agent/backend/app/security.py. Once the app is reachable over a public
 URL, anyone who learns the URL could hammer /api/extract -- each call does a
-slow live EDGAR fetch, so an open endpoint invites abuse of the operator's SEC rate-limit
+slow live EDGAR fetch, so an open endpoint invites abuse of the author's SEC rate-limit
 budget and ties up the worker pool. A single shared secret is the appropriate control for a
-one-operator demo (no per-user identity/revocation -- out of scope, same as browser-agent).
+one-author demo (no per-user identity/revocation -- out of scope, same as browser-agent).
 
-Fail-closed: if SEC10K_ACCESS_TOKEN is unset, the protected path returns 503 -- the operator
+Fail-closed: if SEC10K_ACCESS_TOKEN is unset, the protected path returns 503 -- the author
 must configure a token before exposing it publicly. Wrong/absent token -> 401.
 
 The token is read from an `Authorization: Bearer` header only. We deliberately do NOT accept
@@ -63,7 +63,7 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
                 )
             if not valid(_bearer(request.headers.get("authorization"))):
                 return JSONResponse(
-                    {"error": "Unauthorized -- provide the access token shared by the operator."},
+                    {"error": "Unauthorized -- provide the access token shared by the author."},
                     status_code=401,
                 )
         return await call_next(request)

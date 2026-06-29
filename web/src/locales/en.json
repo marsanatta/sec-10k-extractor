@@ -45,7 +45,7 @@
     "demoTitle": "Fastest start: a curated demo",
     "demoBody": "Pick a pre-selected filing here to load a real example with no token. Once it loads, the tour continues with how to read the report.",
     "lookupTitle": "Or look up your own filing",
-    "lookupBody": "Enter a ticker + fiscal year, an EDGAR accession, or paste raw filing text. This needs an access token from the operator.",
+    "lookupBody": "Enter a ticker + fiscal year, an EDGAR accession, or paste raw filing text. This needs an access token from the author.",
     "tabsTitle": "Two views",
     "tabsBody": "Inspect examines one filing item-by-item. Eval / still-hard is the aggregate quality report across many filings.",
     "langTitle": "Language",
@@ -76,7 +76,7 @@
     "customNote": "needs access token",
     "tokenLabel": "Access token",
     "tokenRequired": "(required)",
-    "tokenPlaceholder": "shared by the operator",
+    "tokenPlaceholder": "shared by the author",
     "escalateLabel": "LLM escalation",
     "escalateOffNote": "Off — regex only, $0. Turn on to adjudicate low-confidence boundaries with an LLM.",
     "modelLabel": "Escalation model",
@@ -265,7 +265,7 @@
     },
     "accessToken": {
       "t": "Access token",
-      "d": "A shared key the operator gives you. Required to look up or submit your own filings — it gates the EDGAR-fetching backend."
+      "d": "A shared key the author gives you. Required to look up or submit your own filings — it gates the EDGAR-fetching backend."
     },
     "ticker": {
       "t": "Ticker",

@@ -213,7 +213,7 @@ The headline result is **silent-failure rate 0/27 on the curated set** (where th
 
 See [`ANALYSIS.md`](ANALYSIS.md) for the full numbers.
 
-- **Cost (§3).** The deterministic path is **$0** per filing. The default extract path is also $0, because the LLM layer is off by default and was measured to add no gain on our gold. When an operator chooses to enable it, the real Copilot call is about 13k input tokens per call, at a flat-rate quota, so the marginal dollar cost is ≈ 0.
+- **Cost (§3).** The deterministic path is **$0** per filing. The default extract path is also $0, because the LLM layer is off by default and was measured to add no gain on our gold. When an author chooses to enable it, the real Copilot call is about 13k input tokens per call, at a flat-rate quota, so the marginal dollar cost is ≈ 0.
 - **Scalability (§4).** The deterministic path is O(n) over the text and stateless per filing, so it scales out in parallel. Results cache by accession. The real throughput limit is EDGAR's rate limit, not CPU or memory.
 - **Correctness (§5–6).** Round-trip is enforced, so coverage is provable. Every item carries confidence and provenance. Missing items are classified, never dropped. The headline metric is the silent-failure rate (0), not raw accuracy.
 

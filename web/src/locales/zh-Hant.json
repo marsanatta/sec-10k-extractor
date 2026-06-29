@@ -45,7 +45,7 @@
     "demoTitle": "最快上手：curated demo",
     "demoBody": "在這裡挑一份預選的 filing，不需 token 就能載入真實範例。載入後，導覽會接著教你怎麼讀報告。",
     "lookupTitle": "或查詢你自己的 filing",
-    "lookupBody": "輸入 ticker + fiscal year、EDGAR accession，或貼上 filing 原始文字。這需要 operator 提供的 access token。",
+    "lookupBody": "輸入 ticker + fiscal year、EDGAR accession，或貼上 filing 原始文字。這需要 author 提供的 access token。",
     "tabsTitle": "兩種檢視",
     "tabsBody": "Inspect 逐一檢查單一 filing 的每個 Item。Eval / still-hard 則是跨多份 filing 的整體品質報告。",
     "langTitle": "語言",
@@ -76,7 +76,7 @@
     "customNote": "需要 access token",
     "tokenLabel": "Access token",
     "tokenRequired": "（必填）",
-    "tokenPlaceholder": "由 operator 提供",
+    "tokenPlaceholder": "由 author 提供",
     "escalateLabel": "LLM escalation",
     "escalateOffNote": "關閉 — 只用 regex，$0。開啟後會用 LLM 來裁定低信心的 boundary。",
     "modelLabel": "Escalation model",
@@ -265,7 +265,7 @@
     },
     "accessToken": {
       "t": "Access token（存取金鑰）",
-      "d": "operator 給你的共用金鑰。查詢或提交你自己的 filing 時需要 — 它把關後端的 EDGAR 抓取。"
+      "d": "author 給你的共用金鑰。查詢或提交你自己的 filing 時需要 — 它把關後端的 EDGAR 抓取。"
     },
     "ticker": {
       "t": "Ticker（股票代號）",
