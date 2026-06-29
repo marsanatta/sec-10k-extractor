@@ -98,7 +98,7 @@ SEC_EDGAR_USER_AGENT="Your Name you@example.com" uvicorn api.server:app --port 8
 ### Option C — Tests and the evaluation harness
 
 ```bash
-python -m pytest -q     # 100 offline unit tests (99 pass, 1 skipped) — network-free, no User-Agent needed
+python -m pytest -q     # 101 offline unit tests (100 pass, 1 skipped) — network-free, no User-Agent needed
 SEC_EDGAR_USER_AGENT="Your Name you@example.com" python eval/run_eval.py   # on-demand EDGAR batch -> eval/report.md
 ```
 
@@ -186,6 +186,7 @@ These cases are still hard, unstable, or unsupported. They are listed **on purpo
 | **Scattered item** | JPMorgan FY2023, Item 7 | Item 7 is a short pointer stub; the real MD&A text sits outside the range. Recall cannot see this, so a dedicated scattered-item probe flags it. Tracked. |
 | **Lead-item drop** | Bank of America FY2023, Walmart FY2003, Honeywell FY2024 | Item 1 / Item 7 dropped due to run-fragmentation, a joined-together `PART I ITEM 1.` line, or a no-separator header. Flagged. |
 | **Separator-less header (hard anchor)** | General Mills FY2018 | A separator-less header (`ITEM 1 BUSINESS`); the boundary is char-gold-verified, but the filing is still tracked `expect_red` at the full-filing level. Tracked. |
+| **Tolerant-split over-drop** | ~1.8% of filings (Item 7A) | When an in-prose cross-reference (e.g. "see Item 8") sits mid-run, the relaxed split skips a genuine item, so the segmenter conservatively keeps the strict partial result instead of recovering at the cost of Item 7A (~22 of 1,735 cached filings). Flagged (`needs_review`). Deferred — high blast-radius for a ~1.8% already-mitigated gain. |
 | **Filing selection** | 374Water 10-K/A | A ticker-by-year lookup can return a 10-K/A amendment (Part III only) instead of the full 10-K. The eval pins the full filing by accession. Tracked. |
 
 **The one fix that is genuinely out of scope:** the *named ceiling* above needs a **non-header extractor that fails differently from the rules** — for example a **CRF** (Conditional Random Field, a sequence-labeling model) that relies on structure (`is-line-start`, `prior-item-seen`) instead of the `Item N` text. This is large effort and documented as the stretch item. The point is that the system **flags** these filings instead of returning a broken result silently.

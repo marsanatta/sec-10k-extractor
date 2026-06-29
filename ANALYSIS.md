@@ -592,7 +592,7 @@ its headline goal and is **being closed out**:
 ## Reproduce
 
 ```bash
-python -m pytest -q                 # 99 passing, 1 skipped — incl. mutation battery, token ledger, Signal D, Copilot fallback
+python -m pytest -q                 # 100 passing, 1 skipped — incl. mutation battery, token ledger, Signal D, Copilot fallback
 SEC_EDGAR_USER_AGENT="Name email" python eval/run_eval.py   # regenerates eval/report.md + report.json
 ```
 Numbers in this doc are from that report (`eval/report.md`) and the per-filing summaries; the
