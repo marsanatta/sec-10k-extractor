@@ -80,11 +80,10 @@ cp .env.example .env
 # In .env, set:  SEC_EDGAR_USER_AGENT="Your Name you@example.com"
 ```
 
-### Option A — Docker + public tunnel (what the frontend uses)
+### Option A — Docker
 
 ```bash
-docker compose up --build         # starts the app on port 8000 + a Cloudflare tunnel
-docker compose logs cloudflared   # prints the public https://<...>.trycloudflare.com URL
+docker compose up --build         # builds and starts the app on http://localhost:8000
 ```
 
 ### Option B — Local development
@@ -107,13 +106,11 @@ The unit suite is fixture-based and never touches the network. It includes a bou
 
 ---
 
-## Live frontend
+## Frontend
 
-The web UI lets you submit or select a filing, inspect each extracted item, and see the source highlight, the confidence score, which checks fired, and the present / legitimately-absent / failure status.
+The web UI lets you submit or select a filing, inspect each extracted item, and see the source highlight, the confidence score, which checks fired, and the present / legitimately-absent / failure status. See [Run it](#run-it) — the Docker app serves it on `http://localhost:8000`.
 
-It is served by the Docker app behind a **Cloudflare quick tunnel**. The public `https://<...>.trycloudflare.com` URL is **temporary** — it changes when the tunnel restarts — so it ships with the submission rather than hardcoded here. To create your own, follow [Run it](#run-it) and read the URL from `docker compose logs cloudflared`.
-
-The demo filings in the UI are **open** (no token). Free-form extraction (any ticker or accession, or pasting filing text) is protected by an optional shared token (`SEC10K_ACCESS_TOKEN`), so a public URL cannot be used to overload SEC's rate limit.
+The demo filings in the UI are **open** (no token). Free-form extraction (any ticker or accession, or pasting filing text) is protected by an optional shared token (`SEC10K_ACCESS_TOKEN`), so an exposed endpoint cannot be used to overload SEC's rate limit.
 
 ---
 
