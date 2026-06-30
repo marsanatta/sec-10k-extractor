@@ -63,11 +63,19 @@ def fetch_10k(
         except Exception:
             smaller_reporting = None
         filings = company.get_filings(form="10-K")
-        filing = _select_by_fiscal_year(filings, fiscal_year) if fiscal_year else None
-        if filing is None:
+        if fiscal_year is not None:
+            # An explicit year must match a real filing -- never fall back to the latest,
+            # or "IBM 1995" silently returns IBM's most recent 10-K (a silent wrong-filing).
+            # `is not None` (not truthiness) so an explicit 0 is also matched-or-raised.
+            filing = _select_by_fiscal_year(filings, fiscal_year)
+            if filing is None:
+                raise ValueError(
+                    f"No 10-K filing for {ticker_or_cik} with fiscal year {fiscal_year}"
+                )
+        else:
             filing = filings.latest()
-        if filing is None:
-            raise ValueError(f"No 10-K filings found for {ticker_or_cik}")
+            if filing is None:
+                raise ValueError(f"No 10-K filings found for {ticker_or_cik}")
     else:
         raise ValueError("Provide ticker_or_cik (with optional fiscal_year) or accession")
 
