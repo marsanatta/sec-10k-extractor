@@ -157,7 +157,7 @@ logic will pass even when the segmenter is confidently, systematically wrong. So
 is **independent of the production segmenter**, layered cheap (100% scope) → expensive (narrow
 gold):
 
-![Verification stack: independent checks, cheap and wide → expensive and narrow; result silent-failure 0/27](docs/verification-stack.svg)
+![Verification stack: independent checks run in parallel — bar length is coverage (100% of filings down to 6 hand-audited); result silent-failure 0/27](docs/verification-stack.svg)
 
 ### 4.1 The eval set
 
